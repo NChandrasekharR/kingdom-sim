@@ -3,7 +3,7 @@
   "runs": 120,
   "table": [
     {
-      "point": "default",
+      "point": "iq=0",
       "interesting": 0.17,
       "collapse": 0,
       "spiral": 0,
@@ -12,6 +12,28 @@
       "prospP90": 9815,
       "recovMean": 116,
       "breakdown": "TOO-EASY:100 INTERESTING:20"
+    },
+    {
+      "point": "iq=1",
+      "interesting": 0,
+      "collapse": 0,
+      "spiral": 0,
+      "crisisMed": 0.01,
+      "prospMed": 11319,
+      "prospP90": 12751,
+      "recovMean": 115,
+      "breakdown": "TOO-EASY:120"
+    },
+    {
+      "point": "iq=2",
+      "interesting": 0,
+      "collapse": 0,
+      "spiral": 0,
+      "crisisMed": 0.01,
+      "prospMed": 11277,
+      "prospP90": 13757,
+      "recovMean": 110,
+      "breakdown": "TOO-EASY:120"
     }
   ]
 }

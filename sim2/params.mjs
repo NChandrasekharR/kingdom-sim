@@ -110,14 +110,40 @@ export const DEFAULTS = {
 
   // — the scripted "player" policy —
   player: {
+    // ── tier (B1): 0 = passive legacy bot, 1 = competent, 2 = sharp ──
+    // Numeric so monte.mjs can sweep it: --sweep player.iq=0,1,2
+    // iq 0 reproduces the pre-B1 behavior exactly (reactive repair, fixed army).
+    // iq 1 adds what any decent player does: reads the raid telegraph, surges
+    //   repair before/after raids, scales the army to the expected raid size,
+    //   demobilizes in peacetime (soldiers eat 3x), preps food before winter.
+    // iq 2 adds micro headroom: peacetime HP kept high (denies weakHp targeting),
+    //   positioning bonus in combat, will pull producers into a militia.
+    iq: 0,
     maintenanceThreshold: 0.6,   // repair buildings below this HP fraction
     foodMarginTarget: 1.6,       // build food capacity to pop*eat*this
     haulersAuto: true,
-    soldierTarget: 6,            // standing army size
+    soldierTarget: 6,            // standing army size (iq 0 only)
     towerPerBuildings: 6,        // 1 watchtower per N buildings
     readyByYear: 0.85,          // wants defense (barracks + 2 soldiers) before first raid
     sellSurplusAbove: 80,
     merchantBuyCap: 40,          // caps liquidation (a §4 sink)
+    // — iq >= 1 (competent) —
+    raidAlertTicks: 120,         // brace when raid.timer drops below this (the telegraph)
+    peacetimeSoldiers: 2,        // minimum standing army (population permitting)
+    threatArmyFactor: 0.6,       // standing army per expected raider (kept at ALL times —
+                                 // muster-from-zero was tried and loses: green, late, small)
+    popPerSoldier: 8,            // army capped at pop/this — combat attrition is ablative,
+                                 // a small kingdom fielding militia grinds up its producers
+    militiaMinPop: 25,           // below this pop, never pull producers into the militia
+    towerPerExpectedRaiders: 4,  // towers built per expected raiders (they kill for free)
+    surgeRepairThreshold: 0.95,  // repair-to target during telegraph + post-raid surge
+    postRaidSurgeTicks: 300,     // keep surging this long after a raid ends
+    maxBuilderFrac: 0.35,        // never assign more than this fraction of labor to repair
+    winterFoodMult: 1.5,         // autumn: raise food margin target for winter
+    // — iq = 2 (sharp) —
+    sharpMaintenance: 0.85,      // peacetime HP floor (denies weakHp raid targeting)
+    sharpCombatMult: 1.3,        // soldier damage bonus (positioning/choke micro)
+    sharpSoldierDeathChance: 0.10, // vs 0.15 base — fights from better ground
   },
 };
 

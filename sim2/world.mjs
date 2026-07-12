@@ -112,21 +112,95 @@ export class World {
     return v;
   }
 
+  // ── player awareness (B1 tiers) ───────────────────────────────────
+  // The passive bot (iq 0) never reads any of these signals.
+  raidTelegraphed() {
+    return this.raid.phase === 'quiet' && this.raid.timer < this.P.player.raidAlertTicks &&
+      this.year() >= this.P.raid.firstYear;
+  }
+  // muster = keep the army up: from the telegraph through the fight
+  mustering() {
+    return !!this.P.player.iq && (this.raid.phase === 'active' || this.raidTelegraphed());
+  }
+  // surge = throw extra labor at repair: before the raid (top up HP so sacking
+  // takes longer) and after it (recover output fast). NOT during — repairing
+  // under active raider damage is wasted labor a competent player doesn't spend.
+  surging() {
+    if (!this.P.player.iq || this.raid.phase === 'active') return false;
+    return this.raidTelegraphed() || (this._surgeUntil && this.tick < this._surgeUntil);
+  }
+
+  // What a competent player expects the next wave to bring (mirrors spawnRaid).
+  expectedRaidSize() {
+    const R = this.P.raid;
+    let size = R.sizeBase + Math.pow(this.prosperity(), R.prosperityExpo) / R.prosperityDivisor
+      + this.soldiers.length * R.militaryPressure;
+    if (R.rubberBand) {
+      size *= Math.max(R.minSizeMult, Math.min(1.2, 1 - (this._lastSacked || 0) * R.easeAfterSack));
+    }
+    return Math.min(R.sizeCap, Math.max(1, Math.round(size)));
+  }
+
+  // Smart tiers keep a standing army sized to the threat — but capped by what
+  // the population can absorb. Combat attrition is flat per tick fought, so
+  // soldiers are ablative: a small kingdom that fields a militia feeds its
+  // producers into a meat grinder (tried; it collapses faster than passivity).
+  // Towers do the early killing; soldiers come with population depth.
+  armyTarget() {
+    const P = this.P.player;
+    const want = Math.max(P.peacetimeSoldiers, Math.ceil(this.expectedRaidSize() * P.threatArmyFactor));
+    return Math.min(want, Math.floor(this.pop / P.popPerSoldier));
+  }
+
+  // Repair threshold by tier: passive is fixed; competent surges around raids;
+  // sharp also keeps peacetime HP high so weakHp targeting finds nothing soft.
+  repairThreshold(surge) {
+    const P = this.P.player;
+    if (!P.iq) return P.maintenanceThreshold;
+    if (surge) return P.surgeRepairThreshold;
+    return P.iq >= 2 ? Math.max(P.maintenanceThreshold, P.sharpMaintenance)
+                     : P.maintenanceThreshold;
+  }
+
   // ── player labor allocation (auto) ────────────────────────────────
   assignJobs() {
     const P = this.P;
+    const surge = this.surging();
     const alive = this.villagers.filter((v) => v.alive);
+
+    // smart tiers track the army to the threat: stand down only what exceeds
+    // the current target (e.g. after rubber-band mercy shrinks the next wave)
+    if (P.player.iq && !this.mustering()) {
+      const excess = this.soldiers.length - this.armyTarget();
+      if (excess > 0) {
+        // stand down the least-skilled first, keeping veterans
+        const bySkill = [...this.soldiers].sort((a, b) => (a.skills.soldier || 0) - (b.skills.soldier || 0));
+        for (const s of bySkill.slice(0, excess)) s.job = 'idle';
+      }
+    }
+
     // reset non-soldier jobs; soldiers persist
     for (const v of alive) {
       if (v.job !== 'soldier') { v.job = 'idle'; v.workplace = null; }
     }
     let pool = alive.filter((v) => v.job !== 'soldier');
 
-    // 1. builders for maintenance: enough to fix everything below threshold
+    // 1. builders for maintenance: enough to fix everything below threshold.
+    // The smart tiers cap this — no competent player strips their farms bare
+    // to swing hammers, no matter how much is damaged.
     const needRepair = this.buildings.filter(
-      (b) => b.hp > 0 && b.hp < b.maxHp * P.player.maintenanceThreshold);
-    const buildersWanted = Math.min(pool.length, Math.ceil(needRepair.length / 2) +
+      (b) => b.hp > 0 && b.hp < b.maxHp * this.repairThreshold(surge));
+    const perBuilder = surge ? 1.2 : 2;
+    let buildersWanted = Math.min(pool.length, Math.ceil(needRepair.length / perBuilder) +
       (this._pendingBuild ? 1 : 0));
+    if (P.player.iq) {
+      buildersWanted = Math.min(buildersWanted,
+        Math.max(1, Math.floor(pool.length * P.player.maxBuilderFrac)));
+      // NEVER repair while raiders are inside the walls: healing a sacked
+      // building past half HP lets it be sacked afresh — and each re-sack
+      // rolls worker deaths. Mid-raid repair is a meat grinder (measured).
+      if (this.raid.phase === 'active') buildersWanted = 0;
+    }
     const builders = pool.splice(0, buildersWanted);
     for (const v of builders) { v.job = 'builder'; }
 
@@ -140,14 +214,20 @@ export class World {
       for (const v of haulers) v.job = 'hauler';
     }
 
-    // 3. producers: fill buildings by priority, best-skilled first
-    const order = ['farm', 'dock', 'lumber', 'quarry', 'mine', 'smelter', 'bakery', 'market'];
-    for (const type of order) {
+    // 3. producers: fill buildings by priority, best-skilled first.
+    // The passive bot fills each type completely before the next — so every
+    // lumber camp gets hands before the first quarry does, and stone (towers!)
+    // can starve for years. Smart tiers stage one camp + one quarry before
+    // filling out the rest.
+    for (const b of this.buildings) b.workers = [];
+    const fillType = (type, maxBuildings) => {
+      let filled = 0;
       for (const b of this.buildings) {
         if (b.type !== type || b.hp <= 0) continue;
+        if (filled >= maxBuildings) break;
         const want = (P.prod[type] && P.prod[type].workers) || 0;
-        b.workers = [];
-        for (let i = 0; i < want && pool.length; i++) {
+        if (b.workers.length >= want) continue;
+        for (let i = b.workers.length; i < want && pool.length; i++) {
           // pick the villager with the best skill for this building type
           let bestI = 0, bestSk = -1;
           for (let j = 0; j < pool.length; j++) {
@@ -157,8 +237,16 @@ export class World {
           const v = pool.splice(bestI, 1)[0];
           v.job = 'producer'; v.workplace = b; b.workers.push(v);
         }
+        filled++;
       }
-    }
+    };
+    const passes = P.player.iq
+      ? [['farm', Infinity], ['dock', Infinity], ['lumber', 1], ['quarry', 1],
+         ['lumber', Infinity], ['quarry', Infinity], ['mine', Infinity],
+         ['smelter', Infinity], ['bakery', Infinity], ['market', Infinity]]
+      : [['farm', Infinity], ['dock', Infinity], ['lumber', Infinity], ['quarry', Infinity],
+         ['mine', Infinity], ['smelter', Infinity], ['bakery', Infinity], ['market', Infinity]];
+    for (const [type, max] of passes) fillType(type, max);
     this.idle = pool.length;
     for (const v of pool) v.job = 'idle';
   }
@@ -393,6 +481,8 @@ export class World {
       if (this.raiders.length === 0) {
         raid.phase = 'quiet';
         this._lastSacked = this._sackedThisRaid || 0;
+        // competent player keeps repair surged after the raiders leave
+        if (this.P.player.iq) this._surgeUntil = this.tick + this.P.player.postRaidSurgeTicks;
         // gap shrinks as prosperity rises → more frequent; but a raid that hurt
         // buys extra recovery time (rubber-band).
         const pr = this.prosperity();
@@ -524,13 +614,17 @@ export class World {
 
   updateSoldiers() {
     const soldiers = this.soldiers;
+    const Pp = this.P.player;
+    // sharp player fights from prepared ground: more damage, fewer losses
+    const combatMult = Pp.iq >= 2 ? Pp.sharpCombatMult : 1;
+    const deathChance = Pp.iq >= 2 ? Pp.sharpSoldierDeathChance : 0.15;
     for (const s of soldiers) {
       if (!this.raiders.length) break;
-      const dmg = 8 * (1 + (s.skills.soldier || 0));
+      const dmg = 8 * (1 + (s.skills.soldier || 0)) * combatMult;
       const target = this.raiders[0];
       target.hp -= dmg;
       // raiders fight back
-      if (this.rng.chance(0.15)) {
+      if (this.rng.chance(deathChance)) {
         s.alive = false; this.stats.villagersLost++;
       }
     }
@@ -547,10 +641,23 @@ export class World {
       return true;
     };
 
-    // food capacity target
+    // food capacity target (competent player pads the margin going into winter)
+    const winterPrep = P.iq && this.season() === 2 ? P.winterFoodMult : 1;
     const foodCap = this.count('farm') * 0.5 + this.count('dock') * 0.4;
-    const foodNeed = this.pop * this.P.villager.eatPerTick * P.foodMarginTarget;
+    const foodNeed = this.pop * this.P.villager.eatPerTick * P.foodMarginTarget * winterPrep;
     if (foodCap < foodNeed && pay({ wood: 15 })) { this.addBuilding('farm'); return; }
+
+    // smart tiers build defense BEFORE comfort: an undefended raid never ends
+    // (nothing kills the raiders), and everything else is downstream of that.
+    // The passive bot reaches this check last and often never gets there.
+    if (P.iq) {
+      if (this.count('barracks') < 1 && this.year() + (this.tick % this.P.ticksPerYear) / this.P.ticksPerYear
+          >= P.readyByYear && pay({ wood: 30, stone: 20 })) { this.addBuilding('barracks'); return; }
+      const towersNeeded = Math.ceil(this.expectedRaidSize() / P.towerPerExpectedRaiders);
+      if (this.count('tower') < towersNeeded && pay({ wood: 15, stone: 25 })) {
+        this.addBuilding('tower'); return;
+      }
+    }
 
     // housing
     if (this.pop >= this.popCap - 1 && pay({ wood: 20 })) { this.addBuilding('house'); return; }
@@ -567,23 +674,52 @@ export class World {
     const bracing = this.year() + (this.tick % this.P.ticksPerYear) / this.P.ticksPerYear >= P.readyByYear;
     if (this.count('barracks') < 1 && (bracing || this.res.iron >= 8) &&
         pay({ wood: 30, stone: 20 })) { this.addBuilding('barracks'); return; }
-    // watchtowers scale with the town, and materials allow
-    if (this.count('tower') < Math.ceil(this.count('house') + this.count('farm')) / P.towerPerBuildings &&
+    // watchtowers scale with the town, and materials allow; smart tiers build
+    // them to meet the expected wave — towers kill without dying or eating,
+    // which makes them the backbone of a competent defense
+    let towersWanted = Math.ceil(this.count('house') + this.count('farm')) / P.towerPerBuildings;
+    if (P.iq) towersWanted = Math.max(towersWanted, Math.ceil(this.expectedRaidSize() / P.towerPerExpectedRaiders));
+    if (this.count('tower') < towersWanted &&
         this.res.stone > 25 && pay({ wood: 15, stone: 25 })) { this.addBuilding('tower'); return; }
 
-    // soldiers: recruit from idle pop; costs iron once, then food-upkeep (not gold)
-    const wantSoldiers = bracing ? Math.max(2, P.soldierTarget) : P.soldierTarget;
-    if (this.soldiers.length < wantSoldiers && this.count('barracks') > 0 && this.idle > 1) {
-      const recruit = this.villagers.find((v) => v.alive && v.job === 'idle');
+    // soldiers: recruit from idle pop; costs iron once, then food-upkeep (not gold).
+    // passive bot keeps a fixed standing army; competent player musters to the
+    // expected raid size when the telegraph fires, and stays lean otherwise
+    // (demobilization happens in assignJobs).
+    const mustering = this.mustering();
+    let wantSoldiers;
+    if (!P.iq) wantSoldiers = bracing ? Math.max(2, P.soldierTarget) : P.soldierTarget;
+    else wantSoldiers = this.armyTarget();
+    // the passive bot only recruits spare hands; smart tiers keep filling
+    // toward the target whenever they're short
+    if (this.soldiers.length < wantSoldiers && this.count('barracks') > 0 &&
+        (this.idle > 1 || P.iq)) {
+      let recruit = this.villagers.find((v) => v.alive && v.job === 'idle');
+      // militia: pull the greenest producer if idle is dry — but only a kingdom
+      // deep enough to absorb combat losses does this
+      if (!recruit && P.iq && this.pop >= P.militiaMinPop) {
+        const producers = this.villagers.filter((v) => v.alive && v.job === 'producer')
+          .sort((a, b) => this.skillOf(a) - this.skillOf(b));
+        recruit = producers[0];
+      }
       if (recruit && this.res.iron >= 5) { this.res.iron -= 5; recruit.job = 'soldier'; }
-      // bootstrap: if no iron yet but bracing, allow a militia soldier at wood cost
-      else if (recruit && bracing && this.soldiers.length < 2 && pay({ wood: 10 })) recruit.job = 'soldier';
+      // bootstrap: if no iron yet but bracing/mustering, allow militia at wood
+      // cost (smart tiers won't burn their repair reserve for it)
+      else if (recruit && (bracing || mustering) &&
+        this.soldiers.length < (P.iq ? wantSoldiers : 2) &&
+        (!P.iq || this.res.wood > 30) && pay({ wood: 10 })) recruit.job = 'soldier';
     }
 
-    // sell surplus (capped — the §4 liquidation sink)
+    // sell surplus (capped — the §4 liquidation sink). Smart tiers hold back a
+    // repair reserve: enough materials to fix everything currently damaged.
+    let missingHp = 0;
+    if (P.iq) for (const b of this.buildings) if (b.hp > 0) missingHp += b.maxHp - b.hp;
     for (const r of ['wood', 'stone', 'iron']) {
-      if (this.res[r] > P.sellSurplusAbove) {
-        const sellQty = Math.min(this.res[r] - P.sellSurplusAbove, P.merchantBuyCap);
+      let keep = P.sellSurplusAbove;
+      if (P.iq && r === 'wood') keep = Math.max(keep, missingHp * this.P.hp.repairWoodPerHp + 40);
+      if (P.iq && r === 'stone') keep = Math.max(keep, missingHp * this.P.hp.repairStonePerHp + 20);
+      if (this.res[r] > keep) {
+        const sellQty = Math.min(this.res[r] - keep, P.merchantBuyCap);
         this.res[r] -= sellQty; this.res.gold += sellQty * 1.5;
       }
     }

@@ -38,6 +38,33 @@ first within each section. For still-open questions see `OPEN-QUESTIONS.md`.
 - **Preview via the `kingdom-sim` entry in `tabby/.claude/launch.json`**, port
   5174 (Turn 3). `vite.config.js` reads `process.env.PORT`.
 
+## Redesign direction — Fable's review, ratified by Chandra (2026-07-12)
+
+The six questions in `design/QUESTIONS.md` / `OPEN-QUESTIONS.md` §A were
+answered by Fable and ratified by Chandra:
+
+- **A1 — Tense-but-fair, soft failure.** Target ~60% "interesting" runs. Follows
+  from already-settled identity decisions ("ant farm you tend", sandbox-no-hard-fail,
+  crowns as high-water marks). Late-game gauntlet-style pressure is where veterans
+  find their pain — not run-ending permadeath.
+- **A2 — Collapse is recoverable, but expensive.** Keep unrazable, refugees
+  trickle back — but the fall costs real accumulated value (masters die, HP
+  gutted, stockpiles looted). A "dark age" you climb out of, not a reset.
+- **A3 — Automatic assignment with few, global levers.** ~3 policy dials
+  (repair / build / produce priority) plus a per-building "prioritize" pin. No
+  hand-assigning villagers, ever.
+- **A4 — Knowledge mortality: gut-punch, not catastrophe.** Guild floor high
+  (~0.3–0.4): a master's death costs years of output, never the craft itself.
+- **A5 — Build order: foundation first, then C → B → A.** Villager agents +
+  HP-as-output are "pillar zero" (everything sits on them), then Pressure,
+  then Specialists, then Logistics as endgame texture.
+- **A6 — HP-as-output confirmed as the spine.** Full coupling with
+  `outputFloor=0.4` — the floor *is* the gentler coupling, already validated.
+
+**Agreed next step:** B1 (tiered smarter player policies in sim2) before any
+further tuning or game code — tuning against the passive bot just moves the
+pendulum wall-to-wall (proven twice).
+
 ## Design philosophy (the redesign)
 
 - **Model before building** (Turn 6). Chandra's call: "Can we create a system

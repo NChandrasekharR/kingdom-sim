@@ -44,7 +44,7 @@ project memory for structure.
 
 ---
 
-## The one-paragraph state of things (2026-07-11)
+## The one-paragraph state of things (2026-07-12)
 
 The game is built, deployed, and playable, but its economy snowballs (proven in
 `model/`). Chandra proposed a redesign centered on **HP-as-output** (buildings'
@@ -52,10 +52,11 @@ output scales with HP; raiders damage it; maintenance restores it), which forces
 **discrete villager units** and opens three pillars (logistics, specialists,
 pressure). A purpose-built **agent-based Monte Carlo simulator** (`sim2/`)
 pressure-tested the design across 480+ runs: the core idea is sound, three
-failure modes were found and fixed (collapse driven 100%→0%), and the current
-open problem is that it's swung *too easy* — tunable via a single difficulty
-dial, but only trustworthy once a **smarter test-player** replaces the passive
-scripted bot. **Next step: Fable reviews `design/REDESIGN.md` and answers the six
-questions in `OPEN-QUESTIONS.md` §A** — especially A1 (how punishing?), A5 (which
-pillar first?), and enabling B1 (the smarter player). Nothing in the game code
-changes until that call is made.
+failure modes were found and fixed (collapse driven 100%→0%), leaving everything
+*too easy* against the passive scripted bot. **Fable reviewed the redesign on
+2026-07-12 and Chandra ratified all six §A answers** (see `DECISIONS.md`):
+tense-but-fair with soft failure, expensive-but-recoverable collapse, automatic
+labor with few dials, high knowledge floor, foundation-then-C→B→A build order,
+HP-as-output confirmed as the spine. **Current work: B1 — tiered smarter player
+policies in sim2**, then re-tune the difficulty dial (B2), then implement the
+foundation in `src/`.

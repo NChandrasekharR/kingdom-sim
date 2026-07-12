@@ -5,7 +5,7 @@ in one place. Grouped by area. Status key:
 **OPEN** (needs a decision) · **EXPERIMENT** (answerable by running the sim) ·
 **DEFERRED** (parked for later) · **RESOLVED** (settled — moved to `DECISIONS.md`).
 
-Last updated: 2026-07-11.
+Last updated: 2026-07-12.
 
 ---
 
@@ -13,14 +13,17 @@ Last updated: 2026-07-11.
 
 These are design calls, not computations. Source: `design/QUESTIONS.md`.
 
-| # | Question | Status | Notes / lean |
+**ALL RESOLVED 2026-07-12** — Fable reviewed, Chandra ratified. Full answers in
+`DECISIONS.md` ("Redesign direction — Fable's review").
+
+| # | Question | Status | Resolution |
 |---|----------|--------|--------------|
-| A1 | **How punishing should the game be?** Cozy-with-scares vs. survival that ends runs. This one answer drives every difficulty number. | OPEN | Lean: tense-but-fair, ~60% "interesting," soft failure. Chandra + Fable's call on feel. |
-| A2 | **Should collapse be recoverable?** Soft failure (refugees return, lord bails you out, keep unrazable) vs. permanent run-end. | OPEN | Sim's death spirals argue for soft. Ties to A4. |
-| A3 | **How much should the player micromanage?** Priority sliders? Per-building worker locks? Or influence only via what/where you build? | OPEN | Model auto-assigns with policy hints. Risk: micro = tedium, not depth. |
-| A4 | **How mortal should specialist knowledge be?** Master death = gut-punch-you-recover-from vs. genuine catastrophe. | OPEN | Knowledge-floor mechanic exists; dial is how high. Ties to A2. |
-| A5 | **Which pillar to build first?** | OPEN | Lean: Pressure (C) → Specialists (B) → Logistics (A). |
-| A6 | **Is HP-as-output the right core, or too punishing a coupling?** Full coupling vs. gentler (HP caps output but floor stays high) vs. only some building types coupled. | OPEN | Sim says it works with `outputFloor=0.4`. It's also the mechanism behind every death spiral. |
+| A1 | **How punishing should the game be?** | RESOLVED | Tense-but-fair, ~60% "interesting," soft failure. |
+| A2 | **Should collapse be recoverable?** | RESOLVED | Recoverable but expensive — a "dark age," not a reset. |
+| A3 | **How much should the player micromanage?** | RESOLVED | Fully automatic; ~3 global policy dials + per-building pin. |
+| A4 | **How mortal should specialist knowledge be?** | RESOLVED | Gut-punch, not catastrophe. Guild floor ~0.3–0.4. |
+| A5 | **Which pillar to build first?** | RESOLVED | Foundation (villagers + HP-as-output) first, then C → B → A. |
+| A6 | **Is HP-as-output the right core?** | RESOLVED | Yes — full coupling with `outputFloor=0.4` as the softener. |
 
 ## B. Simulator experiments (answerable by running sim2)
 
@@ -68,9 +71,14 @@ in case the redesign doesn't ship and we patch the current game instead.
 
 ## The three that matter most right now
 
-1. **A1 — how punishing?** Everything downstream depends on it.
-2. **A5 — which pillar first?** Determines what gets built.
-3. **B1 — smarter test-player.** The technical prerequisite to trusting any
-   difficulty number.
+*(Updated 2026-07-12: A1 and A5 are now RESOLVED — see §A and `DECISIONS.md`.)*
 
-Everything else can wait on these three.
+1. **B1 — smarter test-player.** The technical prerequisite to trusting any
+   difficulty number. IN PROGRESS.
+2. **B2 — re-tune the difficulty dial against the competent player**, targeting
+   >60% interesting / <15% collapse / <15% too-easy. Revisit `verdict()`
+   thresholds (C3) at the same time, now that A1 defines "interesting."
+3. **Then implement the foundation in `src/`** (villager agents + HP-as-output,
+   save-format bump per E2).
+
+Everything else waits on these three.
