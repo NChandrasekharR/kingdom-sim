@@ -1,0 +1,17 @@
+{
+  "scenario": "baseline",
+  "runs": 120,
+  "table": [
+    {
+      "point": "default",
+      "interesting": 0.17,
+      "collapse": 0,
+      "spiral": 0,
+      "crisisMed": 0.04,
+      "prospMed": 7995,
+      "prospP90": 9815,
+      "recovMean": 116,
+      "breakdown": "TOO-EASY:100 INTERESTING:20"
+    }
+  ]
+}

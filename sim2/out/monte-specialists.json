@@ -1,0 +1,17 @@
+{
+  "scenario": "specialists",
+  "runs": 120,
+  "table": [
+    {
+      "point": "default",
+      "interesting": 0.02,
+      "collapse": 0,
+      "spiral": 0,
+      "crisisMed": 0.03,
+      "prospMed": 7997,
+      "prospP90": 9441,
+      "recovMean": 119,
+      "breakdown": "TOO-EASY:118 INTERESTING:2"
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "scenario": "gauntlet-ramped",
+  "runs": 120,
+  "table": [
+    {
+      "point": "default",
+      "interesting": 0,
+      "collapse": 0,
+      "spiral": 0,
+      "crisisMed": 0.02,
+      "prospMed": 7179,
+      "prospP90": 8565,
+      "recovMean": 107,
+      "breakdown": "TOO-EASY:120"
+    }
+  ]
+}
