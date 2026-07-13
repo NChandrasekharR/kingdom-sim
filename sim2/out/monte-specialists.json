@@ -3,15 +3,37 @@
   "runs": 120,
   "table": [
     {
-      "point": "default",
-      "interesting": 0.02,
-      "collapse": 0,
+      "point": "iq=0 raiderDmgPerTick=2.5",
+      "interesting": 0.98,
+      "collapse": 0.01,
       "spiral": 0,
-      "crisisMed": 0.03,
-      "prospMed": 7997,
-      "prospP90": 9441,
-      "recovMean": 119,
-      "breakdown": "TOO-EASY:118 INTERESTING:2"
+      "crisisMed": 0.14,
+      "prospMed": 14180,
+      "prospP90": 16981,
+      "recovMean": 147,
+      "breakdown": "INTERESTING:118 COLLAPSE:1 TOO-PUNISHING:1"
+    },
+    {
+      "point": "iq=1 raiderDmgPerTick=2.5",
+      "interesting": 0.98,
+      "collapse": 0.02,
+      "spiral": 0,
+      "crisisMed": 0.19,
+      "prospMed": 10451,
+      "prospP90": 13843,
+      "recovMean": 97,
+      "breakdown": "INTERESTING:118 COLLAPSE:2"
+    },
+    {
+      "point": "iq=2 raiderDmgPerTick=2.5",
+      "interesting": 0.98,
+      "collapse": 0.01,
+      "spiral": 0,
+      "crisisMed": 0.23,
+      "prospMed": 9415,
+      "prospP90": 15737,
+      "recovMean": 94,
+      "breakdown": "INTERESTING:118 COLLAPSE:1 TOO-EASY:1"
     }
   ]
 }

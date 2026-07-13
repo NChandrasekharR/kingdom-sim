@@ -168,3 +168,95 @@ sound* — every failure mode we hit was fixable with a small, sensible mechanic
 and none required abandoning the core idea. The open question is no longer "does
 it work" but "where's the difficulty set," and that needs a real player to
 answer.
+
+---
+
+## UPDATE (2026-07-13): B1 run — tiered players built, the difficulty dial is answered
+
+The smarter-player experiment is done. `player.iq` now selects a competence
+tier (0 = the passive legacy bot, byte-identical numbers; 1 = competent;
+2 = sharp), sweepable like any knob: `--sweep player.iq=0,1,2`. See
+`sim2/README.md` for what each tier does.
+
+### The headline table (120 seeds per cell, `raid.raiderDmgPerTick` sweep)
+
+**baseline** — % INTERESTING (% collapse):
+
+| dmg/tick | iq0 passive | iq1 competent | iq2 sharp |
+|---|---|---|---|
+| 1.2 (old default) | 17% (0%) | 0% — all too-easy | 0% — all too-easy |
+| 1.8 | **100%** (0%) | 44% (0%) | 14% (0%) |
+| **2.5** | **100%** (0%) | **100%** (0%) | **96%** (1%) |
+| 3.5 | 100% (0%) | 97% (3%) | 99% (1%) |
+
+**gauntlet** (multi-front + scheduled disasters):
+
+| dmg/tick | iq0 passive | iq1 competent | iq2 sharp |
+|---|---|---|---|
+| 1.2 | 3% (0%) | 1% (0%) | 2% (0%) |
+| 1.8 | **100%** (0%) | 3% (0%) | 6% (0%) |
+| **2.5** | **97%** (3%) | **90%** (1%) | **75%** (0%, 25% too-easy) |
+| 3.5 | 97% (3%) | 94% (6%) | 95% (5%) |
+
+### Finding 6 — `raiderDmgPerTick = 2.5` is the setting
+
+The value that was **100% collapse** before the rubber-band/knowledge-floor/
+output-floor fixes is now the sweet spot: every tier, both scenarios, lands
+60–100% interesting with ≤3% collapse. The B2 target (>60% interesting, <15%
+collapse, <15% too-easy) is met at 2.5 for iq0 and iq1 everywhere; iq2 skews
+25% too-easy only in gauntlet, acceptable for the optimizer ceiling. The
+softening mechanics didn't make the game easy — they made it *tunable*: the
+whole difficulty range 1.8–3.5 is playable, with 1.2 (the old "safe" value)
+now clearly TOO SOFT for everyone.
+
+### Finding 7 — the B1 caveat was BACKWARDS
+
+We assumed the passive bot made collapse numbers pessimistic and too-easy
+numbers optimistic. After the rubber-band, it's the opposite: **the passive
+player's sloppiness keeps it in the interesting band** (it takes damage, so
+rubber-band mercy and crisis time engage), while **competence pushes toward
+too-easy** (a player who prevents damage never triggers the tension). The
+design implication is important: rubber-banding rewards *struggling* players
+with mercy and punishes *thriving* ones with pressure — which is exactly the
+A1 "tense-but-fair" contract. But it means difficulty must be tuned against
+the SMART tiers (iq1/iq2 too-easy rates), not against collapse.
+
+### Finding 8 — what "competent" actually means here (design-relevant)
+
+Building the competent tier surfaced degenerate strategies the real game must
+design around; each was found because the naive "smart" version *collapsed
+faster than the passive bot*:
+
+1. **Towers strictly dominate soldiers.** Combat attrition is a flat 15%
+   death chance per soldier per tick fought — soldiers are ablative meat, while
+   towers kill without dying or eating. A small kingdom that fields a militia
+   feeds its producers into a grinder and spirals. The competent tier caps its
+   army at pop/8 and leans on towers. *For the game: soldier combat needs to
+   scale losses with force ratio (outnumbering raiders should be nearly
+   bloodless), or soldiers will be a trap and towers the only answer.*
+2. **Repairing mid-raid is a meat grinder.** Healing a sacked building past
+   50% HP re-flags it sackable; each re-sack rolls 12% death per worker. The
+   competent tier never repairs while raiders are inside the walls. *For the
+   game: either repair-during-combat should be impossible/slowed, or re-sacking
+   shouldn't re-roll worker deaths — otherwise the intuitive "fix it now!"
+   response is a death sentence the player can't see coming.*
+3. **An undefended raid never ends.** Raids end when all raiders die; with no
+   towers and no army they besiege forever, looting every tick. *For the game:
+   raiders need a satiation/withdraw condition (loot cap, season change) so a
+   defenseless town is set back hard but not besieged eternally.*
+4. **Labor beats infrastructure.** Building more lumber camps without hands to
+   staff them just adds decay surface and raid targets. The binding resource is
+   villagers, always. (This is the redesign working as intended — §2's "scarce
+   hands" is doing its job.)
+
+### What's still open
+
+- The `verdict()` thresholds are unchanged (C3); crisisMed at dmg 2.5 sits at
+  0.06–0.23 across scenarios, toward the lower half of the 5–55% "interesting"
+  band — the band is met but the tension is mild in baseline. If A1's "tense"
+  wants more, push toward 3.0–3.5 (collapse stays ≤6%).
+- `specialists` at dmg 2.5 confirms: 98% interesting, ≤2% collapse at every
+  tier (iq0 98/1%, iq1 98/2%, iq2 98/1%). All three scenario families agree.
+- `raiderDmgPerTick=2.5` is validated but **not yet promoted** to the
+  `params.mjs` default — do that alongside the C3 threshold decision.
+- The abstract-vs-spatial gaps (C2, B5) and winter knobs (B6) are untouched.

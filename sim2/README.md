@@ -50,11 +50,23 @@ Each run is labelled (see `run.mjs verdict()`):
 The goal of tuning is to maximize INTERESTING while keeping COLLAPSE and
 TOO-EASY both low.
 
-## Known limitation
-The scripted "player" is deliberately simple and passive. It does NOT position
-defenses, pre-empt raids, or micromanage repairs. Difficulty numbers tuned
-against it are therefore *pessimistic on collapse* and *optimistic on too-easy*.
-A smarter player policy is the top-priority next experiment (see FINDINGS).
+## Player tiers (B1)
+The scripted player has three competence tiers, set by `player.iq` (sweepable:
+`--sweep player.iq=0,1,2`):
+- **0 — passive** (default): the original bot. Reactive repair below 60% HP,
+  fixed standing army, no raid awareness. Reproduces all pre-B1 numbers exactly.
+- **1 — competent**: reads the raid telegraph (`raid.timer`), surges repair
+  before and after raids (never during — mid-raid repair re-exposes sacked
+  buildings and gets workers killed), keeps a threat-scaled standing army
+  capped by population depth, builds towers to meet the expected wave before
+  comfort buildings, stages one lumber camp + one quarry before filling extras,
+  and holds a wood/stone reserve sized to the current repair backlog.
+- **2 — sharp**: competent plus combat micro (higher soldier damage, lower
+  losses) and a high peacetime HP floor that denies `weakHp` raid targeting.
+
+Tuning philosophy: difficulty numbers should be set against **iq 1**, with iq 0
+as the floor (a beginner must survive) and iq 2 as the ceiling (an optimizer
+must not trivialize).
 
 ## Note
 This is a DESIGN TOOL, not game code. It shares no modules with `../src/`. It's

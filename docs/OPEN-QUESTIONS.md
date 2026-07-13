@@ -32,8 +32,8 @@ Source: `design/FINDINGS.md` "recommended next experiments." Each is a small
 
 | # | Experiment | Status | Why it matters |
 |---|-----------|--------|----------------|
-| B1 | **Smarter player policy.** Does a competent player turn 52% collapse into ~20%? | EXPERIMENT — **CRITICAL PATH** | We're currently tuning against a passive bot. Until we know how much a real player closes the gap, every difficulty number is suspect. |
-| B2 | **Rubber-band raid tuning.** Find the setting that yields >60% interesting, <15% collapse, <15% too-easy. | EXPERIMENT (partly done) | Implemented; currently over-soft (too-easy). Needs re-tuning, ideally after B1. |
+| B1 | **Smarter player policy.** Does a competent player turn 52% collapse into ~20%? | **RESOLVED 2026-07-13** | Built: `player.iq` 0/1/2 tiers (see `sim2/README.md`). Answer: competence pushes toward *too-easy*, not away from collapse — the caveat was backwards. See FINDINGS Findings 6–8. |
+| B2 | **Rubber-band raid tuning.** Find the setting that yields >60% interesting, <15% collapse, <15% too-easy. | **RESOLVED 2026-07-13** | `raiderDmgPerTick=2.5` meets the target for every tier in baseline, gauntlet, and specialists (≤3% collapse, 75–100% interesting). Not yet promoted to `params.mjs` default. |
 | B3 | **Knowledge-floor strength sweep.** How high must the guild floor be to stop specialist death spirals without making masters meaningless? | EXPERIMENT (partly done) | Floor added (0.3); not yet swept for the sweet spot. |
 | B4 | **Size-gated pressure sweep.** Confirm warlords/disasters gated behind pop≥N keep gauntlet survivable without trivializing. | EXPERIMENT (partly done) | Gating added; confirmed gauntlet no longer collapses. Not yet tuned for challenge. |
 | B5 | **Multi-front raid modeling.** The abstract sim doesn't yet model spatial fronts (the `fronts` param is defined but unused in the size calc). | EXPERIMENT | Pillar C wants positioning to matter; the abstract model can't test it fully. May need coordinates. |
@@ -71,13 +71,15 @@ in case the redesign doesn't ship and we patch the current game instead.
 
 ## The three that matter most right now
 
-*(Updated 2026-07-12: A1 and A5 are now RESOLVED — see §A and `DECISIONS.md`.)*
+*(Updated 2026-07-13: B1 and B2 are RESOLVED — the dial is answered:
+`raiderDmgPerTick=2.5`. See FINDINGS Findings 6–8.)*
 
-1. **B1 — smarter test-player.** The technical prerequisite to trusting any
-   difficulty number. IN PROGRESS.
-2. **B2 — re-tune the difficulty dial against the competent player**, targeting
-   >60% interesting / <15% collapse / <15% too-easy. Revisit `verdict()`
-   thresholds (C3) at the same time, now that A1 defines "interesting."
+1. **Decide crisis intensity within the band (C3 + A1 fine-tune).** At dmg 2.5
+   the crisis fraction is mild (median 6–14%); if "tense" should bite harder,
+   3.0–3.5 keeps collapse ≤6%. Promote the chosen value to `params.mjs`.
+2. **Design around the degenerate strategies B1 exposed** (FINDINGS Finding 8):
+   force-ratio combat losses (or soldiers are a trap vs. towers), no
+   re-sack death grinder, raider satiation/withdrawal.
 3. **Then implement the foundation in `src/`** (villager agents + HP-as-output,
    save-format bump per E2).
 
