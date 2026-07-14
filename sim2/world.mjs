@@ -478,6 +478,11 @@ export class World {
     } else if (raid.phase === 'active') {
       this.updateRaiders();
       this.updateSoldiers();
+      // withdrawal (Finding 8.3): raiders don't winter over — a defenseless
+      // town is looted hard but the raid still ENDS
+      if (this.tick - (this._raidStartTick || 0) > P.maxRaidTicks) this.raiders = [];
+      // satiation: a raider with a full sack goes home content
+      else this.raiders = this.raiders.filter((rd) => rd.loot < P.lootSatiation);
       if (this.raiders.length === 0) {
         raid.phase = 'quiet';
         this._lastSacked = this._sackedThisRaid || 0;
@@ -511,6 +516,7 @@ export class World {
     const raid = this.raid;
     raid.wave++;
     this._raidStartProsp = this.prosperity();
+    this._raidStartTick = this.tick;
     this._sackedThisRaid = 0;
 
     // warlord: on a fixed wave cadence, but only once the kingdom is worth it
@@ -600,11 +606,15 @@ export class World {
       if (t.hp < t.maxHp * P.abandonHpFrac) {
         if (!t._sacked) { t._sacked = true; this.stats.buildingsSacked++; this._sackedThisRaid = (this._sackedThisRaid || 0) + 1; }
         t.hp = Math.max(1, t.maxHp * P.abandonHpFrac);       // left standing, gutted
-        // a sacked building may still cost a worker's life
-        for (const v of t.workers) {
-          if (this.rng.chance(0.12)) {
-            v.alive = false; this.stats.villagersLost++;
-            if (this.skillOf(v) > 0.6) this.stats.mastersLost++;
+        // a sacked building may cost a worker's life — but only ONCE per raid
+        // (Finding 8.2: repairing mid-raid must not re-feed the grinder)
+        if (t._deathRolledWave !== this.raid.wave) {
+          t._deathRolledWave = this.raid.wave;
+          for (const v of t.workers) {
+            if (this.rng.chance(0.12)) {
+              v.alive = false; this.stats.villagersLost++;
+              if (this.skillOf(v) > 0.6) this.stats.mastersLost++;
+            }
           }
         }
       }
@@ -617,7 +627,11 @@ export class World {
     const Pp = this.P.player;
     // sharp player fights from prepared ground: more damage, fewer losses
     const combatMult = Pp.iq >= 2 ? Pp.sharpCombatMult : 1;
-    const deathChance = Pp.iq >= 2 ? Pp.sharpSoldierDeathChance : 0.15;
+    const baseDeath = Pp.iq >= 2 ? Pp.sharpSoldierDeathChance : this.P.raid.soldierDeathBase;
+    // force-ratio losses (Finding 8.1): outnumbering the raiders makes the
+    // fight nearly bloodless; being outnumbered costs the full attrition
+    const ratio = this.raiders.length / Math.max(1, soldiers.length);
+    const deathChance = baseDeath * Math.min(1, ratio);
     for (const s of soldiers) {
       if (!this.raiders.length) break;
       const dmg = 8 * (1 + (s.skills.soldier || 0)) * combatMult;

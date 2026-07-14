@@ -85,12 +85,30 @@ export const DEFAULTS = {
     fronts: 1,                   // spawn points; scenario can raise
     targeting: 'value',          // 'random' | 'value' | 'weakHp' | 'chokepoint'
     raiderHp: 30,
-    raiderDmgPerTick: 1.2,       // HP damage while looting — the master switch (2.5→1.2 = recoverable, see FINDINGS)
+    // HP damage while looting — the master difficulty switch. History: 2.5 was
+    // 100% collapse pre-softening; 1.2 was the survivable region; after the
+    // anti-degenerate mechanics (force-ratio combat, once-per-raid sack deaths,
+    // satiation/withdrawal) the whole range re-opened and 4.5 is the tuned
+    // default: iq0 100% interesting / 0% collapse, iq1 95-98% interesting,
+    // baseline AND gauntlet (2026-07-13 sweeps).
+    raiderDmgPerTick: 4.5,
     lootPerTick: 2,
     abandonHpFrac: 0.15,         // below this HP a building is "sacked" — raiders move on, it survives at low HP
     towerRange: 7, towerDmg: 3,  // watchtower arrows per tick
     warlordEveryYears: 4,        // 0 = never
     warlordSizeMult: 2.5,
+    // — anti-degenerate mechanics (B1 Finding 8) —
+    // 1. force-ratio combat: soldier losses scale with how outnumbered they
+    //    are. At even odds the full death chance applies; outnumber the raiders
+    //    2:1 and it halves. Without this, soldiers are ablative meat and towers
+    //    strictly dominate.
+    soldierDeathBase: 0.15,      // per-tick death chance at even odds (was flat)
+    // 2. sack deaths roll ONCE per building per raid — repairing mid-raid no
+    //    longer feeds workers back into the grinder (flag, no knob).
+    // 3. raider satiation & withdrawal: a raid against a defenseless town ends
+    //    anyway — raiders leave when sated or when the season's looting is done.
+    lootSatiation: 25,           // a raider with this much loot goes home content
+    maxRaidTicks: 200,           // raiders withdraw after this long regardless
     // rubber-band: after a raid that hurt (sacked buildings), the next raid is
     // gentler and further off; when the kingdom is fat and unscathed, harsher.
     rubberBand: true,

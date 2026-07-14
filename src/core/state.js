@@ -1,6 +1,7 @@
 import { MAP, T, BUILDINGS, TERRAIN_INFO } from '../config.js';
 import { generateMap } from './mapgen.js';
 import { logEvent } from './events.js';
+import { makeVillager } from './villagers.js';
 
 const KINGDOM_NAMES = [
   'Aldermere', 'Thornwick', 'Caer Bryn', 'Ravensholt', 'Duncastle',
@@ -23,6 +24,8 @@ export function createState(seed = (Math.random() * 1e9) | 0) {
     res: { food: 40, wood: 50, stone: 20, ore: 0, iron: 0, bread: 0, gold: 10 },
     delta: { food: 0, wood: 0, stone: 0, ore: 0, iron: 0, bread: 0, gold: 0 },
     pop: 6, popCap: 0,
+    villagers: [],       // discrete agents — see villagers.js
+    guilds: [],          // crafts ever mastered here (knowledge floor)
     morale: 55, raidShock: 0,
     starving: false, growthAcc: 0, starveAcc: 0, expandAcc: 0,
     ateBread: false,
@@ -35,6 +38,8 @@ export function createState(seed = (Math.random() * 1e9) | 0) {
     // render dirty flags
     territoryDirty: true, buildingsDirty: true,
   };
+
+  for (let i = 0; i < state.pop; i++) state.villagers.push(makeVillager(state));
 
   // Found the keep and claim a starting blob around it
   addBuilding(state, 'keep', start.x, start.y);
@@ -163,6 +168,8 @@ export function saveGame(state) {
     ...state,
     terrain: Array.from(state.terrain),
     claimed: Array.from(state.claimed),
+    // worker crews are live villager references, recomputed every tick
+    buildings: state.buildings.map((b) => ({ ...b, workers: undefined })),
     influence: undefined, delta: undefined,
     territoryDirty: undefined, buildingsDirty: undefined,
   };
@@ -188,6 +195,19 @@ export function loadGame() {
     // saves from before the Three Crowns update
     s.crowns ||= { dominion: false, plenty: false, people: false };
     s.won ||= false;
+    // saves from before the villager update: synthesize agents from the count
+    if (!s.villagers) {
+      s.villagers = [];
+      s.nextId ||= 1;
+      for (let i = 0; i < (s.pop || 0); i++) s.villagers.push(makeVillager(s));
+      // old-save soldiers were extra people — give each a body
+      for (const sol of s.soldiers || []) {
+        const v = makeVillager(s, 'soldier');
+        s.villagers.push(v);
+        sol.villagerId = v.id;
+      }
+    }
+    s.guilds ||= [];
     recomputeInfluence(s);
     return s;
   } catch { return null; }

@@ -70,7 +70,7 @@ export const BUILDINGS = {
   bakery: {
     name: 'Bakery', desc: 'Bakes bread — each loaf feeds two.',
     cost: { wood: 20, stone: 10 }, hp: 50, workers: 2,
-    conv: { in: { food: 0.4 }, out: { bread: 0.25 } },
+    conv: { in: { food: 0.4 }, out: { bread: 0.4 } }, // reworked 0.25→0.4: a real "feed more per worker" upgrade
   },
   market: {
     name: 'Market', desc: 'Collects taxes and draws the merchant caravan.',
@@ -112,15 +112,55 @@ export const ROAD_MERCHANT_FACTOR = 0.004; // per road tile, capped at 40% faste
 
 // ── Population & morale ────────────────────────────────────────────
 export const EAT_PER_POP = 0.04;        // food-equivalents per tick per person
-export const SOLDIER_EAT = 0.08;        // soldiers eat double
+export const SOLDIER_EAT_MULT = 3;      // a soldier eats 3× a citizen (the army's real cost)
 export const GROWTH_FLOOR = 1.5;        // need stock > pop*this to grow
+export const STARVE_DEATH_HUNGER = 60;  // ticks-worth of accumulated hunger before death
+
+// ── HP is production capacity (the redesign core) ──────────────────
+// A building's output scales with its HP; HP decays without maintenance;
+// raiders grind HP down; builders restore it for labor + materials.
+// Numbers validated in sim2/ (480+ Monte Carlo runs — see design/FINDINGS.md).
+export const HP = {
+  decayPerTick: 0.04,          // HP lost per tick with zero maintenance (keep exempt)
+  outputFloor: 0.4,            // a gutted building still runs at 40% — it can fund its own repair
+  repairPerBuilderTick: 1.5,   // HP restored per builder per tick (× skill)
+  repairWoodPerHp: 0.05,       // materials burned per HP repaired
+  repairStonePerHp: 0.03,
+  maintenanceThreshold: 0.6,   // auto-assign builders to anything below this HP fraction
+};
+
+// ── Skills (villagers learn by doing; knowledge is mortal) ─────────
+export const SKILL = {
+  gainPerTick: 0.0008,         // proficiency per tick worked (master in ~1.5 years)
+  max: 1.0,                    // output multiplier = 1 + skill (a true master doubles output)
+  decayPerTickIdle: 0.0003,    // unused skills fade
+  masterAt: 0.6,               // at this skill you count as a master
+  apprenticeFloor: 0.35,       // juniors working beside a living master hold at least this
+  guildFloor: 0.3,             // a craft once mastered here never drops below this baseline
+};
 
 // ── Soldiers ───────────────────────────────────────────────────────
-export const SOLDIER = { cost: { gold: 15, iron: 5 }, hp: 60, dmg: 8, speed: 1.1, perBarracks: 4 };
+// Iron arms them once; from then on they eat 3× (food, not gold, limits armies).
+export const SOLDIER = { cost: { iron: 5 }, hp: 60, dmg: 8, speed: 1.1, perBarracks: 4 };
 
 // ── Raiders ────────────────────────────────────────────────────────
+// Raiders SACK buildings (grind HP to the abandon floor), they rarely raze.
+// A raid is an economic wound measured in lost output-days, not lost tiles.
 export const RAIDER = { hp: 30, dmg: 4, speed: 0.85, lootCap: 12 };
-export const RAID = { firstAfter: 300, warningTicks: 40, minGapTicks: 250 };
+export const RAID = {
+  firstAfter: 300, warningTicks: 40, minGapTicks: 250,
+  lootDmg: 4.5,                // building HP lost per raider per looting tick — THE difficulty dial (sim2-validated; first playtest knob)
+  abandonHpFrac: 0.15,         // below this fraction a building is sacked: raiders move on, it survives gutted
+  sackDeathChance: 0.12,       // each worker in a building may die when it's sacked (once per raid)
+  sizeBase: 2, prosperityDivisor: 350, militaryPressure: 0.4, sizeCap: 40,
+  easeAfterSack: 0.04,         // rubber-band: each building sacked last raid shrinks the next wave...
+  minSizeMult: 0.5,
+  mercyPerSack: 4,             // ...and buys this many extra quiet ticks to recover
+  maxRaidTicks: 200,           // raiders don't winter over — they withdraw when the season's looting is done
+  warlordEveryWaves: 6,        // ≈ every 4 years at typical gaps
+  warlordMinPop: 25,           // warlords only bother once the kingdom is worth it
+  warlordSizeMult: 2.5, warlordHpMult: 1.5,
+};
 
 // ── Seasons ────────────────────────────────────────────────────────
 export const SEASON_TICKS = 120;

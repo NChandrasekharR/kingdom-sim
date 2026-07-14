@@ -44,19 +44,21 @@ project memory for structure.
 
 ---
 
-## The one-paragraph state of things (2026-07-12)
+## The one-paragraph state of things (2026-07-14)
 
-The game is built, deployed, and playable, but its economy snowballs (proven in
-`model/`). Chandra proposed a redesign centered on **HP-as-output** (buildings'
-output scales with HP; raiders damage it; maintenance restores it), which forces
-**discrete villager units** and opens three pillars (logistics, specialists,
-pressure). A purpose-built **agent-based Monte Carlo simulator** (`sim2/`)
-pressure-tested the design across 480+ runs: the core idea is sound, three
-failure modes were found and fixed (collapse driven 100%→0%), leaving everything
-*too easy* against the passive scripted bot. **Fable reviewed the redesign on
-2026-07-12 and Chandra ratified all six §A answers** (see `DECISIONS.md`):
-tense-but-fair with soft failure, expensive-but-recoverable collapse, automatic
-labor with few dials, high knowledge floor, foundation-then-C→B→A build order,
-HP-as-output confirmed as the spine. **Current work: B1 — tiered smarter player
-policies in sim2**, then re-tune the difficulty dial (B2), then implement the
-foundation in `src/`.
+**The redesign foundation is implemented in the game.** The path: `model/`
+proved the old economy snowballed; Chandra proposed HP-as-output + villager
+units; `sim2/` (a purpose-built Monte Carlo simulator, 4,000+ runs) validated
+the core, found and fixed three failure modes, then — via tiered player
+policies (B1) — exposed and fixed three degenerate strategies (towers-dominate-
+soldiers, mid-raid-repair grinder, eternal sieges) and re-validated the
+difficulty dial at `raiderDmgPerTick=4.5` (0% collapse, 95–100% interesting at
+every tier). Fable reviewed and Chandra ratified all six design questions
+(2026-07-12, see `DECISIONS.md`). `src/` now has: named villager agents with
+mortal skills and guild memory, HP-coupled output (floor 0.4), builder
+maintenance competing for labor, sack-based raids with rubber-band mercy and
+warlords, soldiers as villagers (iron once, eat 3×), and save migration.
+Headless 12-year run: tense equilibrium instead of snowball. **Next:
+playtesting** (first knobs: `RAID.lootDmg`, `maxRaidTicks`, skill-gain rate),
+then Pillar C proper, then a gold sink. The live Vercel deploy still runs the
+old build — redeploy after playtest.

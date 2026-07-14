@@ -1,138 +1,28 @@
 {
   "scenario": "gauntlet",
-  "runs": 120,
+  "runs": 60,
   "table": [
     {
-      "point": "iq=0 raiderDmgPerTick=1.2",
-      "interesting": 0.03,
-      "collapse": 0,
-      "spiral": 0,
-      "crisisMed": 0.03,
-      "prospMed": 7349,
-      "prospP90": 8935,
-      "recovMean": 111,
-      "breakdown": "TOO-EASY:117 INTERESTING:3"
-    },
-    {
-      "point": "iq=0 raiderDmgPerTick=1.8",
+      "point": "iq=0 raiderDmgPerTick=4.5",
       "interesting": 1,
       "collapse": 0,
       "spiral": 0,
-      "crisisMed": 0.11,
-      "prospMed": 8599,
-      "prospP90": 10935,
-      "recovMean": 113,
-      "breakdown": "INTERESTING:120"
-    },
-    {
-      "point": "iq=0 raiderDmgPerTick=2.5",
-      "interesting": 0.97,
-      "collapse": 0.03,
-      "spiral": 0,
-      "crisisMed": 0.14,
-      "prospMed": 10474,
-      "prospP90": 13586,
-      "recovMean": 120,
-      "breakdown": "INTERESTING:117 COLLAPSE:3"
-    },
-    {
-      "point": "iq=0 raiderDmgPerTick=3.5",
-      "interesting": 0.97,
-      "collapse": 0.03,
-      "spiral": 0,
-      "crisisMed": 0.12,
-      "prospMed": 12344,
-      "prospP90": 14637,
-      "recovMean": 137,
-      "breakdown": "INTERESTING:117 COLLAPSE:3"
-    },
-    {
-      "point": "iq=1 raiderDmgPerTick=1.2",
-      "interesting": 0.01,
-      "collapse": 0,
-      "spiral": 0,
-      "crisisMed": 0,
-      "prospMed": 9039,
-      "prospP90": 9861,
-      "recovMean": 102,
-      "breakdown": "TOO-EASY:119 INTERESTING:1"
-    },
-    {
-      "point": "iq=1 raiderDmgPerTick=1.8",
-      "interesting": 0.03,
-      "collapse": 0,
-      "spiral": 0,
-      "crisisMed": 0.03,
-      "prospMed": 9391,
-      "prospP90": 10463,
-      "recovMean": 100,
-      "breakdown": "TOO-EASY:117 INTERESTING:3"
-    },
-    {
-      "point": "iq=1 raiderDmgPerTick=2.5",
-      "interesting": 0.9,
-      "collapse": 0.01,
-      "spiral": 0,
-      "crisisMed": 0.06,
-      "prospMed": 9491,
-      "prospP90": 10839,
+      "crisisMed": 0.09,
+      "prospMed": 23390,
+      "prospP90": 25148,
       "recovMean": 96,
-      "breakdown": "INTERESTING:108 TOO-EASY:11 COLLAPSE:1"
+      "breakdown": "INTERESTING:60"
     },
     {
-      "point": "iq=1 raiderDmgPerTick=3.5",
-      "interesting": 0.94,
-      "collapse": 0.06,
-      "spiral": 0,
-      "crisisMed": 0.14,
-      "prospMed": 8343,
-      "prospP90": 10313,
-      "recovMean": 92,
-      "breakdown": "INTERESTING:113 COLLAPSE:7"
-    },
-    {
-      "point": "iq=2 raiderDmgPerTick=1.2",
-      "interesting": 0.02,
-      "collapse": 0,
-      "spiral": 0,
-      "crisisMed": 0,
-      "prospMed": 9177,
-      "prospP90": 10400,
-      "recovMean": 98,
-      "breakdown": "TOO-EASY:118 INTERESTING:2"
-    },
-    {
-      "point": "iq=2 raiderDmgPerTick=1.8",
-      "interesting": 0.06,
-      "collapse": 0,
-      "spiral": 0,
-      "crisisMed": 0.03,
-      "prospMed": 9793,
-      "prospP90": 10778,
-      "recovMean": 97,
-      "breakdown": "TOO-EASY:113 INTERESTING:7"
-    },
-    {
-      "point": "iq=2 raiderDmgPerTick=2.5",
-      "interesting": 0.75,
+      "point": "iq=1 raiderDmgPerTick=4.5",
+      "interesting": 0.98,
       "collapse": 0,
       "spiral": 0,
       "crisisMed": 0.06,
-      "prospMed": 9647,
-      "prospP90": 11719,
-      "recovMean": 92,
-      "breakdown": "INTERESTING:90 TOO-EASY:30"
-    },
-    {
-      "point": "iq=2 raiderDmgPerTick=3.5",
-      "interesting": 0.95,
-      "collapse": 0.05,
-      "spiral": 0,
-      "crisisMed": 0.18,
-      "prospMed": 7635,
-      "prospP90": 10753,
-      "recovMean": 88,
-      "breakdown": "INTERESTING:114 COLLAPSE:6"
+      "prospMed": 13115,
+      "prospP90": 15449,
+      "recovMean": 105,
+      "breakdown": "INTERESTING:59 TOO-EASY:1"
     }
   ]
 }

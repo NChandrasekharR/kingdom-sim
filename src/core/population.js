@@ -1,8 +1,11 @@
-import { BUILDINGS, EAT_PER_POP, SOLDIER_EAT, GROWTH_FLOOR } from '../config.js';
+import { BUILDINGS, EAT_PER_POP, SOLDIER_EAT_MULT, GROWTH_FLOOR, STARVE_DEATH_HUNGER } from '../config.js';
 import { idx } from './state.js';
 import { logEvent } from './events.js';
+import { makeVillager, killVillager, skillsTick } from './villagers.js';
 
 export function populationTick(state) {
+  state.pop = state.villagers.length;
+
   // housing cap from buildings inside territory
   let cap = 0;
   for (const b of state.buildings) {
@@ -11,8 +14,13 @@ export function populationTick(state) {
   }
   state.popCap = cap;
 
-  // eat: bread first (1 bread = 2 food-equivalents), then raw food
-  let need = state.pop * EAT_PER_POP + state.soldiers.length * SOLDIER_EAT;
+  // eat: bread first (1 bread = 2 food-equivalents), then raw food.
+  // Soldiers eat 3× — the army's true cost is farmland, not gold.
+  let need = 0;
+  for (const v of state.villagers) {
+    need += EAT_PER_POP * (v.job === 'soldier' ? SOLDIER_EAT_MULT : 1);
+  }
+  const totalNeed = need;
   state.ateBread = false;
   const fromBread = Math.min(state.res.bread * 2, need);
   if (fromBread > 0.001) {
@@ -33,26 +41,37 @@ export function populationTick(state) {
   }
 
   if (state.starving) {
-    state.starveAcc += need;
-    if (state.starveAcc >= 1 && state.pop > 1) {
-      state.starveAcc = 0;
-      state.pop--;
-      logEvent(state, 'A subject has died of hunger.', 'bad');
+    const fed = totalNeed > 0 ? 1 - need / totalNeed : 1;
+    for (const v of [...state.villagers]) {
+      // slight per-person constitution so deaths stagger, not massacre at once
+      const grit = 0.85 + 0.3 * (((v.id * 2654435761) >>> 0) % 100) / 100;
+      v.hunger += (1 - fed) * grit;
+      if (v.hunger >= STARVE_DEATH_HUNGER && state.villagers.length > 1) {
+        const wasM = killVillager(state, v);
+        logEvent(state, wasM
+          ? `${v.name}, a master of the craft, has starved. The knowledge dies too.`
+          : `${v.name} has died of hunger.`, 'bad');
+      }
     }
   } else {
-    state.starveAcc = Math.max(0, state.starveAcc - 0.05);
+    for (const v of state.villagers) v.hunger = Math.max(0, v.hunger - 2);
     const stock = state.res.food + state.res.bread * 2;
     if (stock > state.pop * GROWTH_FLOOR && state.pop < state.popCap) {
       state.growthAcc += 0.018 + state.morale / 5000;
       if (state.growthAcc >= 1) {
         state.growthAcc = 0;
-        state.pop++;
-        if (state.pop % 5 === 0) {
-          logEvent(state, `The kingdom grows — ${state.pop} souls now call it home.`, 'good');
+        const v = makeVillager(state);
+        state.villagers.push(v);
+        if (state.villagers.length % 5 === 0) {
+          logEvent(state, `The kingdom grows — ${state.villagers.length} souls now call it home.`, 'good');
         }
       }
     }
   }
+  state.pop = state.villagers.length;
+
+  // skills rise with use, fade in idleness; guild memory holds the floor
+  skillsTick(state);
 
   // morale drifts toward a target set by conditions
   let target = 50;

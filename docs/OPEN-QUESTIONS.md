@@ -54,33 +54,38 @@ in case the redesign doesn't ship and we patch the current game instead.
 
 | # | Item | Status | Notes |
 |---|------|--------|-------|
-| D1 | **Bakery rework** (0.25→0.4 bread output). | DEFERRED (in sim2 defaults) | The current shipped game still has the +0.02-net bakery trap. |
-| D2 | **Soldier food upkeep** (3× a citizen, not gold). | DEFERRED (in sim2 defaults) | Chandra-endorsed sink; not in the shipped game. |
-| D3 | **Building upkeep in materials.** | DEFERRED (superseded by HP-as-output) | The redesign's HP decay replaces this more elegantly. |
-| D4 | **Merchant buy-cap** to stop infinite liquidation. | DEFERRED (in sim2 player policy) | Not in the shipped game. |
+| D1 | **Bakery rework** (0.25→0.4 bread output). | **SHIPPED 2026-07-14** | In `src/config.js`. |
+| D2 | **Soldier food upkeep** (3× a citizen, not gold). | **SHIPPED 2026-07-14** | Soldiers cost 5 iron once, then eat 3×. Recruit pulls a real villager. |
+| D3 | **Building upkeep in materials.** | SUPERSEDED | HP decay + repair materials (shipped) replaces this. |
+| D4 | **Merchant buy-cap** to stop infinite liquidation. | DEFERRED | Trade is manual in the game; revisit if players grind the merchant. |
 
 ## E. Product / housekeeping
 
 | # | Item | Status | Notes |
 |---|------|--------|-------|
-| E1 | **The shipped game still snowballs.** None of the redesign or sinks are in `src/`. | OPEN | Deliberate — awaiting the design decision before touching game code. |
-| E2 | **Save-format migration.** The redesign changes state shape (villager agents); existing localStorage saves will need migration or a reset. | DEFERRED | Address at implementation time. `loadGame()` already tolerates missing fields. |
+| E1 | **The shipped game still snowballs.** | **RESOLVED 2026-07-14** | The foundation is implemented in `src/`: villager agents, HP-as-output, maintenance, sack-based raids, rubber-band + warlords. Headless 12-year run: pop equilibrium ~66 (was 186 runaway). NOTE: the live Vercel deploy is still the old build — redeploy pending playtest. |
+| E2 | **Save-format migration.** | **RESOLVED 2026-07-14** | `loadGame()` synthesizes villagers from the old integer pop and gives old soldiers bodies. Verified round-trip. |
 | E3 | **Vercel auto-deploy.** Currently manual `npx vercel --prod`. GitHub integration would auto-deploy on push. | DEFERRED | Offered in Turn 5; Chandra chose manual for now. |
 
 ---
 
 ## The three that matter most right now
 
-*(Updated 2026-07-13: B1 and B2 are RESOLVED — the dial is answered:
-`raiderDmgPerTick=2.5`. See FINDINGS Findings 6–8.)*
+*(Updated 2026-07-14: the foundation SHIPPED. B1/B2 resolved; the three
+anti-degenerate mechanics are in both sim2 and the game; villager agents +
+HP-as-output are implemented in `src/` with the validated numbers
+(`lootDmg=4.5`, `outputFloor=0.4`, guild floor 0.3, etc.). Old saves migrate.)*
 
-1. **Decide crisis intensity within the band (C3 + A1 fine-tune).** At dmg 2.5
-   the crisis fraction is mild (median 6–14%); if "tense" should bite harder,
-   3.0–3.5 keeps collapse ≤6%. Promote the chosen value to `params.mjs`.
-2. **Design around the degenerate strategies B1 exposed** (FINDINGS Finding 8):
-   force-ratio combat losses (or soldiers are a trap vs. towers), no
-   re-sack death grinder, raider satiation/withdrawal.
-3. **Then implement the foundation in `src/`** (villager agents + HP-as-output,
-   save-format bump per E2).
+1. **Playtest the real game** — the sim numbers are the starting point, not
+   gospel. First knobs to watch: `RAID.lootDmg` (4.5), `RAID.maxRaidTicks`
+   (200 — raid events run long in real time), and skill gain (14/20 villagers
+   were masters by year 5 in testing; masters may be too cheap — Pillar B wants
+   them precious).
+2. **Pillar C proper** — warlord telegraphing (a season's dread warning, not
+   just a bigger wave), winter-fuel/bigger-colder knobs (B6), smarter raid
+   targeting in the spatial game.
+3. **Gold still pools** — the redesign bounded population and buildings, but
+   gold reached ~24k in a 12-year headless run (Plenty crown trivial). Needs a
+   sink (warlord tribute? repair fees? festival costs?).
 
-Everything else waits on these three.
+Everything else can follow playtesting.

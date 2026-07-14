@@ -4,7 +4,9 @@ import { on, emit } from '../core/events.js';
 import { currentSeason, currentYear } from '../core/sim.js';
 import { territorySize } from '../core/territory.js';
 import { demolish, clearSave, saveGame } from '../core/state.js';
-import { recruitSoldier } from '../core/raids.js';
+import { recruitSoldier, dismissSoldier } from '../core/raids.js';
+import { countMasters } from '../core/villagers.js';
+import { outputMult } from '../core/economy.js';
 import { sell, buy, sellPrice, buyPrice } from '../core/trade.js';
 import { getProgress, CROWN_NAMES } from '../core/win.js';
 
@@ -146,13 +148,20 @@ export function buildUI(root, ctx) {
   panels.Kingdom.appendChild(crownsEl);
   const kStats = el('div', 'kstats');
   panels.Kingdom.appendChild(kStats);
-  const recruitBtn = el('button', 'action', `Recruit soldier (${SOLDIER.cost.gold} gold, ${SOLDIER.cost.iron} iron)`);
+  const recruitBtn = el('button', 'action', `Recruit soldier (${SOLDIER.cost.iron} iron — then eats 3×)`);
   recruitBtn.onclick = () => {
     const r = recruitSoldier(state);
     if (!r.ok) showToast(r.reason);
     render();
   };
   panels.Kingdom.appendChild(recruitBtn);
+  const dismissBtn = el('button', 'action', 'Dismiss soldier');
+  dismissBtn.onclick = () => {
+    const r = dismissSoldier(state);
+    if (!r.ok) showToast(r.reason);
+    render();
+  };
+  panels.Kingdom.appendChild(dismissBtn);
 
   // ── Trade tab ────────────────────────────────────────────────────
   const merchStatus = el('div', 'merch-status');
@@ -198,11 +207,18 @@ export function buildUI(root, ctx) {
     if (!selected || selected.hp <= 0) { selPanel.classList.add('hidden'); return; }
     const def = BUILDINGS[selected.type];
     selPanel.classList.remove('hidden');
+    const out = Math.round(outputMult(selected) * 100);
+    const crew = selected.workers || [];
+    const avgSkill = crew.length
+      ? crew.reduce((s, v) => s + (v.skills[selected.type] || 0), 0) / crew.length : 0;
+    const crewLine = def.workers
+      ? ` · crew ${selected.assigned}/${def.workers}${avgSkill > 0.05 ? ` (skill ${Math.round(avgSkill * 100)}%)` : ''}`
+      : '';
     selPanel.innerHTML = `
       <img class="bicon" src="${buildingIconURL(selected.type)}" alt="">
       <div class="sel-info">
-        <div class="sel-name">${def.name}</div>
-        <div class="sel-hp">HP ${Math.ceil(selected.hp)}/${def.hp}${def.workers ? ` · workers ${selected.assigned}/${def.workers}` : ''}</div>
+        <div class="sel-name">${def.name}${selected.sacked ? ' <span class="bad">— SACKED</span>' : ''}</div>
+        <div class="sel-hp">HP ${Math.ceil(selected.hp)}/${def.hp} · output ${out}%${crewLine}</div>
         <div class="sel-desc">${def.desc}</div>
       </div>`;
     if (selected.type !== 'keep') {
@@ -337,10 +353,14 @@ export function buildUI(root, ctx) {
     }
 
     // kingdom stats
+    const jobs = { producer: 0, builder: 0, soldier: 0, idle: 0 };
+    for (const v of state.villagers) jobs[v.job] = (jobs[v.job] || 0) + 1;
+    const masters = countMasters(state);
+    const sacked = state.buildings.filter((b) => b.sacked && b.hp > 0).length;
     kStats.innerHTML = `
-      <div class="stat"><b>${state.pop}</b> subjects · <b>${state.idleWorkers ?? 0}</b> idle</div>
-      <div class="stat"><b>${territorySize(state)}</b> tiles of territory</div>
-      <div class="stat"><b>${state.soldiers.length}</b> soldiers under arms</div>
+      <div class="stat"><b>${state.pop}</b> subjects — ${jobs.producer} working · ${jobs.builder} repairing · ${jobs.soldier} under arms · ${jobs.idle} idle</div>
+      <div class="stat"><b>${masters}</b> master craftsfolk${masters > 0 ? ' (their skill dies with them)' : ''}</div>
+      <div class="stat"><b>${territorySize(state)}</b> tiles of territory${sacked ? ` · <span class="bad">${sacked} sacked building${sacked > 1 ? 's' : ''}</span>` : ''}</div>
       <div class="stat">Morale <b>${Math.round(state.morale)}</b>${state.starving ? ' · <span class="bad">STARVING</span>' : ''}</div>
       <div class="stat">${state.raid.phase === 'quiet' ? `Next raid threat in ~${Math.ceil(state.raid.timer * TICK_MS / 1000)}s` : state.raid.phase === 'warning' ? '<span class="bad">Raiders approach!</span>' : '<span class="bad">RAID IN PROGRESS</span>'}</div>`;
 

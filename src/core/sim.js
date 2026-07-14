@@ -1,6 +1,6 @@
 import { SEASON_TICKS, SEASONS } from '../config.js';
 import { mulberry32 } from './rng.js';
-import { economyTick } from './economy.js';
+import { economyTick, maintenanceTick } from './economy.js';
 import { populationTick } from './population.js';
 import { tradeTick } from './trade.js';
 import { raidTick } from './raids.js';
@@ -32,6 +32,7 @@ export function makeSim(state) {
       }
 
       economyTick(state);
+      maintenanceTick(state);
       populationTick(state);
       tradeTick(state, rand);
       raidTick(state, rand);

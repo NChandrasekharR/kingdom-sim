@@ -2,6 +2,7 @@ import { MAP, T, TERRAIN_INFO, BUILDINGS, RAIDER, RAID, SOLDIER, ROAD_SPEED_MULT
 import { idx, inBounds, buildingAt, destroyBuilding } from './state.js';
 import { prosperity } from './economy.js';
 import { logEvent, emit } from './events.js';
+import { killVillager, isMaster } from './villagers.js';
 
 // ── A* over the tile grid ──────────────────────────────────────────
 function wallSet(state) {
@@ -108,6 +109,16 @@ export function raidTick(state, rand) {
   } else if (raid.phase === 'active') {
     updateRaiders(state, rand);
     updateTowers(state);
+    // raiders don't winter over: when the season's looting is done they go home,
+    // so even an undefended kingdom is wounded, not besieged forever. The clock
+    // starts when pillaging starts — the march in doesn't count — with a hard
+    // backstop in case a wave gets stuck pathing and never arrives.
+    const lootingLong = raid.lootStartTick && state.tick - raid.lootStartTick > RAID.maxRaidTicks;
+    const stuckLong = state.tick - (raid.startTick || 0) > RAID.maxRaidTicks * 3;
+    if ((lootingLong || stuckLong) && raid.raiders.some((rd) => rd.mode !== 'flee')) {
+      for (const rd of raid.raiders) if (rd.mode !== 'flee') startFlee(state, rd);
+      logEvent(state, 'Their sacks full, the raiders melt back into the wilds.', 'info');
+    }
     if (raid.raiders.length === 0) endRaid(state, rand);
   }
 
@@ -118,7 +129,22 @@ function spawnRaid(state, rand) {
   const raid = state.raid;
   const N = MAP.size;
   raid.wave++;
-  const size = Math.min(2 + Math.floor(prosperity(state) / 350) + Math.floor(raid.wave / 2), 14);
+  raid.startTick = state.tick;
+  raid.lootStartTick = 0;
+
+  // wave size rides prosperity and your army; a raid that hurt last time
+  // eases this one (rubber-band mercy), a fat unscathed kingdom gets none
+  let sizeF = RAID.sizeBase + prosperity(state) / RAID.prosperityDivisor
+    + state.soldiers.length * RAID.militaryPressure;
+  const ease = 1 - (raid.lastSacked || 0) * RAID.easeAfterSack;
+  sizeF *= Math.max(RAID.minSizeMult, Math.min(1.2, ease));
+
+  // warlords: a dread wave on a cadence, once the kingdom is worth the march
+  const isWarlord = RAID.warlordEveryWaves > 0 && state.pop >= RAID.warlordMinPop &&
+    raid.wave % RAID.warlordEveryWaves === 0;
+  if (isWarlord) sizeF *= RAID.warlordSizeMult;
+  const size = Math.min(RAID.sizeCap, Math.max(1, Math.round(sizeF)));
+  raid.sackedThisRaid = 0;
 
   // pick a land tile on the map edge
   let sx = 0, sy = 0, tries = 0;
@@ -137,14 +163,17 @@ function spawnRaid(state, rand) {
     if (!path) continue;
     raid.raiders.push({
       x: sx + (rand() - 0.5), y: sy + (rand() - 0.5), px: sx, py: sy,
-      hp: RAIDER.hp + raid.wave * 2, loot: 0,
+      hp: (RAIDER.hp + raid.wave * 2) * (isWarlord ? RAID.warlordHpMult : 1),
+      loot: 0,
       path, pathI: 0, mode: 'march', targetId: target.id,
       spawn: { x: sx, y: sy },
     });
   }
   if (!raid.raiders.length) { endRaid(state, rand); return; }
   raid.phase = 'active';
-  logEvent(state, `${raid.raiders.length} raiders storm in from the wilds!`, 'raid');
+  logEvent(state, isWarlord
+    ? `A WARLORD marches on ${state.name} with ${raid.raiders.length} raiders!`
+    : `${raid.raiders.length} raiders storm in from the wilds!`, 'raid');
 }
 
 function pickTarget(state, rand) {
@@ -156,7 +185,8 @@ function pickTarget(state, rand) {
     if (b.type === 'road') return 0.05;
     return 1.5;
   };
-  const cands = state.buildings.filter((b) => b.hp > 0);
+  // an already-gutted building isn't worth sacking again
+  const cands = state.buildings.filter((b) => b.hp > b.maxHp * RAID.abandonHpFrac);
   if (!cands.length) return null;
   let total = 0;
   for (const b of cands) total += value(b);
@@ -181,6 +211,9 @@ function updateRaiders(state, rand) {
         rd.mode = 'loot';
         continue;
       }
+      if (rd.mode === 'march' && rd.pathI >= rd.path.length - 1 && !raid.lootStartTick) {
+        raid.lootStartTick = state.tick; // the pillaging clock starts on arrival
+      }
       const next = rd.path[rd.pathI];
       const nx = next % N, ny = (next / N) | 0;
       // wall in the way → batter it
@@ -200,7 +233,7 @@ function updateRaiders(state, rand) {
       else { rd.x += (dx / d) * speed; rd.y += (dy / d) * speed; }
     } else if (rd.mode === 'loot') {
       const target = state.buildings.find((b) => b.id === rd.targetId && b.hp > 0);
-      if (!target) { startFlee(state, rd); continue; }
+      if (!target) { retargetOrFlee(state, rd, rand); continue; }
       // steal from the richest stockpile
       let best = null, bestAmt = 0;
       for (const r of ['gold', 'iron', 'bread', 'food', 'wood', 'stone', 'ore']) {
@@ -211,17 +244,37 @@ function updateRaiders(state, rand) {
         state.res[best] -= take;
         rd.loot += take;
       }
-      target.hp -= 3;
+      // grind the building down — raiders SACK capacity, they don't raze it.
+      // The wound is measured in lost output-days, not rubble.
+      target.hp -= RAID.lootDmg;
       state.raidShock = Math.min(30, state.raidShock + 0.3);
-      if (target.hp <= 0) {
-        logEvent(state, `${BUILDINGS[target.type].name} burned to the ground!`, 'raid');
-        state.raidShock = Math.min(40, state.raidShock + 12);
-        destroyBuilding(state, target);
-        emit('building-destroyed', target);
+      state.buildingsDirty = true;
+      if (target.hp <= target.maxHp * RAID.abandonHpFrac) {
+        target.hp = Math.max(1, target.maxHp * RAID.abandonHpFrac);
+        if (!target.sacked) {
+          target.sacked = true;
+          raid.sackedThisRaid = (raid.sackedThisRaid || 0) + 1;
+          logEvent(state, `${BUILDINGS[target.type].name} has been sacked!`, 'raid');
+          state.raidShock = Math.min(40, state.raidShock + 8);
+          // workers may die in the sacking — but only once per raid per
+          // building, so repairing mid-raid can't re-feed the grinder
+          if (target.deathRolledWave !== raid.wave) {
+            target.deathRolledWave = raid.wave;
+            for (const v of [...(target.workers || [])]) {
+              if (rand() < RAID.sackDeathChance) {
+                const wasMaster = isMaster(v);
+                killVillager(state, v);
+                logEvent(state, wasMaster
+                  ? `${v.name}, master ${target.type === 'smelter' ? 'smith' : 'of the ' + target.type}, was slain in the sacking. Years of craft die too.`
+                  : `${v.name} was slain defending the ${BUILDINGS[target.type].name.toLowerCase()}.`, 'bad');
+              }
+            }
+          }
+        }
+        retargetOrFlee(state, rd, rand);
+        continue;
       }
-      if (rd.loot >= RAIDER.lootCap || !state.buildings.some((b) => b.id === rd.targetId && b.hp > 0)) {
-        startFlee(state, rd);
-      }
+      if (rd.loot >= RAIDER.lootCap) startFlee(state, rd);
     }
   }
   raid.raiders = raid.raiders.filter((rd) => rd.hp > 0 && rd.mode !== 'gone');
@@ -232,6 +285,19 @@ function startFlee(state, rd) {
   const path = findPath(state, Math.round(rd.x), Math.round(rd.y), rd.spawn.x, rd.spawn.y);
   rd.path = path || [];
   rd.pathI = 0;
+}
+
+// after a sacking: move on to the next worthwhile building, or go home sated
+function retargetOrFlee(state, rd, rand) {
+  if (rd.loot >= RAIDER.lootCap) { startFlee(state, rd); return; }
+  const next = pickTarget(state, rand);
+  if (!next) { startFlee(state, rd); return; }
+  const path = findPath(state, Math.round(rd.x), Math.round(rd.y), next.x, next.y);
+  if (!path) { startFlee(state, rd); return; }
+  rd.targetId = next.id;
+  rd.path = path;
+  rd.pathI = 0;
+  rd.mode = 'march';
 }
 
 function updateTowers(state) {
@@ -269,7 +335,8 @@ function updateSoldiers(state, rand) {
         if (d < nd) { nd = d; nearest = rd; }
       }
       if (nd < 1.1) {
-        nearest.hp -= SOLDIER.dmg;
+        const vet = state.villagers.find((v) => v.id === s.villagerId);
+        nearest.hp -= SOLDIER.dmg * (1 + (vet?.skills.soldier || 0));
         s.hp -= RAIDER.dmg;
         if (nearest.hp <= 0) logEvent(state, 'A raider is cut down by your soldiers.', 'good');
       } else {
@@ -287,17 +354,32 @@ function updateSoldiers(state, rand) {
       s.hp = Math.min(SOLDIER.hp, s.hp + 0.2); // rest and mend
     }
   }
-  const fallen = state.soldiers.filter((s) => s.hp <= 0).length;
-  if (fallen) logEvent(state, `${fallen} soldier${fallen > 1 ? 's' : ''} fell in battle.`, 'bad');
+  // a fallen soldier is a fallen villager — their skills fall with them
+  for (const s of state.soldiers) {
+    if (s.hp > 0) continue;
+    const vet = state.villagers.find((v) => v.id === s.villagerId);
+    if (vet) {
+      const wasMaster = isMaster(vet);
+      killVillager(state, vet);
+      logEvent(state, wasMaster
+        ? `${vet.name}, a veteran of many battles, fell defending the realm.`
+        : `${vet.name} fell in battle.`, 'bad');
+    }
+  }
   state.soldiers = state.soldiers.filter((s) => s.hp > 0);
 }
 
 function endRaid(state, rand) {
   const raid = state.raid;
   raid.phase = 'quiet';
+  raid.lastSacked = raid.sackedThisRaid || 0;
   raid.timer = RAID.minGapTicks + Math.floor(rand() * 200) - Math.min(150, Math.floor(prosperity(state) / 15));
+  // rubber-band: a raid that hurt buys quiet ticks to rebuild in
+  raid.timer += raid.lastSacked * RAID.mercyPerSack;
   raid.timer = Math.max(120, raid.timer);
-  logEvent(state, 'The raid is over. The kingdom breathes again.', 'info');
+  logEvent(state, raid.lastSacked > 0
+    ? `The raid is over. ${raid.lastSacked} building${raid.lastSacked > 1 ? 's' : ''} lie sacked — repairs await.`
+    : 'The raid is over. The kingdom breathes again.', 'info');
 }
 
 export function recruitSoldier(state) {
@@ -306,14 +388,32 @@ export function recruitSoldier(state) {
   if (state.soldiers.length >= barracks.length * SOLDIER.perBarracks) {
     return { ok: false, reason: 'Barracks are full' };
   }
+  // a soldier is a villager under arms, not a coin purchase
+  const recruit = state.villagers.find((v) => v.job === 'idle')
+    || state.villagers.find((v) => v.job === 'producer');
+  if (!recruit) return { ok: false, reason: 'No subject free to serve' };
   for (const [r, amt] of Object.entries(SOLDIER.cost)) {
     if (state.res[r] < amt) return { ok: false, reason: `Not enough ${r}` };
   }
   for (const [r, amt] of Object.entries(SOLDIER.cost)) state.res[r] -= amt;
+  recruit.job = 'soldier';
+  recruit.workplaceId = null;
+  recruit.workType = null;
   const b = barracks[0];
   state.soldiers.push({
-    id: state.nextId++, x: b.x, y: b.y + 1, px: b.x, py: b.y + 1, hp: SOLDIER.hp,
+    id: state.nextId++, villagerId: recruit.id,
+    x: b.x, y: b.y + 1, px: b.x, py: b.y + 1, hp: SOLDIER.hp,
   });
-  logEvent(state, 'A soldier takes up arms.', 'good');
+  logEvent(state, `${recruit.name} takes up arms.`, 'good');
+  return { ok: true };
+}
+
+export function dismissSoldier(state) {
+  const s = state.soldiers[state.soldiers.length - 1];
+  if (!s) return { ok: false, reason: 'No soldiers to dismiss' };
+  const vet = state.villagers.find((v) => v.id === s.villagerId);
+  if (vet) { vet.job = 'idle'; }
+  state.soldiers.pop();
+  logEvent(state, vet ? `${vet.name} hangs up the sword and returns to the fields.` : 'A soldier stands down.', 'info');
   return { ok: true };
 }

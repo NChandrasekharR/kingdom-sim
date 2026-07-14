@@ -257,6 +257,37 @@ faster than the passive bot*:
   wants more, push toward 3.0–3.5 (collapse stays ≤6%).
 - `specialists` at dmg 2.5 confirms: 98% interesting, ≤2% collapse at every
   tier (iq0 98/1%, iq1 98/2%, iq2 98/1%). All three scenario families agree.
-- `raiderDmgPerTick=2.5` is validated but **not yet promoted** to the
-  `params.mjs` default — do that alongside the C3 threshold decision.
 - The abstract-vs-spatial gaps (C2, B5) and winter knobs (B6) are untouched.
+
+---
+
+## UPDATE (2026-07-14): mechanics fixed, dial re-validated at 4.5, foundation SHIPPED
+
+The three Finding-8 degenerate strategies were fixed as game mechanics (in both
+sim2 and `src/`): force-ratio combat losses (`soldierDeathBase` scales with how
+outnumbered the soldiers are), sack deaths roll once per building per raid, and
+raider satiation/withdrawal (`lootSatiation=25`, `maxRaidTicks=200`).
+
+**These made every dial value safer, so the dial re-opened.** Re-sweep at 60
+seeds (baseline + gauntlet, iq0/iq1 × dmg 2.5/3.0/3.5/4.5): iq0 is 100%
+interesting / 0% collapse at EVERY value; iq1 climbs from too-easy at 2.5 to
+**95–98% interesting / 0% collapse at 4.5**. `raiderDmgPerTick=4.5` is the new
+`params.mjs` default — a value nearly 4× the old "safe" 1.2, made playable
+entirely by the softening + anti-degenerate mechanics.
+
+**Finding 9 — the march tax (spatial reality the abstract sim can't see).**
+Transplanted into the real game, raids under-hurt: raiders spend 100–150 ticks
+*marching* across the 128-tile map before looting, so a spawn-clocked
+withdrawal timer expired before real damage landed. Fix: the withdrawal clock
+starts when pillaging starts (first raider arrives), with a 3× backstop for
+stuck pathing. This is exactly the class of gap OPEN-QUESTIONS C2 predicted —
+expect more of them in playtesting, and trust the sim for *shape*, the game
+for *feel*.
+
+**The foundation is implemented in `src/`** (villager agents with names/skills/
+hunger, HP-as-output with `outputFloor=0.4`, builder maintenance, sack-based
+raids with rubber-band + warlords, guild memory, soldiers-as-villagers with
+iron-once/eat-3× economics, bakery 0.4, save migration). Headless 12-year run
+of the real game: population reaches a tense equilibrium ~66 (the old snowball
+hit 186 with zero risk); food oscillates seasonally; zero buildings destroyed,
+many sacked. Gold still pools (~24k by year 12) — the remaining known sink gap.
