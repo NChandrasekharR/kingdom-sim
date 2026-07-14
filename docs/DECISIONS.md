@@ -65,6 +65,49 @@ answered by Fable and ratified by Chandra:
 further tuning or game code — tuning against the passive bot just moves the
 pendulum wall-to-wall (proven twice).
 
+## Implementation decisions (Turns 9–10, 2026-07-13/14)
+
+Choices made while building B1 and the `src/` foundation. Rationale documented
+because several reverse first instincts.
+
+- **Difficulty numbers are tuned against the SMART tiers' too-easy rate, not
+  the passive bot's collapse rate.** B1's headline (Finding 7): rubber-banding
+  keeps a sloppy player in the tense band automatically; it's the competent
+  player who escapes into too-easy. The old caveat was exactly backwards.
+- **The three degenerate strategies became game MECHANICS, not policy
+  workarounds** (Finding 8). Force-ratio combat losses (outnumber raiders →
+  nearly bloodless), sack deaths roll once per building per raid, raider
+  satiation/withdrawal (`lootSatiation`, `maxRaidTicks`). If only the sim's
+  player avoided these traps, every real player would still fall into them.
+- **`raiderDmgPerTick`/`lootDmg` = 4.5** (was 1.2 in sim defaults, 3 in the old
+  game). The anti-degenerate mechanics re-opened the whole dial range; 4.5 is
+  the highest tested value with 0% collapse at every tier (iq0 100%
+  interesting, iq1 95–98%, baseline + gauntlet, 2026-07-13 sweeps).
+- **Soldiers are villagers under arms**, not purchased units. Recruit converts
+  a real subject (5 iron once, eats 3×, skills scale damage, death removes the
+  villager); a Dismiss button sends them back to the fields. Kills the
+  gold-army loop and makes the army cost land.
+- **Sacked ≠ destroyed.** Raids grind buildings to a 15% HP floor and move on;
+  only walls can still be battered to rubble. Decay likewise floors at 1 HP —
+  neglect guts a building but never silently erases it. (A raid is an economic
+  wound in output-days, and A2's "recoverable" needs things left standing.)
+- **The withdrawal clock starts at ARRIVAL, not spawn** (Finding 9, "the march
+  tax"). The abstract sim has no travel time; the real map eats 100+ ticks of
+  marching. Clocking from spawn made raids toothless. 3× backstop from spawn
+  covers stuck pathing.
+- **Old saves migrate, they don't reset** (E2). `loadGame()` synthesizes
+  villagers from the old integer pop and gives old soldiers `villagerId`
+  bodies. Worker crews are live object references — stripped on save,
+  recomputed every tick.
+- **Villagers have names** ("Berta Stoutheart"), deterministic from id. The
+  chronicle reports deaths by name — Pillar B's stakes are people, and this
+  was nearly free.
+- **iq 0 stays byte-identical to the legacy bot.** Every pre-B1 number
+  reproduces exactly, so old and new results stay comparable forever.
+- **Fresh git history** (Chandra's call, Turn 9). The directory carried an
+  unrelated project's history; kingdom-sim now has its own repo from
+  `d0d947b`. `node_modules`/`dist`/`.DS_Store` ignored.
+
 ## Design philosophy (the redesign)
 
 - **Model before building** (Turn 6). Chandra's call: "Can we create a system

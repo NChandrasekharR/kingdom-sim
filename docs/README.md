@@ -16,9 +16,10 @@ open questions, and pointers to the design docs and models.
 
 | File | What it is |
 |------|-----------|
-| [`CHATLOG.md`](CHATLOG.md) | Full annotated transcript of the working session (8 turns). |
+| [`CHATLOG.md`](CHATLOG.md) | Full annotated transcript of both working sessions (11 turns: build → redesign → review → implementation). |
 | [`DECISIONS.md`](DECISIONS.md) | Every choice made, with rationale, so nothing gets relitigated. |
 | [`OPEN-QUESTIONS.md`](OPEN-QUESTIONS.md) | Consolidated register of all unresolved questions & pending experiments, with status. |
+| [`SIMULATIONS.md`](SIMULATIONS.md) | Register of every simulation campaign — question, command, numbers (~4,900 Monte Carlo runs). |
 | `README.md` | This index. |
 
 ## The design docs (`../design/`) — forward-looking

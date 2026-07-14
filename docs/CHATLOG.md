@@ -1,8 +1,9 @@
 # Kingdom-sim — full session transcript
 
 This is the complete conversation record for the kingdom-sim project, from the
-initial brainstorm through the redesign investigation. Reconstructed from the
-working session on 2026-07-08 → 2026-07-11.
+initial brainstorm through the redesign investigation and its implementation.
+Turns 1–8 reconstructed from the working session on 2026-07-08 → 2026-07-11;
+Turns 9–11 from the review-and-implementation session on 2026-07-12 → 2026-07-14.
 
 Format: **User** = Chandra's messages (verbatim intent). **Claude** = summary of
 Claude's response and the actions taken. Structured-question answers are shown
@@ -189,7 +190,7 @@ difficulty is a single dial but needs a smarter test-player to tune. Wrote
 
 ---
 
-## Turn 8 — This turn
+## Turn 8 — The documentation pass
 
 **User:**
 > Put ALL chat logs, and any other design open questions etc into markdown files.
@@ -199,7 +200,84 @@ register, a decisions log, and an index. (See `docs/README.md`.)
 
 ---
 
-## Artifacts produced across the session
+## Turn 9 — The Fable review (2026-07-12/13, new session)
+
+**User:**
+> Review the end to end codebase and explain to me what's happening here. Read
+> all docs and open questions and let's discuss what needs to be done next
+
+**Claude (Fable):** Read every doc and mapped the full codebase (an explore
+agent swept `src/`, `sim2/`, `model/`). Reported the three-projects-in-one
+structure, the state of the redesign, and one housekeeping find: the git
+history in the directory belonged to an unrelated project — the kingdom-sim
+files were untracked on top of it. Then, since `docs/README.md` named Fable as
+the reviewer, answered all six §A questions directly: A1 tense-but-fair / soft
+failure, A2 recoverable-but-expensive collapse, A3 automatic labor with ~3
+dials, A4 high knowledge floor, A5 foundation-then-C→B→A, A6 HP-as-output
+confirmed as the spine. Asked Chandra to ratify.
+
+**Chandra's answers (structured):**
+- **Design calls:** Ratify all.
+- **Next work:** B1 smarter player.
+- **Git cleanup:** Yes, fresh history.
+
+**Claude:** Initialized a clean git repo (baseline commit `d0d947b`), moved the
+six answers into `DECISIONS.md`, then built B1: a `player.iq` tier knob
+(0 = passive legacy bot, byte-identical numbers; 1 = competent; 2 = sharp).
+Getting "competent" right took four traced failure rounds — each naive smart
+policy collapsed FASTER than the passive bot, exposing three degenerate
+strategies (towers strictly dominate soldiers; mid-raid repair is a worker
+meat grinder; undefended raids never end) plus a labor lesson (staff the
+quarry before the third lumber camp — hands, not camps, are the binding
+resource). Ran the tier × difficulty sweeps: at `raiderDmgPerTick=2.5` every
+tier hit 75–100% interesting with ≤3% collapse on all three scenario
+families. Recorded Findings 6–8, resolved B1/B2, committed (`6a00940`,
+`61f2008`).
+
+---
+
+## Turn 10 — "Make it so" (2026-07-13/14)
+
+**User:**
+> make it so, my guy
+
+**Claude:** Executed the agreed sequence:
+1. **Fixed the three degenerate strategies as game mechanics** in sim2:
+   force-ratio combat losses, once-per-raid sack deaths, raider satiation +
+   withdrawal.
+2. **Re-validated the dial** — the fixes made every setting safer, so the dial
+   re-opened: promoted `raiderDmgPerTick` default to **4.5** (iq0 100%
+   interesting / 0% collapse, iq1 95–98% interesting, baseline + gauntlet).
+3. **Implemented the foundation in `src/`** — named villager agents with
+   mortal skills, guild memory, and hunger; HP-as-output (floor 0.4) with
+   builder maintenance; sack-based raids with rubber-band mercy, warlords,
+   satiation; soldiers as villagers (5 iron once, eat 3×, dismissible);
+   bakery 0.4; save migration for old saves.
+4. **Found Finding 9 ("the march tax")** during verification: raiders spend
+   100+ ticks marching across the real map — a cost the abstract sim never
+   modeled — so the withdrawal clock now starts on arrival, not spawn.
+5. **Verified end-to-end:** headless 12-year run of the real game reaches a
+   tense equilibrium (pop ~66 vs the old 186 snowball; 0 buildings destroyed,
+   many sacked); browser run clean — with Chandra live-playtesting in the
+   preview tab mid-verification. Committed (`e14ee98`). Did NOT redeploy to
+   Vercel (per E3, deploys stay manual).
+
+---
+
+## Turn 11 — The record (this turn, 2026-07-14)
+
+**User:**
+> explain to me all the changes you made and log all chats and decisions and
+> simulations.
+
+**Claude:** Appended Turns 9–11 to this transcript, logged the session's
+implementation decisions in `DECISIONS.md`, created `docs/SIMULATIONS.md` — a
+register of every simulation campaign with its numbers — and delivered the
+full change explanation in chat.
+
+---
+
+## Artifacts produced across the sessions
 
 **Game (shipped, live):**
 - `kingdom-sim/` full Vite + Phaser game — deployed at
@@ -223,3 +301,13 @@ register, a decisions log, and an index. (See `docs/README.md`.)
 - `docs/OPEN-QUESTIONS.md` — consolidated question register
 - `docs/DECISIONS.md` — decisions made and their rationale
 - `docs/README.md` — index
+
+**Review & implementation session (Turns 9–11):**
+- Clean git history (`git log` tells the project's story from `d0d947b`)
+- `sim2/` tiered player policies (`player.iq`) + anti-degenerate mechanics;
+  dial re-validated and promoted to `raiderDmgPerTick=4.5`
+- `src/` foundation: `src/core/villagers.js` (new), rewrites of `economy.js`,
+  `population.js`, major rework of `raids.js`, `state.js` migration,
+  `config.js` HP/SKILL/RAID blocks, UI workforce/selection updates
+- `design/FINDINGS.md` Findings 6–9; `docs/SIMULATIONS.md` (simulation
+  register); updated `DECISIONS.md`, `OPEN-QUESTIONS.md`, `sim2/README.md`
