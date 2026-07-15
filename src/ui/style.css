@@ -329,6 +329,7 @@ button {
 /* Kingdom tab */
 .kstats .stat { padding: 5px 0; border-bottom: 1px dotted var(--ink-soft); font-size: 14px; }
 .kstats .bad, .bad { color: var(--bad); font-weight: 700; }
+.merc-name { color: #7e4fb3; font-weight: 700; }
 .action {
   margin-top: 12px;
   width: 100%;

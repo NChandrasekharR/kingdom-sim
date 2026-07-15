@@ -176,7 +176,7 @@ export class KingdomScene extends Phaser.Scene {
   drawUnits(alpha) {
     const { state } = this.ctx;
     const units = [];
-    for (const s of state.soldiers) units.push({ u: s, key: 'u-soldier' });
+    for (const s of state.soldiers) units.push({ u: s, key: s.merc ? 'u-merc' : 'u-soldier' });
     for (const r of state.raid.raiders) units.push({ u: r, key: 'u-raider' });
 
     while (this.unitPool.length < units.length) {
@@ -251,7 +251,7 @@ export class KingdomScene extends Phaser.Scene {
         let unit = null, kind = null, ud = 0.7;
         for (const s of st.soldiers) {
           const d = Math.hypot(s.x + 0.5 - wx, s.y + 0.5 - wy);
-          if (d < ud) { ud = d; unit = s; kind = 'soldier'; }
+          if (d < ud) { ud = d; unit = s; kind = s.merc ? 'merc' : 'soldier'; }
         }
         for (const r of st.raid.raiders) {
           const d = Math.hypot(r.x + 0.5 - wx, r.y + 0.5 - wy);

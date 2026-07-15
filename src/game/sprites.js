@@ -10,6 +10,7 @@ export const PALETTE = {
   c: '#e9dfc8', b: '#4a6e9e', k: '#26201a',
   e: '#e87c28', i: '#c8ccd4', d: '#6b4226',
   x: '#c03a2a', X: '#7e1f14', u: '#8fa3b8', D: '#54331c',
+  p: '#a76fd6', P: '#6e3fa3',   // mercenary purple
 };
 
 export const BUILDING_ART = {
@@ -240,6 +241,13 @@ export const UNIT_ART = {
     '.uu..',
     '.k.k.',
   ],
+  merc: [
+    '.PP..',
+    '.pp.P',
+    'pppp.',
+    '.pp..',
+    '.k.k.',
+  ],
   merchant: [
     '.tt..',
     'ttttt',
@@ -263,6 +271,7 @@ export const RES_ICON_ART = {
   // a hooded brigand for the unit inspector (raiders)
   raider: ['..XX....', '..XX....', '.xRRx...', '.xRRx...', '..RR....', '..XX....', '.X..X...', '........'],
   soldier: ['..ii....', '..cc....', '.uSSu...', '.uSSu...', '..SS....', '..ii....', '.i..i...', '........'],
+  merc: ['..PP....', '..cc....', '.pPPp...', '.pPPp...', '..PP....', '..PP....', '.P..P...', '........'],
 };
 
 function drawArt(ctx, rows, ox = 0, oy = 0) {

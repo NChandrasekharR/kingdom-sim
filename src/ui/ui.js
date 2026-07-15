@@ -291,6 +291,17 @@ export function buildUI(root, ctx) {
           <div class="sel-hp">HP ${Math.ceil(unit.hp)}/${SOLDIER.hp} (${hpPct}%) · skills: ${skills}</div>
           <div class="sel-desc">A subject of ${state.name} under arms.</div>
         </div>`;
+    } else if (kind === 'merc') {
+      const gone = unit.hp <= 0 || !state.soldiers.includes(unit);
+      if (gone) { selUnit = null; selPanel.classList.add('hidden'); return; }
+      const hpPct = Math.max(0, Math.round((unit.hp / MERCENARY.hp) * 100));
+      selPanel.innerHTML = `
+        <img class="bicon" src="${iconDataURL('merc')}" alt="">
+        <div class="sel-info">
+          <div class="sel-name"><span class="merc-name">Mercenary</span></div>
+          <div class="sel-hp">HP ${Math.ceil(unit.hp)}/${MERCENARY.hp} (${hpPct}%) · skill ${Math.round((unit.skill || 0) * 100)}%</div>
+          <div class="sel-desc">A hired sword. Paid in gold; deserts if the coffers run dry.</div>
+        </div>`;
     } else {
       const gone = unit.hp <= 0 || !state.raid.raiders.includes(unit);
       if (gone) { selUnit = null; selPanel.classList.add('hidden'); return; }
@@ -437,8 +448,11 @@ export function buildUI(root, ctx) {
     for (const v of state.villagers) jobs[v.job] = (jobs[v.job] || 0) + 1;
     const masters = countMasters(state);
     const sacked = state.buildings.filter((b) => b.sacked && b.hp > 0).length;
+    const mercs = mercCount(state);
+    const mercUpkeep = (mercs * MERCENARY.upkeepPerTick).toFixed(2);
     kStats.innerHTML = `
       <div class="stat"><b>${state.pop}</b> subjects — ${jobs.producer} working · ${jobs.builder} repairing · ${jobs.soldier} under arms · ${jobs.idle} idle</div>
+      ${mercs > 0 ? `<div class="stat"><b class="merc-name">${mercs}</b> mercenaries under contract · <span class="bad">${mercUpkeep} gold/tick upkeep</span></div>` : ''}
       <div class="stat"><b>${masters}</b> master craftsfolk${masters > 0 ? ' (their skill dies with them)' : ''}</div>
       <div class="stat"><b>${territorySize(state)}</b> tiles of territory${sacked ? ` · <span class="bad">${sacked} sacked building${sacked > 1 ? 's' : ''}</span>` : ''}</div>
       <div class="stat">Morale <b>${Math.round(state.morale)}</b>${state.starving ? ' · <span class="bad">STARVING</span>' : ''}</div>
