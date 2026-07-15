@@ -38,7 +38,10 @@ function parseArgs(argv) {
     else if (argv[i] === '--sweep') {
       while (argv[i + 1] && !argv[i + 1].startsWith('--')) {
         const [key, vals] = argv[++i].split('=');
-        out.sweeps.push({ key, values: vals.split(',').map(Number) });
+        // numeric where parseable, else keep the string (enum knobs like
+        // raidCivDeathModel=sack,hunt)
+        out.sweeps.push({ key, values: vals.split(',').map((s) =>
+          s.trim() !== '' && !isNaN(Number(s)) ? Number(s) : s) });
       }
     } else if (!argv[i].startsWith('--') && !out.scenario) out.scenario = argv[i];
   }
@@ -79,7 +82,7 @@ async function main() {
   for (const pt of points) {
     const merged = { ...scenario, params: withOverrides(scenario.params || {}, pt.overrides) };
     const labels = {};
-    const finals = [], crisis = [], prosp = [], recov = [];
+    const finals = [], crisis = [], prosp = [], recov = [], peaks = [], finPops = [], huntFracs = [];
     let interesting = 0, spirals = 0, collapses = 0;
 
     for (let i = 0; i < args.runs; i++) {
@@ -93,6 +96,9 @@ async function main() {
       crisis.push(v.crisisFrac);
       prosp.push(v.finalProsperity);
       if (v.avgRecoveryTicks) recov.push(v.avgRecoveryTicks);
+      peaks.push(v.peakPop);
+      finPops.push(v.finalPop);
+      huntFracs.push(v.huntFrac || 0);
     }
 
     const row = {
@@ -104,13 +110,16 @@ async function main() {
       prospMed: Math.round(pct(prosp, 0.5)),
       prospP90: Math.round(pct(prosp, 0.9)),
       recovMean: Math.round(mean(recov)),
+      peakPopMed: Math.round(pct(peaks, 0.5)),
+      finalPopMed: Math.round(pct(finPops, 0.5)),
+      huntFracMed: +pct(huntFracs, 0.5).toFixed(2),
       breakdown: Object.entries(labels).sort((a, b) => b[1] - a[1])
         .map(([k, n]) => `${k}:${n}`).join(' '),
     };
     table.push(row);
     console.log(`${pt.label.padEnd(38)} interesting=${(row.interesting * 100).toFixed(0)}% ` +
       `collapse=${(row.collapse * 100).toFixed(0)}% crisisMed=${row.crisisMed} ` +
-      `prospMed=${row.prospMed}  [${row.breakdown}]`);
+      `prospMed=${row.prospMed} pop=${row.finalPopMed} hunt=${row.huntFracMed}  [${row.breakdown}]`);
   }
 
   // write full results

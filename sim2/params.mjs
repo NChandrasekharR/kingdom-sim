@@ -118,6 +118,27 @@ export const DEFAULTS = {
     // pressure ramps WITH the kingdom instead of front-loading (Finding 5).
     warlordMinPop: 25,
     frontsMinPop: 30,
+
+    // ── spatial-combat proxy (Phase 2a): raiders hunt villagers ────────
+    // Abstract model of raiders physically running down civilians (no coords).
+    // 'hunt' = new unified rule (buildings eject workers on sack; raiders that
+    //   get past the towers/soldiers hunt exposed villagers who fight back weakly).
+    // 'sack' = the legacy 0.12 die-at-post roll (reproduces the shipped baseline;
+    //   the A/B control). See design/FINDINGS.md and the Phase-2a plan.
+    raidCivDeathModel: 'hunt',
+    huntShelterFrac: 0.6,        // civilians up to popCap*this are sheltered (unhuntable)
+    huntSoldierPin: 1.5,         // raiders each soldier ties up (can't peel off to hunt)
+    huntReachPerRaider: 0.5,     // exposed civilians a FREE raider engages per hunt round
+    huntKillChance: 0.35,        // per engagement: raider kills the cornered villager
+    huntVillagerDmg: 1.5,        // kill-back a villager lands (vs soldier 8, raider hp 30)
+    huntCadenceTicks: 20,        // a chase resolves only every N ticks (not per-tick),
+                                 // so the toll scales with raid SEVERITY, not duration.
+                                 // TUNED 2026-07-15: at 20, baseline iq0 pop=50 / iq1
+                                 // pop=36, 0% collapse, huntFrac 0.29 (in the 0.15-0.45
+                                 // band). Per-tick firing (cadence 1) cratered pop to 7-18.
+    huntDeathsPerRaidCap: 0,     // 0 = uncapped; >0 hard-caps hunt deaths per raid
+    // towers must be staffed by a watchman to fire (competes for civilian labor)
+    towerNeedsWatchman: true,
   },
 
   // — winter (Pillar C) —

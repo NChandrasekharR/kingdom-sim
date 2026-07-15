@@ -58,6 +58,8 @@ export function verdict(w) {
     finalProsperity: Math.round(finalProsp),
     raids: s.raids, warlords: s.warlords,
     buildingsLost: s.buildingsLost, villagersLost: s.villagersLost, mastersLost: s.mastersLost,
+    villagersHunted: s.villagersHunted || 0,
+    huntFrac: s.villagersLost ? +((s.villagersHunted || 0) / s.villagersLost).toFixed(2) : 0,
     outputLostToHp: Math.round(s.outputLostToHp),
     peakPop: s.peakPop, finalPop: w.pop,
   };

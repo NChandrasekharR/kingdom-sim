@@ -1,39 +1,34 @@
 {
   "scenario": "specialists",
-  "runs": 120,
+  "runs": 60,
   "table": [
     {
-      "point": "iq=0 raiderDmgPerTick=2.5",
-      "interesting": 0.98,
-      "collapse": 0.01,
+      "point": "iq=0",
+      "interesting": 1,
+      "collapse": 0,
       "spiral": 0,
-      "crisisMed": 0.14,
-      "prospMed": 14180,
-      "prospP90": 16981,
-      "recovMean": 147,
-      "breakdown": "INTERESTING:118 COLLAPSE:1 TOO-PUNISHING:1"
+      "crisisMed": 0.09,
+      "prospMed": 28889,
+      "prospP90": 31030,
+      "recovMean": 106,
+      "peakPopMed": 54,
+      "finalPopMed": 49,
+      "huntFracMed": 0.44,
+      "breakdown": "INTERESTING:60"
     },
     {
-      "point": "iq=1 raiderDmgPerTick=2.5",
-      "interesting": 0.98,
-      "collapse": 0.02,
+      "point": "iq=1",
+      "interesting": 1,
+      "collapse": 0,
       "spiral": 0,
-      "crisisMed": 0.19,
-      "prospMed": 10451,
-      "prospP90": 13843,
-      "recovMean": 97,
-      "breakdown": "INTERESTING:118 COLLAPSE:2"
-    },
-    {
-      "point": "iq=2 raiderDmgPerTick=2.5",
-      "interesting": 0.98,
-      "collapse": 0.01,
-      "spiral": 0,
-      "crisisMed": 0.23,
-      "prospMed": 9415,
-      "prospP90": 15737,
-      "recovMean": 94,
-      "breakdown": "INTERESTING:118 COLLAPSE:1 TOO-EASY:1"
+      "crisisMed": 0.36,
+      "prospMed": 8046,
+      "prospP90": 10987,
+      "recovMean": 103,
+      "peakPopMed": 35,
+      "finalPopMed": 30,
+      "huntFracMed": 0.3,
+      "breakdown": "INTERESTING:60"
     }
   ]
 }

@@ -23,7 +23,7 @@ export class World {
     this.log = [];
     this.stats = { raids: 0, warlords: 0, buildingsLost: 0, buildingsSacked: 0,
       villagersLost: 0, mastersLost: 0, starvationDeaths: 0, outputLostToHp: 0,
-      ticksInCrisis: 0, peakPop: 6, recoveryTicks: [] };
+      villagersHunted: 0, ticksInCrisis: 0, peakPop: 6, recoveryTicks: [] };
     this._shockPop = null;
 
     // found the keep + starting village
@@ -212,6 +212,18 @@ export class World {
         Math.ceil(peripheral.length / P.logistics.haulerPerBuildings));
       const haulers = pool.splice(0, haulersWanted);
       for (const v of haulers) v.job = 'hauler';
+    }
+
+    // 2b. watchmen: one villager per tower keeps it firing (competes for the
+    // same civilian labor as production — a wall of towers costs you hands).
+    // this._staffedTowers is read by the tower volley in updateRaiders().
+    if (P.raid.towerNeedsWatchman) {
+      const towers = this.count('tower');
+      const watchmen = pool.splice(0, Math.min(pool.length, towers));
+      for (const v of watchmen) v.job = 'watchman';
+      this._staffedTowers = watchmen.length;
+    } else {
+      this._staffedTowers = this.count('tower');
     }
 
     // 3. producers: fill buildings by priority, best-skilled first.
@@ -478,6 +490,7 @@ export class World {
     } else if (raid.phase === 'active') {
       this.updateRaiders();
       this.updateSoldiers();
+      this.resolveHunt();   // raiders that survived the shield run down civilians
       // withdrawal (Finding 8.3): raiders don't winter over — a defenseless
       // town is looted hard but the raid still ENDS
       if (this.tick - (this._raidStartTick || 0) > P.maxRaidTicks) this.raiders = [];
@@ -518,6 +531,7 @@ export class World {
     this._raidStartProsp = this.prosperity();
     this._raidStartTick = this.tick;
     this._sackedThisRaid = 0;
+    this._huntedThisRaid = 0;
 
     // warlord: on a fixed wave cadence, but only once the kingdom is worth it
     const wavesPerWarlord = Math.max(1, Math.round(P.warlordEveryYears * P.ticksPerYear / P.baseGapTicks));
@@ -578,8 +592,9 @@ export class World {
   updateRaiders() {
     const P = this.P.raid;
 
-    // watchtowers fire first (abstract: each tower kills DPS worth of raiders)
-    const towers = this.count('tower');
+    // watchtowers fire first (abstract: each STAFFED tower kills DPS worth of
+    // raiders). An unmanned tower is inert — staffing set in assignJobs.
+    const towers = this._staffedTowers ?? this.count('tower');
     if (towers > 0 && this.raiders.length) {
       let arrowDmg = towers * P.towerDmg;
       for (const rd of this.raiders) {
@@ -606,16 +621,24 @@ export class World {
       if (t.hp < t.maxHp * P.abandonHpFrac) {
         if (!t._sacked) { t._sacked = true; this.stats.buildingsSacked++; this._sackedThisRaid = (this._sackedThisRaid || 0) + 1; }
         t.hp = Math.max(1, t.maxHp * P.abandonHpFrac);       // left standing, gutted
-        // a sacked building may cost a worker's life — but only ONCE per raid
-        // (Finding 8.2: repairing mid-raid must not re-feed the grinder)
-        if (t._deathRolledWave !== this.raid.wave) {
-          t._deathRolledWave = this.raid.wave;
-          for (const v of t.workers) {
-            if (this.rng.chance(0.12)) {
-              v.alive = false; this.stats.villagersLost++;
-              if (this.skillOf(v) > 0.6) this.stats.mastersLost++;
+        if (P.raidCivDeathModel === 'sack') {
+          // LEGACY model (A/B control): a sacked building may cost a worker's
+          // life, once per raid (Finding 8.2: mid-raid repair mustn't re-feed it)
+          if (t._deathRolledWave !== this.raid.wave) {
+            t._deathRolledWave = this.raid.wave;
+            for (const v of t.workers) {
+              if (this.rng.chance(0.12)) {
+                v.alive = false; this.stats.villagersLost++;
+                if (this.skillOf(v) > 0.6) this.stats.mastersLost++;
+              }
             }
           }
+        } else {
+          // HUNT model: workers EJECT (flee → idle), joining the exposed pool
+          // that resolveHunt() runs down. No death here — you die caught in
+          // the open, not at your post.
+          for (const v of t.workers) { v.job = 'idle'; v.workplace = null; }
+          t.workers = [];
         }
       }
     }
@@ -640,6 +663,60 @@ export class World {
       // raiders fight back
       if (this.rng.chance(deathChance)) {
         s.alive = false; this.stats.villagersLost++;
+      }
+    }
+    this.raiders = this.raiders.filter((rd) => rd.hp > 0);
+  }
+
+  // Raiders that survived the towers + soldiers run down exposed civilians
+  // (Phase 2a spatial-combat proxy — no coordinates). Runs LAST in the raid
+  // tick, so a well-defended town leaves ~0 free raiders and hunting vanishes.
+  resolveHunt() {
+    const P = this.P.raid;
+    if (P.raidCivDeathModel !== 'hunt' || !this.raiders.length) return;
+    // a chase is an occasional event, not a per-tick grind — raiders spend most
+    // of the raid looting buildings. Firing every tick made the toll scale with
+    // raid DURATION (200 ticks) and swamped the balance; the cadence bounds it.
+    if (P.huntCadenceTicks > 1 && this.tick % P.huntCadenceTicks !== 0) return;
+
+    // civilians = alive non-soldiers (watchmen included — they flee if the
+    // tower falls). Order most-exposed first: idle/ejected → periphery
+    // producers → core workers/builders (rewards keeping folk in the core).
+    const civilians = this.villagers.filter((v) => v.alive && v.job !== 'soldier');
+    if (!civilians.length) return;
+    const exposure = (v) => {
+      if (v.job === 'idle') return 0;                 // in the open / just ejected
+      if (v.job === 'builder') return 3;              // near the works/core
+      return v.workplace && !v.workplace.inCore ? 1 : 2; // periphery vs core
+    };
+    civilians.sort((a, b) => exposure(a) - exposure(b));
+
+    // housing shelters the first popCap*frac; soldiers pin raiders off the hunt
+    const shelter = this.popCap * P.huntShelterFrac;
+    const exposedBase = Math.max(0, civilians.length - shelter);
+    const pinned = this.soldiers.length * P.huntSoldierPin;
+    const freeRaiders = Math.max(0, this.raiders.length - pinned);
+    let engaged = Math.min(exposedBase, Math.ceil(freeRaiders * P.huntReachPerRaider));
+    // optional hard cap on hunt deaths per raid (0 = uncapped)
+    if (P.huntDeathsPerRaidCap > 0) {
+      const remaining = P.huntDeathsPerRaidCap - (this._huntedThisRaid || 0);
+      if (remaining <= 0) return;
+    }
+    if (engaged <= 0) return;
+
+    for (let i = 0; i < engaged && i < civilians.length; i++) {
+      const v = civilians[i];
+      if (!v.alive) continue;
+      const rd = this.raiders[i % this.raiders.length];
+      // the villager swings back weakly first (a hoe, not a blade)
+      if (rd) rd.hp -= P.huntVillagerDmg * (1 + 0.5 * this.skillOf(v));
+      if (this.rng.chance(P.huntKillChance)) {
+        v.alive = false;
+        this.stats.villagersLost++;
+        this.stats.villagersHunted++;
+        this._huntedThisRaid = (this._huntedThisRaid || 0) + 1;
+        if (this.skillOf(v) > 0.6) this.stats.mastersLost++;
+        if (P.huntDeathsPerRaidCap > 0 && this._huntedThisRaid >= P.huntDeathsPerRaidCap) break;
       }
     }
     this.raiders = this.raiders.filter((rd) => rd.hp > 0);

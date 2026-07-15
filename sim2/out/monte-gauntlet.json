@@ -1,28 +1,62 @@
 {
   "scenario": "gauntlet",
-  "runs": 60,
+  "runs": 100,
   "table": [
     {
-      "point": "iq=0 raiderDmgPerTick=4.5",
+      "point": "iq=0 raidCivDeathModel=sack",
       "interesting": 1,
       "collapse": 0,
       "spiral": 0,
-      "crisisMed": 0.09,
-      "prospMed": 23390,
-      "prospP90": 25148,
+      "crisisMed": 0.08,
+      "prospMed": 23212,
+      "prospP90": 24851,
       "recovMean": 96,
-      "breakdown": "INTERESTING:60"
+      "peakPopMed": 54,
+      "finalPopMed": 48,
+      "huntFracMed": 0,
+      "breakdown": "INTERESTING:100"
     },
     {
-      "point": "iq=1 raiderDmgPerTick=4.5",
-      "interesting": 0.98,
+      "point": "iq=0 raidCivDeathModel=hunt",
+      "interesting": 1,
       "collapse": 0,
       "spiral": 0,
-      "crisisMed": 0.06,
-      "prospMed": 13115,
-      "prospP90": 15449,
-      "recovMean": 105,
-      "breakdown": "INTERESTING:59 TOO-EASY:1"
+      "crisisMed": 0.08,
+      "prospMed": 22699,
+      "prospP90": 24383,
+      "recovMean": 95,
+      "peakPopMed": 54,
+      "finalPopMed": 49,
+      "huntFracMed": 0.43,
+      "breakdown": "INTERESTING:100"
+    },
+    {
+      "point": "iq=1 raidCivDeathModel=sack",
+      "interesting": 0.99,
+      "collapse": 0,
+      "spiral": 0,
+      "crisisMed": 0.2,
+      "prospMed": 7282,
+      "prospP90": 9790,
+      "recovMean": 93,
+      "peakPopMed": 38,
+      "finalPopMed": 34,
+      "huntFracMed": 0,
+      "breakdown": "INTERESTING:99 TOO-EASY:1"
+    },
+    {
+      "point": "iq=1 raidCivDeathModel=hunt",
+      "interesting": 0.95,
+      "collapse": 0,
+      "spiral": 0,
+      "crisisMed": 0.19,
+      "prospMed": 7121,
+      "prospP90": 9313,
+      "recovMean": 92,
+      "peakPopMed": 38,
+      "finalPopMed": 35,
+      "huntFracMed": 0.23,
+      "breakdown": "INTERESTING:95 TOO-EASY:5"
     }
   ]
 }

@@ -131,6 +131,47 @@ soft-failure contract (A1/A2) intact.
    20 named villagers, 14 masters), UI shows workforce breakdown / masters /
    sack states; raid banner, withdrawal, and recruit/dismiss exercised live.
 
+## Campaign 6 — Spatial-combat proxy (2026-07-15, `sim2/`)
+
+**Question:** Does "raiders hunt individual villagers who fight back weakly"
+(replacing the 0.12 sack-death roll with a unified eject-and-hunt rule) stay
+tense-not-toothless — no collapse regression, healthy population, defense still
+protects people?
+**Method:** new `resolveHunt()` in `world.mjs` (runs last in the raid tick);
+sacked/destroyed buildings EJECT workers into an exposed pool; a `raidCivDeathModel:
+sack|hunt` switch keeps the old model runnable as the A/B control. New metrics:
+`villagersHunted`, `huntFrac`, plus `peakPopMed`/`finalPopMed` surfaced in `monte`.
+
+**Finding 10 — hunt must not fire every tick.** First build ran the hunt every
+raid tick → toll scaled with raid DURATION (~200 ticks) not severity → pop
+cratered (iq1 pop 7, 10% collapse, 28 too-punishing). Fix: `huntCadenceTicks`
+(a chase is occasional; raiders mostly loot). Cadence sweep (baseline, 80
+seeds, iq0/1 × cadence 8/12/20):
+
+| cadence | iq0 pop | iq1 pop | iq1 INT | iq1 COL | iq1 huntFrac |
+|---|---|---|---|---|---|
+| 8 | 40 | 24 | 93% | 0% | 0.55 |
+| 12 | 46 | 30 | 96% | 0% | 0.44 |
+| **20** | **50** | **36** | **96%** | **0%** | **0.29** |
+
+**Result — `huntCadenceTicks=20` promoted to default.** At 20, the unified hunt
+model is balance-equivalent to the old sack model on every axis that matters,
+across baseline AND gauntlet (100 seeds each, sack vs hunt):
+
+| | iq0 sack | iq0 hunt | iq1 sack | iq1 hunt |
+|---|---|---|---|---|
+| baseline INT (COL) | 100 (0) | 100 (0) | 99 (0) | 97 (0) |
+| baseline pop | 49 | 50 | 34 | 36 |
+| gauntlet INT (COL) | 100 (0) | 100 (0) | 99 (0) | 95 (0) |
+| gauntlet pop | 48 | 49 | 34 | 35 |
+
+Zero collapse everywhere; `huntFrac` 0.23–0.48 (in the 0.15–0.45 target band —
+raids now cost *named people caught in the open*, ~a third of deaths, without
+swamping the model). The small-kingdom-spiral risk (Finding 5) did NOT recur.
+Also added: villager-staffed watchtowers (a watchman per tower competes for
+civilian labor; unstaffed towers are inert) — verified assigning correctly,
+non-destabilizing.
+
 ---
 
 ## Cumulative totals
