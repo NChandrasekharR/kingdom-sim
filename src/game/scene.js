@@ -52,6 +52,19 @@ export class KingdomScene extends Phaser.Scene {
     this.setupInput();
     on('arrow', (a) => this.arrows.push({ ...a, ttl: 200 }));
 
+    // New Kingdom: the state object was reset in place to a fresh realm — repaint
+    // the new terrain, drop stale building sprites, recenter on the new keep.
+    on('new-game', () => {
+      this.paintTerrain();
+      for (const [, img] of this.buildingSprites) img.destroy();
+      this.buildingSprites.clear();
+      this.arrows.length = 0;
+      const nkeep = this.ctx.state.buildings.find((b) => b.type === 'keep');
+      if (nkeep) cam.centerOn(nkeep.x * TILE, nkeep.y * TILE);
+      this.ctx.state.territoryDirty = true;
+      this.ctx.state.buildingsDirty = true;
+    });
+
     this.textures.get('terrain').setFilter(Phaser.Textures.FilterMode.NEAREST);
     this.textures.get('overlay').setFilter(Phaser.Textures.FilterMode.NEAREST);
   }
@@ -59,7 +72,10 @@ export class KingdomScene extends Phaser.Scene {
   paintTerrain() {
     const { state } = this.ctx;
     const N = MAP.size;
-    const tex = this.textures.createCanvas('terrain', WORLD, WORLD);
+    // reuse the canvas texture if it exists (repaint on New Kingdom), else make it
+    const tex = this.textures.exists('terrain')
+      ? this.textures.get('terrain')
+      : this.textures.createCanvas('terrain', WORLD, WORLD);
     const c = tex.getContext();
     for (let y = 0; y < N; y++) {
       for (let x = 0; x < N; x++) {

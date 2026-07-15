@@ -1,9 +1,9 @@
 import { BUILDINGS, RESOURCES, RES_INFO, TICK_MS, SOLDIER, T, MAP } from '../config.js';
 import { iconDataURL, buildingIconURL, PALETTE } from '../game/sprites.js';
 import { on, emit } from '../core/events.js';
-import { currentSeason, currentYear } from '../core/sim.js';
+import { currentSeason, currentYear, makeSim } from '../core/sim.js';
 import { territorySize } from '../core/territory.js';
-import { demolish, clearSave, saveGame } from '../core/state.js';
+import { demolish, clearSave, saveGame, createState } from '../core/state.js';
 import { recruitSoldier, dismissSoldier } from '../core/raids.js';
 import { countMasters } from '../core/villagers.js';
 import { outputMult } from '../core/economy.js';
@@ -57,10 +57,24 @@ export function buildUI(root, ctx) {
   }
   const newBtn = el('button', 'newgame', 'New Kingdom');
   newBtn.onclick = () => {
-    if (confirm('Abandon this kingdom and found a new one?')) {
-      clearSave();
-      location.reload();
-    }
+    if (!confirm('Abandon this kingdom and found a new one?')) return;
+    clearSave();
+    // Reset in place: overwrite the CURRENT state object with a fresh kingdom's
+    // fields, so every closure that captured `state` (this UI, the scene) sees
+    // the new realm without needing a full page reload.
+    const fresh = createState();
+    for (const k of Object.keys(state)) delete state[k];
+    Object.assign(state, fresh);
+    state.speed = 1;
+    state.territoryDirty = true;
+    state.buildingsDirty = true;
+    ctx.sim = makeSim(state);
+    selected = null; selUnit = null; ctx.selected = null; ctx.placement = null;
+    emit('new-game', state);   // the scene clears its sprite cache + recenters
+    emit('select', null);
+    emit('select-unit', null);
+    emit('placement', null);
+    emit('tick', state);
   };
   controls.appendChild(newBtn);
   topbar.appendChild(controls);
