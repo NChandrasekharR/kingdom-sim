@@ -1,4 +1,4 @@
-import { BUILDINGS, EAT_PER_POP, SOLDIER_EAT_MULT, GROWTH_FLOOR, STARVE_DEATH_HUNGER } from '../config.js';
+import { BUILDINGS, EAT_PER_POP, SOLDIER_EAT_MULT, GROWTH_FLOOR, STARVE_DEATH_HUNGER, GROWTH } from '../config.js';
 import { idx } from './state.js';
 import { logEvent } from './events.js';
 import { makeVillager, killVillager, skillsTick } from './villagers.js';
@@ -59,7 +59,12 @@ export function populationTick(state) {
     for (const v of state.villagers) v.hunger = Math.max(0, v.hunger - 2);
     const stock = state.res.food + state.res.bread * 2;
     if (stock > state.pop * GROWTH_FLOOR && state.pop < state.popCap) {
-      state.growthAcc += 0.018 + state.morale / 5000;
+      // abundance is the fuel: the more spare food per head, the faster the realm
+      // grows (capped), so a full granary actually builds a population.
+      const foodPerCap = stock / Math.max(1, state.pop);
+      const abundance = 1 + Math.min(GROWTH.surplusCap,
+        Math.max(0, GROWTH.surplusScale * (foodPerCap / GROWTH.surplusTarget - 1)));
+      state.growthAcc += (GROWTH.base + state.morale / GROWTH.moraleBonus) * abundance;
       if (state.growthAcc >= 1) {
         state.growthAcc = 0;
         const v = makeVillager(state);

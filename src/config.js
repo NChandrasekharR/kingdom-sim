@@ -117,6 +117,19 @@ export const SOLDIER_EAT_MULT = 3;      // a soldier eats 3× a citizen (the arm
 export const GROWTH_FLOOR = 1.5;        // need stock > pop*this to grow
 export const STARVE_DEATH_HUNGER = 60;  // ticks-worth of accumulated hunger before death
 
+// Population growth SCALES WITH FOOD ABUNDANCE: a kingdom drowning in food booms,
+// one scraping by crawls. Before, growth was flat (~13/yr) regardless of surplus,
+// so a huge granary did nothing and war attrition (~10/yr) stalled pop far below
+// its housing cap. Now surplus food is the fuel that lets a realm actually grow.
+export const GROWTH = {
+  base: 0.03,             // baseline growth per tick when barely fed (faster than old 0.018)
+  moraleBonus: 5000,      // + morale/this (a happy realm breeds)
+  // food-abundance multiplier: growth × (1 + min(surplusCap, surplusScale × (foodPerCapita/target − 1)))
+  surplusTarget: 6,       // food-eq per person considered "comfortable" (~150 ticks' eating)
+  surplusScale: 0.6,      // how strongly abundance accelerates growth
+  surplusCap: 4,          // growth can go at most this× faster from abundance
+};
+
 // ── HP is production capacity (the redesign core) ──────────────────
 // A building's output scales with its HP; HP decays without maintenance;
 // raiders grind HP down; builders restore it for labor + materials.
