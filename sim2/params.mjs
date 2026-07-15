@@ -43,6 +43,36 @@ export const DEFAULTS = {
     // (bread has no spoilage — that's the whole point)
   },
 
+  // — combat: probabilistic per-exchange model (the army rework) ───────
+  // Each engaged soldier rolls an exchange vs a raider: a crit roll (offense,
+  // scales with skill) and a wound/kill roll (defense, softened by force-ratio,
+  // veteran skill, home-ground, and tower cover). Wounds accumulate; only an
+  // already-wounded soldier can be killed — and the kill-roll's severity SCALES
+  // WITH CONDITIONS (good conditions → wounds heal; bad → lethal). This replaces
+  // the flat "soldier takes fixed damage / flat death chance" model.
+  combat: {
+    model: 'probabilistic',      // 'probabilistic' (new) | 'flat' (legacy A/B control)
+    soldierBaseDmg: 8,           // × (1 + skill), × critMult on a crit
+    baseCrit: 0.05,              // crit chance at zero skill
+    critSkillScale: 0.35,        // + this × skill → a master crits ~40% of swings
+    critMult: 2.2,               // crit damage multiplier
+    // — defense: chance the raider wounds the soldier this exchange —
+    woundBase: 0.30,             // base wound chance at even odds, green, in the wilds
+    woundSkillReduce: 0.4,       // × skill reduces wound chance (veterans get hit less)
+    homeGroundReduce: 0.2,       // fighting in claimed territory: − this fraction
+    towerCoverReduce: 0.3,       // within a tower's range: − this fraction (covering fire)
+    // force-ratio: outnumber the raiders → wounds/kills scale toward zero
+    // (multiplier = min(1, raiders/soldiers), same shape as the old fix)
+    woundHp: 22,                 // HP a wound costs (soldier hp 60 → ~2-3 wounds tolerated)
+    killWoundedFrac: 0.5,        // only a soldier below this HP fraction can be KILLED
+    killChanceGood: 0.08,        // kill-roll on a wounded soldier in GOOD conditions
+    killChanceBad: 0.7,          // …and in BAD conditions (fully outnumbered, exposed)
+    // — seasoning: rookies near a veteran learn faster under fire —
+    seasonRookieBonus: 4,        // × normal skill-gain for a low-skill soldier fighting
+    seasonVeteranSkill: 0.6,     // "veteran" = soldier skill ≥ this (also the master bar)
+    healPerTickIdle: 0.3,        // wounded soldiers mend this much HP/tick when not fighting
+  },
+
   // — skills (Pillar B) —
   skill: {
     gainPerTick: 0.0008,         // proficiency gained per tick worked

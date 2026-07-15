@@ -144,6 +144,29 @@ export const SKILL = {
 // Iron arms them once; from then on they eat 3× (food, not gold, limits armies).
 export const SOLDIER = { cost: { iron: 5 }, hp: 60, dmg: 8, speed: 1.1, perBarracks: 4 };
 
+// ── Combat: probabilistic per-exchange model (sim2-validated) ──────
+// Each soldier↔raider exchange is a ROLL, not flat damage. Veterans crit more
+// and get hit less; outnumbering raiders is near-bloodless (force-ratio); fighting
+// on home ground and under tower cover is safer. Wounds accumulate — only a badly
+// wounded soldier can be killed, and the kill-odds SCALE WITH CONDITIONS (good
+// ground → wounds heal; bad → lethal). Rookies beside a veteran season fast.
+// Numbers tuned in sim2 (design/FINDINGS.md, army rework 2026-07-15).
+export const COMBAT = {
+  baseCrit: 0.05,              // crit chance at zero soldier skill
+  critSkillScale: 0.35,        // + this × skill (a master crits ~40% of swings)
+  critMult: 2.2,               // crit damage multiplier
+  woundBase: 0.30,             // wound chance at even odds, green, in the wilds
+  woundSkillReduce: 0.4,       // × skill lowers wound chance (veterans get hit less)
+  homeGroundReduce: 0.25,      // fighting inside your claimed territory: − this
+  towerCoverReduce: 0.3,       // within a watchtower/keep's range: − this (covering fire)
+  woundHp: 22,                 // HP a wound costs
+  killWoundedFrac: 0.5,        // only a soldier below this HP fraction can be killed
+  killChanceGood: 0.08,        // kill-roll on a wounded soldier in GOOD conditions
+  killChanceBad: 0.7,          // …and in BAD conditions (outnumbered, exposed)
+  seasonRookieBonus: 4,        // green soldiers near a veteran gain skill this × faster
+  veteranSkill: 0.6,           // skill at which a soldier counts as a veteran
+};
+
 // ── Raiders ────────────────────────────────────────────────────────
 // Raiders SACK buildings (grind HP to the abandon floor), they rarely raze.
 // A raid is an economic wound measured in lost output-days, not lost tiles.

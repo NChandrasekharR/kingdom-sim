@@ -660,23 +660,77 @@ export class World {
 
   updateSoldiers() {
     const soldiers = this.soldiers;
+    const C = this.P.combat;
+    const SOLDIER_HP = 60;
+    // lazily give each soldier a wound pool; mend when no raid is on
+    for (const s of soldiers) {
+      if (s.hp === undefined) s.hp = SOLDIER_HP;
+      if (!this.raiders.length) s.hp = Math.min(SOLDIER_HP, s.hp + C.healPerTickIdle);
+    }
+    if (!this.raiders.length) return;
+
+    if (C.model === 'flat') { this._updateSoldiersFlat(soldiers); return; }
+
+    // — probabilistic model —
     const Pp = this.P.player;
-    // sharp player fights from prepared ground: more damage, fewer losses
+    const sharpDmg = Pp.iq >= 2 ? Pp.sharpCombatMult : 1;
+    // force-ratio: outnumber the raiders → wounds scale toward zero (Finding 8.1)
+    const ratio = Math.min(1, this.raiders.length / Math.max(1, soldiers.length));
+    // tower cover: staffed towers shelter a fraction of the soldiers
+    const towers = this._staffedTowers ?? this.count('tower');
+    const coverFrac = Math.min(1, (towers * 1.0) / Math.max(1, soldiers.length));
+    // is there a living veteran on the field? (rookies season near one)
+    const hasVeteran = soldiers.some((s) => (s.skills.soldier || 0) >= C.seasonVeteranSkill);
+
+    for (let i = 0; i < soldiers.length; i++) {
+      const s = soldiers[i];
+      if (!this.raiders.length) break;
+      const skill = s.skills.soldier || 0;
+      const target = this.raiders[0];
+
+      // OFFENSE: hit, with a skill-scaled crit chance (veterans burst)
+      const crit = this.rng.chance(C.baseCrit + skill * C.critSkillScale);
+      target.hp -= C.soldierBaseDmg * (1 + skill) * sharpDmg * (crit ? C.critMult : 1);
+
+      // DEFENSE: does the raider wound this soldier this exchange?
+      let woundChance = C.woundBase * ratio;           // force-ratio softens it
+      woundChance *= (1 - C.woundSkillReduce * skill);  // veterans get hit less
+      woundChance *= (1 - C.homeGroundReduce);          // sim raids are all home defense
+      if (i / soldiers.length < coverFrac) woundChance *= (1 - C.towerCoverReduce); // under a tower
+      if (this.rng.chance(woundChance)) {
+        s.hp -= C.woundHp;
+        // KILL only if already badly wounded — and the odds scale with conditions:
+        // good ground (outnumbering, covered) → survivable; bad → lethal
+        if (s.hp <= SOLDIER_HP * C.killWoundedFrac) {
+          const bad = ratio;   // 0 (dominating) → 1 (fully outnumbered)
+          const killChance = C.killChanceGood + (C.killChanceBad - C.killChanceGood) * bad;
+          if (s.hp <= 0 || this.rng.chance(killChance)) {
+            s.alive = false; this.stats.villagersLost++;
+          }
+        }
+      }
+
+      // SEASONING: a rookie fighting beside a veteran learns fast under fire
+      if (hasVeteran && skill < C.seasonVeteranSkill) {
+        s.skills.soldier = Math.min(this.P.skill.max,
+          (s.skills.soldier || 0) + this.P.skill.gainPerTick * (C.seasonRookieBonus - 1));
+      }
+    }
+    this.raiders = this.raiders.filter((rd) => rd.hp > 0);
+  }
+
+  // legacy flat model, kept as the A/B control (combat.model='flat')
+  _updateSoldiersFlat(soldiers) {
+    const Pp = this.P.player;
     const combatMult = Pp.iq >= 2 ? Pp.sharpCombatMult : 1;
     const baseDeath = Pp.iq >= 2 ? Pp.sharpSoldierDeathChance : this.P.raid.soldierDeathBase;
-    // force-ratio losses (Finding 8.1): outnumbering the raiders makes the
-    // fight nearly bloodless; being outnumbered costs the full attrition
     const ratio = this.raiders.length / Math.max(1, soldiers.length);
     const deathChance = baseDeath * Math.min(1, ratio);
     for (const s of soldiers) {
       if (!this.raiders.length) break;
       const dmg = 8 * (1 + (s.skills.soldier || 0)) * combatMult;
-      const target = this.raiders[0];
-      target.hp -= dmg;
-      // raiders fight back
-      if (this.rng.chance(deathChance)) {
-        s.alive = false; this.stats.villagersLost++;
-      }
+      this.raiders[0].hp -= dmg;
+      if (this.rng.chance(deathChance)) { s.alive = false; this.stats.villagersLost++; }
     }
     this.raiders = this.raiders.filter((rd) => rd.hp > 0);
   }

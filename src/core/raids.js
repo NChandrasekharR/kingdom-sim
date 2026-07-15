@@ -1,4 +1,4 @@
-import { MAP, T, TERRAIN_INFO, BUILDINGS, RAIDER, RAID, SOLDIER, ROAD_SPEED_MULT, KEEP } from '../config.js';
+import { MAP, T, TERRAIN_INFO, BUILDINGS, RAIDER, RAID, SOLDIER, ROAD_SPEED_MULT, KEEP, COMBAT, SKILL } from '../config.js';
 import { idx } from './state.js';
 import { prosperity } from './economy.js';
 import { logEvent, emit } from './events.js';
@@ -356,9 +356,21 @@ function updateTowers(state) {
 function updateSoldiers(state, rand) {
   const keep = state.buildings.find((b) => b.type === 'keep');
   const roads = new Set();
+  const defenders = [];   // buildings that give covering fire (towers + keep)
   for (const b of state.buildings) {
     if (b.type === 'road' && b.hp > 0) roads.add(idx(b.x, b.y));
+    const def = BUILDINGS[b.type];
+    if (b.hp > 0 && def.range && def.arrowDmg) defenders.push(b);
   }
+  const liveRaiders = state.raid.raiders.filter((r) => r.hp > 0);
+  // force-ratio: outnumber the raiders → your soldiers take far less (Finding 8.1)
+  const forceRatio = Math.min(1, liveRaiders.length / Math.max(1, state.soldiers.length));
+  // a living veteran on the field lets rookies season under fire
+  const hasVeteran = state.soldiers.some((so) => {
+    const vv = state.villagers.find((v) => v.id === so.villagerId);
+    return vv && (vv.skills.soldier || 0) >= COMBAT.veteranSkill;
+  });
+
   for (const s of state.soldiers) {
     s.px = s.x; s.py = s.y;
     const onRoad = roads.has(idx(Math.round(s.x), Math.round(s.y)));
@@ -377,8 +389,42 @@ function updateSoldiers(state, rand) {
       nd = nearest ? Math.hypot(nearest.x - s.x, nearest.y - s.y) : Infinity;
       if (nd < 1.1) {
         const vet = state.villagers.find((v) => v.id === s.villagerId);
-        nearest.hp -= SOLDIER.dmg * (1 + (vet?.skills.soldier || 0));
-        s.hp -= RAIDER.dmg;
+        const skill = vet?.skills.soldier || 0;
+
+        // OFFENSE: strike, with a skill-scaled crit chance (veterans burst)
+        const crit = rand() < COMBAT.baseCrit + skill * COMBAT.critSkillScale;
+        nearest.hp -= SOLDIER.dmg * (1 + skill) * (crit ? COMBAT.critMult : 1);
+
+        // DEFENSE: does a raider wound this soldier? The danger is how many raiders
+        // are ganging THIS soldier right now (spatial force-ratio) — being swarmed
+        // is deadly, holding a line where you outnumber them is nearly safe.
+        let localGang = 0;
+        for (const rd of raiders) { if (Math.hypot(rd.x - s.x, rd.y - s.y) < 1.6) localGang++; }
+        let woundChance = COMBAT.woundBase * Math.min(3, Math.max(0.5, localGang)); // each attacker adds risk
+        woundChance *= (1 - COMBAT.woundSkillReduce * skill);  // veterans get hit less
+        const sx = Math.round(s.x), sy = Math.round(s.y);
+        const onHomeGround = state.claimed[idx(sx, sy)];       // real spatial check
+        if (onHomeGround) woundChance *= (1 - COMBAT.homeGroundReduce);
+        const underCover = defenders.some((b) => Math.hypot(b.x - s.x, b.y - s.y) <= BUILDINGS[b.type].range);
+        if (underCover) woundChance *= (1 - COMBAT.towerCoverReduce);
+
+        if (rand() < woundChance) {
+          s.hp -= COMBAT.woundHp;
+          // KILL only a badly-wounded soldier, and the odds scale with conditions:
+          // good ground (outnumbering, covered) → survivable; bad → lethal
+          if (s.hp <= SOLDIER.hp * COMBAT.killWoundedFrac) {
+            const killChance = COMBAT.killChanceGood +
+              (COMBAT.killChanceBad - COMBAT.killChanceGood) * forceRatio;
+            if (s.hp <= 0 || rand() < killChance) s.hp = 0;   // dies (culled below)
+          }
+        }
+
+        // SEASONING: a rookie beside a veteran learns fast under fire
+        if (vet && hasVeteran && skill < COMBAT.veteranSkill) {
+          vet.skills.soldier = Math.min(SKILL.max,
+            (vet.skills.soldier || 0) + SKILL.gainPerTick * (COMBAT.seasonRookieBonus - 1));
+        }
+
         if (nearest.hp <= 0) { state.stats.raidersKilled++; logEvent(state, 'A raider is cut down by your soldiers.', 'good'); }
       } else {
         const dx = nearest.x - s.x, dy = nearest.y - s.y;
@@ -392,7 +438,7 @@ function updateSoldiers(state, rand) {
       const dx = rx - s.x, dy = ry - s.y;
       const d = Math.hypot(dx, dy);
       if (d > 0.5) { s.x += (dx / d) * Math.min(speed, d); s.y += (dy / d) * Math.min(speed, d); }
-      s.hp = Math.min(SOLDIER.hp, s.hp + 0.2); // rest and mend
+      s.hp = Math.min(SOLDIER.hp, s.hp + 0.4); // rest and mend wounds between raids
     }
   }
   // a fallen soldier is a fallen villager — their skills fall with them
