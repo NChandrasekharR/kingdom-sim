@@ -391,6 +391,26 @@ function updateSoldiers(state, rand) {
     s.px = s.x; s.py = s.y;
     const onRoad = roads.has(idx(Math.round(s.x), Math.round(s.y)));
     const speed = SOLDIER.speed * (onRoad ? ROAD_SPEED_MULT : 1);
+
+    // A badly-wounded veteran falls back to mend rather than die in the line —
+    // if they're skilled enough to disengage and the keep isn't being stormed.
+    // (Green soldiers can't pull back in time; the keep-besieged fight is to
+    // the death.) This is how a veteran corps SURVIVES a long war of attrition.
+    const sv = state.villagers.find((v) => v.id === s.villagerId);
+    const sSkill = sv?.skills.soldier || 0;
+    const retreating = !state.raid.keepBesieged &&
+      s.hp < SOLDIER.hp * COMBAT.retreatBelowFrac && sSkill >= COMBAT.retreatSkillGate;
+    if (retreating && keep) {
+      const dx = keep.x - s.x, dy = (keep.y + 3) - s.y;
+      const d = Math.max(0.001, Math.hypot(dx, dy));
+      if (d > 0.5) { s.x += (dx / d) * speed; s.y += (dy / d) * speed; }
+      // mend faster once clear of the fray (out of local danger)
+      let localGang = 0;
+      for (const rd of engageable) { if (Math.hypot(rd.x - s.x, rd.y - s.y) < 1.6) localGang++; }
+      if (localGang === 0) s.hp = Math.min(SOLDIER.hp, s.hp + 0.8);
+      continue;
+    }
+
     const raiders = engageable;
     if (raiders.length) {
       // when the keep is besieged, every soldier rushes its attackers — target
@@ -427,10 +447,12 @@ function updateSoldiers(state, rand) {
         if (rand() < woundChance) {
           s.hp -= COMBAT.woundHp;
           // KILL only a badly-wounded soldier, and the odds scale with conditions:
-          // good ground (outnumbering, covered) → survivable; bad → lethal
+          // good ground (outnumbering, covered) → survivable; bad → lethal. A
+          // veteran's experience makes them harder to finish off.
           if (s.hp <= SOLDIER.hp * COMBAT.killWoundedFrac) {
-            const killChance = COMBAT.killChanceGood +
+            let killChance = COMBAT.killChanceGood +
               (COMBAT.killChanceBad - COMBAT.killChanceGood) * forceRatio;
+            killChance *= (1 - COMBAT.veteranKillResist * skill);
             if (s.hp <= 0 || rand() < killChance) s.hp = 0;   // dies (culled below)
           }
         }

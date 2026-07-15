@@ -165,6 +165,12 @@ export const COMBAT = {
   killChanceBad: 0.7,          // …and in BAD conditions (outnumbered, exposed)
   seasonRookieBonus: 4,        // green soldiers near a veteran gain skill this × faster
   veteranSkill: 0.6,           // skill at which a soldier counts as a veteran
+  // veterans survive the war of attrition: experience makes a wounded veteran
+  // harder to finish off, and a badly-hurt veteran RETREATS to heal rather than
+  // dying in the line (a rookie lacks the sense to pull back in time).
+  veteranKillResist: 0.7,      // × skill lowers the kill-roll on a wounded soldier
+  retreatBelowFrac: 0.5,       // a soldier below this HP fraction falls back to mend…
+  retreatSkillGate: 0.4,       // …but only if skilled enough to disengage cleanly
 };
 
 // ── Raiders ────────────────────────────────────────────────────────
