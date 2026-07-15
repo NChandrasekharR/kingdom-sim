@@ -431,6 +431,19 @@ export class World {
     }
     this._fed = fed;
 
+    // spoilage: raw food above a per-capita buffer rots (bread keeps). This is
+    // what makes bread the winter/siege RESERVE — convert surplus or lose it.
+    const F = this.P.food;
+    if (F && F.spoilEnabled) {
+      const freeFood = this.pop * P.eatPerTick * F.spoilFreeDays;
+      const excess = this.res.food - freeFood;
+      if (excess > 0) {
+        const spoiled = excess * F.spoilRate;
+        this.res.food -= spoiled;
+        this.stats.foodSpoiled = (this.stats.foodSpoiled || 0) + spoiled;
+      }
+    }
+
     // growth: surplus food + housing headroom
     const stock = this.res.food + this.res.bread * this.P.breadFoodEq;
     if (deficit <= 0 && stock > this.pop * this.P.villager.eatPerTick * 40 && this.pop < this.popCap) {
@@ -758,7 +771,11 @@ export class World {
     if (this.count('quarry') < 2 && this.res.wood > 40 && pay({ wood: 20 })) { this.addBuilding('quarry'); return; }
     if (this.count('mine') < 2 && this.res.wood > 50 && pay({ wood: 25, stone: 10 })) { this.addBuilding('mine'); return; }
     if (this.count('smelter') < 1 && this.res.ore > 15 && pay({ stone: 25, wood: 10 })) { this.addBuilding('smelter'); return; }
-    if (this.count('bakery') < 2 && this.res.food > 80 && pay({ wood: 20, stone: 10 })) { this.addBuilding('bakery'); return; }
+    // bakeries: 2 by default; a competent player builds MORE when food is piling
+    // up, to convert the surplus into preserved bread (winter/siege reserve)
+    // before spoilage eats it.
+    const bakeryCap = (P.iq && this.P.food?.spoilEnabled && this.res.food > 200) ? 4 : 2;
+    if (this.count('bakery') < bakeryCap && this.res.food > 80 && pay({ wood: 20, stone: 10 })) { this.addBuilding('bakery'); return; }
     if (this.count('market') < 1 && this.res.wood > 60 && pay({ wood: 30, stone: 15 })) { this.addBuilding('market'); return; }
 
     // ── defense readiness (a real player braces for the year-1 raid) ──

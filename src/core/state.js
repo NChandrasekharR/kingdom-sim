@@ -35,6 +35,15 @@ export function createState(seed = (Math.random() * 1e9) | 0) {
     raid: { phase: 'quiet', timer: 300, raiders: [], wave: 0 },
     merchant: { status: 'away', timer: 160, prices: {}, visits: 0 },
     log: [],
+    // lifetime run stats — for the end-of-run summary (dumpStats)
+    stats: {
+      peakPop: 6, peakTerritory: 0,
+      raids: 0, warlords: 0, raidersKilled: 0, raidSizes: [],
+      buildingsSacked: 0, wallsBreached: 0, keepFalls: 0,
+      villagersBorn: 0, villagersStarved: 0,
+      soldiersRecruited: 0, soldiersFallen: 0, veteransFallen: 0,
+      mastersLost: 0,
+    },
     // render dirty flags
     territoryDirty: true, buildingsDirty: true,
   };
@@ -208,6 +217,15 @@ export function loadGame() {
       }
     }
     s.guilds ||= [];
+    // saves from before run-stats: start tracking from now
+    s.stats ||= {
+      peakPop: s.pop || 6, peakTerritory: 0,
+      raids: 0, warlords: 0, raidersKilled: 0, raidSizes: [],
+      buildingsSacked: 0, wallsBreached: 0, keepFalls: 0,
+      villagersBorn: 0, villagersStarved: 0,
+      soldiersRecruited: 0, soldiersFallen: 0, veteransFallen: 0,
+      mastersLost: 0,
+    };
     recomputeInfluence(s);
     return s;
   } catch { return null; }

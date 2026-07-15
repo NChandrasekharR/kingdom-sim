@@ -173,6 +173,9 @@ function spawnRaid(state, rand) {
   }
   if (!raid.raiders.length) { endRaid(state, rand); return; }
   raid.phase = 'active';
+  state.stats.raids++;
+  if (isWarlord) state.stats.warlords++;
+  state.stats.raidSizes.push(raid.raiders.length);
   logEvent(state, isWarlord
     ? `A WARLORD marches on ${state.name} with ${raid.raiders.length} raiders!`
     : `${raid.raiders.length} raiders storm in from the wilds!`, 'raid');
@@ -229,6 +232,7 @@ function updateRaiders(state, rand) {
           // in place. Raiders pour through; builders can wall it back up.
           wall.hp = 1;
           wall.breached = true;
+          state.stats.wallsBreached++;
           logEvent(state, 'A wall is breached! Raiders pour through the gap!', 'raid');
         }
         continue;
@@ -269,9 +273,11 @@ function updateRaiders(state, rand) {
         if (!target.sacked) {
           target.sacked = true;
           raid.sackedThisRaid = (raid.sackedThisRaid || 0) + 1;
+          if (target.type !== 'keep') state.stats.buildingsSacked++;
           // the keep falling is a catastrophe of its own — a dark age, not a
           // routine sack (but the realm survives and rebuilds from it)
           if (target.type === 'keep') {
+            state.stats.keepFalls++;
             keepDarkAge(state, rand);
           } else {
             logEvent(state, `${BUILDINGS[target.type].name} has been sacked!`, 'raid');
@@ -283,6 +289,7 @@ function updateRaiders(state, rand) {
               for (const v of [...(target.workers || [])]) {
                 if (rand() < RAID.sackDeathChance) {
                   const wasMaster = isMaster(v);
+                  if (wasMaster) state.stats.mastersLost++;
                   killVillager(state, v);
                   logEvent(state, wasMaster
                     ? `${v.name}, master ${target.type === 'smelter' ? 'smith' : 'of the ' + target.type}, was slain in the sacking. Years of craft die too.`
@@ -337,6 +344,7 @@ function updateTowers(state) {
       nearest.hp -= def.arrowDmg;
       emit('arrow', { fx: b.x, fy: b.y, tx: nearest.x, ty: nearest.y });
       if (nearest.hp <= 0) {
+        state.stats.raidersKilled++;
         logEvent(state, b.type === 'keep'
           ? "A raider falls to the keep's archers."
           : 'A raider falls to tower arrows.', 'good');
@@ -371,7 +379,7 @@ function updateSoldiers(state, rand) {
         const vet = state.villagers.find((v) => v.id === s.villagerId);
         nearest.hp -= SOLDIER.dmg * (1 + (vet?.skills.soldier || 0));
         s.hp -= RAIDER.dmg;
-        if (nearest.hp <= 0) logEvent(state, 'A raider is cut down by your soldiers.', 'good');
+        if (nearest.hp <= 0) { state.stats.raidersKilled++; logEvent(state, 'A raider is cut down by your soldiers.', 'good'); }
       } else {
         const dx = nearest.x - s.x, dy = nearest.y - s.y;
         const d = Math.max(0.001, Math.hypot(dx, dy));
@@ -393,6 +401,8 @@ function updateSoldiers(state, rand) {
     const vet = state.villagers.find((v) => v.id === s.villagerId);
     if (vet) {
       const wasMaster = isMaster(vet);
+      state.stats.soldiersFallen++;
+      if (wasMaster) state.stats.veteransFallen++;
       killVillager(state, vet);
       logEvent(state, wasMaster
         ? `${vet.name}, a veteran of many battles, fell defending the realm.`
@@ -473,6 +483,7 @@ export function recruitSoldier(state) {
   recruit.job = 'soldier';
   recruit.workplaceId = null;
   recruit.workType = null;
+  state.stats.soldiersRecruited++;
   const b = barracks[0];
   state.soldiers.push({
     id: state.nextId++, villagerId: recruit.id,

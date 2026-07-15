@@ -1,5 +1,5 @@
 import { createState, loadGame } from './core/state.js';
-import { makeSim } from './core/sim.js';
+import { makeSim, dumpStats } from './core/sim.js';
 import { buildUI } from './ui/ui.js';
 import { createGame } from './game/scene.js';
 import { emit } from './core/events.js';
@@ -21,3 +21,5 @@ const game = createGame(mapDiv, ctx);
 window.kingdom = ctx;
 ctx.game = game;
 ctx.emit = emit;
+// run telemetry: call kingdom.summary() in the console for the run-so-far stats
+ctx.summary = () => dumpStats(ctx.state);

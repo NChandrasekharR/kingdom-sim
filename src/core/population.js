@@ -48,6 +48,8 @@ export function populationTick(state) {
       v.hunger += (1 - fed) * grit;
       if (v.hunger >= STARVE_DEATH_HUNGER && state.villagers.length > 1) {
         const wasM = killVillager(state, v);
+        state.stats.villagersStarved++;
+        if (wasM) state.stats.mastersLost++;
         logEvent(state, wasM
           ? `${v.name}, a master of the craft, has starved. The knowledge dies too.`
           : `${v.name} has died of hunger.`, 'bad');
@@ -62,6 +64,7 @@ export function populationTick(state) {
         state.growthAcc = 0;
         const v = makeVillager(state);
         state.villagers.push(v);
+        state.stats.villagersBorn++;
         if (state.villagers.length % 5 === 0) {
           logEvent(state, `The kingdom grows — ${state.villagers.length} souls now call it home.`, 'good');
         }

@@ -32,6 +32,17 @@ export const DEFAULTS = {
     retrainTicks: 240,           // half a year to change jobs
   },
 
+  // — food spoilage (makes BREAD the preserved winter/siege reserve) ──
+  // Raw food rots; bread keeps. Only food ABOVE a per-capita buffer spoils, so a
+  // struggling hamlet is never nagged — spoilage bites only a fat surplus, which
+  // is exactly when the player should be baking it into bread for winter/sieges.
+  food: {
+    spoilEnabled: true,
+    spoilFreeDays: 60,           // food covering this many days of eating never spoils
+    spoilRate: 0.01,             // fraction of the EXCESS raw food lost per tick
+    // (bread has no spoilage — that's the whole point)
+  },
+
   // — skills (Pillar B) —
   skill: {
     gainPerTick: 0.0008,         // proficiency gained per tick worked
