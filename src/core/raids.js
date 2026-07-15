@@ -603,21 +603,26 @@ export function mercCount(state) { return state.soldiers.filter((s) => s.merc).l
 // Hire a company of mercenaries: an up-front gold sum buys pre-trained fighters
 // who cost steep per-tick gold and leave if unpaid. They spare your veterans.
 export function hireMercenaries(state) {
-  const companies = Math.ceil(mercCount(state) / MERCENARY.companySize);
-  if (companies >= MERCENARY.maxCompanies) return { ok: false, reason: 'No more companies will treat with you' };
+  // cap on TOTAL mercenary headcount — robust to battle losses/desertion. Hire
+  // brings you UP TO the cap: if a full company won't fit, hire as many as do,
+  // so you can always top up after losses rather than being stuck near the cap.
+  const cap = MERCENARY.maxCompanies * MERCENARY.companySize;
+  const room = cap - mercCount(state);
+  if (room <= 0) return { ok: false, reason: 'No more companies will treat with you' };
+  const hiring = Math.min(MERCENARY.companySize, room);
   for (const [r, amt] of Object.entries(MERCENARY.hireCost)) {
     if (state.res[r] < amt) return { ok: false, reason: `Not enough ${r}` };
   }
   for (const [r, amt] of Object.entries(MERCENARY.hireCost)) state.res[r] -= amt;
   const keep = state.buildings.find((b) => b.type === 'keep');
   const bx = keep ? keep.x : 0, by = keep ? keep.y + 2 : 0;
-  for (let i = 0; i < MERCENARY.companySize; i++) {
+  for (let i = 0; i < hiring; i++) {
     state.soldiers.push({
       id: state.nextId++, merc: true, skill: MERCENARY.skill,
       x: bx + (i - 1), y: by, px: bx + (i - 1), py: by, hp: MERCENARY.hp,
     });
   }
-  logEvent(state, `A mercenary company of ${MERCENARY.companySize} takes your coin.`, 'good');
+  logEvent(state, `A mercenary company of ${hiring} takes your coin.`, 'good');
   return { ok: true };
 }
 

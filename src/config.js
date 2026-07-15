@@ -185,7 +185,7 @@ export const MERCENARY = {
   upkeepPerTick: 0.12,       // gold per merc per tick — steep; unpaid → they leave
   skill: 0.55,               // pre-trained: just shy of veteran (0.6)
   hp: 60,
-  maxCompanies: 4,           // contracts you can hold at once
+  maxCompanies: 8,           // contracts you can hold at once (up to 24 swords)
 };
 
 // ── Raiders ────────────────────────────────────────────────────────
