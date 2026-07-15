@@ -363,6 +363,22 @@ function updateSoldiers(state, rand) {
     if (b.hp > 0 && def.range && def.arrowDmg) defenders.push(b);
   }
   const liveRaiders = state.raid.raiders.filter((r) => r.hp > 0);
+  // the army HOLDS its ground: it only engages raiders on or near claimed land
+  // (within a short margin), never chasing into the wilds. This keeps soldiers
+  // where their home-ground and tower-cover bonuses apply.
+  const HOLD_MARGIN = 2;
+  const nearTerritory = (rd) => {
+    const rx = Math.round(rd.x), ry = Math.round(rd.y);
+    for (let dy = -HOLD_MARGIN; dy <= HOLD_MARGIN; dy++) {
+      for (let dx = -HOLD_MARGIN; dx <= HOLD_MARGIN; dx++) {
+        const x = rx + dx, y = ry + dy;
+        if (x >= 0 && y >= 0 && x < MAP.size && y < MAP.size && state.claimed[idx(x, y)]) return true;
+      }
+    }
+    return false;
+  };
+  // when the keep is besieged the gloves come off — defend it wherever they are
+  const engageable = state.raid.keepBesieged ? liveRaiders : liveRaiders.filter(nearTerritory);
   // force-ratio: outnumber the raiders → your soldiers take far less (Finding 8.1)
   const forceRatio = Math.min(1, liveRaiders.length / Math.max(1, state.soldiers.length));
   // a living veteran on the field lets rookies season under fire
@@ -375,7 +391,7 @@ function updateSoldiers(state, rand) {
     s.px = s.x; s.py = s.y;
     const onRoad = roads.has(idx(Math.round(s.x), Math.round(s.y)));
     const speed = SOLDIER.speed * (onRoad ? ROAD_SPEED_MULT : 1);
-    const raiders = state.raid.raiders.filter((r) => r.hp > 0);
+    const raiders = engageable;
     if (raiders.length) {
       // when the keep is besieged, every soldier rushes its attackers — target
       // the raider nearest the KEEP, not the one nearest to me
