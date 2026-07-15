@@ -50,6 +50,16 @@ answered by Fable and ratified by Chandra:
 - **A2 — Collapse is recoverable, but expensive.** Keep unrazable, refugees
   trickle back — but the fall costs real accumulated value (masters die, HP
   gutted, stockpiles looted). A "dark age" you climb out of, not a reset.
+  - **Implemented 2026-07-15 as the Keep-fall dark age** (`src/`, `KEEP.darkAge`
+    in config, `keepDarkAge()` in `raids.js`). The keep now auto-defends
+    (watchtower-grade arrows, no garrison) so only an overwhelming warlord force
+    can sack it; when it falls, a one-time catastrophe fires (60% of every
+    stockpile looted, morale gutted to floor, 5 buildings knocked to their sack
+    floor, up to 3 subjects lost) but the keep survives at its HP floor and the
+    run continues. This is the concrete expression of A2 — a severe *recoverable*
+    setback, **explicitly NOT a hard game-over** (Chandra reaffirmed this choice
+    over a true lose-condition, 2026-07-15). It does not reverse the Turn-2
+    "sandbox, no hard fail" decision.
 - **A3 — Automatic assignment with few, global levers.** ~3 policy dials
   (repair / build / produce priority) plus a per-building "prioritize" pin. No
   hand-assigning villagers, ever.

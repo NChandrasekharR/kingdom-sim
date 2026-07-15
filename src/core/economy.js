@@ -119,6 +119,8 @@ export function maintenanceTick(state) {
       state.delta.stone -= heal * HP.repairStonePerHp;
       b.hp += heal;
       if (b.sacked && b.hp > b.maxHp * 0.5) b.sacked = false;
+      // a breached wall rebuilt past half once again bars the way
+      if (b.breached && b.hp > b.maxHp * 0.5) b.breached = false;
       labor -= heal;
       state.buildingsDirty = true;
     }

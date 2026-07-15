@@ -204,7 +204,10 @@ export function buildUI(root, ctx) {
   let selected = null;
   on('select', (b) => { selected = b; renderSelection(); });
   function renderSelection() {
-    if (!selected || selected.hp <= 0) { selPanel.classList.add('hidden'); return; }
+    if (!selected || selected.hp <= 0) {
+      if (!selUnit) selPanel.classList.add('hidden');  // a selected unit keeps the panel up
+      return;
+    }
     const def = BUILDINGS[selected.type];
     selPanel.classList.remove('hidden');
     const out = Math.round(outputMult(selected) * 100);
@@ -231,6 +234,44 @@ export function buildUI(root, ctx) {
         render();
       };
       selPanel.appendChild(d);
+    }
+  }
+
+  // ── Unit inspector (soldiers, raiders) — shares selPanel ─────────────
+  let selUnit = null;      // { unit, kind }
+  on('select', () => { if (selUnit) { selUnit = null; } });  // building click clears a unit
+  on('select-unit', (u) => { selUnit = u; selected = null; renderUnit(); });
+  function renderUnit() {
+    if (!selUnit || !selUnit.unit) { if (!selected) selPanel.classList.add('hidden'); return; }
+    const { unit, kind } = selUnit;
+    selPanel.classList.remove('hidden');
+    if (kind === 'soldier') {
+      const v = state.villagers.find((vl) => vl.id === unit.villagerId);
+      const gone = !v || unit.hp <= 0 || !state.soldiers.includes(unit);
+      if (gone) { selUnit = null; selPanel.classList.add('hidden'); return; }
+      const hpPct = Math.max(0, Math.round((unit.hp / SOLDIER.hp) * 100));
+      const skills = Object.entries(v.skills)
+        .filter(([, s]) => s > 0.05)
+        .sort((a, b) => b[1] - a[1])
+        .map(([k, s]) => `${k} ${Math.round(s * 100)}%`).join(' · ') || 'green recruit';
+      selPanel.innerHTML = `
+        <img class="bicon" src="${iconDataURL('soldier')}" alt="">
+        <div class="sel-info">
+          <div class="sel-name">${v.name} <span class="good">— soldier</span></div>
+          <div class="sel-hp">HP ${Math.ceil(unit.hp)}/${SOLDIER.hp} (${hpPct}%) · skills: ${skills}</div>
+          <div class="sel-desc">A subject of ${state.name} under arms.</div>
+        </div>`;
+    } else {
+      const gone = unit.hp <= 0 || !state.raid.raiders.includes(unit);
+      if (gone) { selUnit = null; selPanel.classList.add('hidden'); return; }
+      const mode = { march: 'marching in', loot: 'looting', flee: 'fleeing' }[unit.mode] || unit.mode;
+      selPanel.innerHTML = `
+        <img class="bicon" src="${iconDataURL('raider')}" alt="">
+        <div class="sel-info">
+          <div class="sel-name"><span class="bad">Raider</span></div>
+          <div class="sel-hp">HP ${Math.ceil(unit.hp)} · loot ${Math.round(unit.loot)} · ${mode}</div>
+          <div class="sel-desc">A brigand come to sack the realm.</div>
+        </div>`;
     }
   }
 
@@ -283,6 +324,15 @@ export function buildUI(root, ctx) {
         o.start(now + t0); o.stop(now + t0 + dur + 0.1);
       }
     } catch { /* audio blocked until user gesture — fine */ }
+  });
+
+  // ── Keep besieged alarm ──────────────────────────────────────────
+  on('keep-besieged', () => {
+    raidBanner.classList.add('besieged');   // CSS makes it flash urgent-red
+    showToast('⚠ THE KEEP IS UNDER ASSAULT — rally your soldiers!');
+  });
+  on('keep-sacked', () => {
+    showToast('☠ THE KEEP HAS FALLEN — a dark age begins.');
   });
 
   // ── Minimap ──────────────────────────────────────────────────────
@@ -382,9 +432,13 @@ export function buildUI(root, ctx) {
     }
 
     raidBanner.classList.toggle('hidden', state.raid.phase === 'quiet');
-    raidBanner.textContent = state.raid.phase === 'warning' ? '⚔ RAIDERS APPROACH ⚔' : '⚔ RAID IN PROGRESS ⚔';
+    if (state.raid.phase === 'quiet') raidBanner.classList.remove('besieged');
+    raidBanner.textContent = state.raid.keepBesieged
+      ? '⚠ THE KEEP IS BESIEGED ⚠'
+      : state.raid.phase === 'warning' ? '⚔ RAIDERS APPROACH ⚔' : '⚔ RAID IN PROGRESS ⚔';
 
     renderSelection();
+    renderUnit();
     drawMinimap();
   }
 

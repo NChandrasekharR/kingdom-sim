@@ -133,6 +133,14 @@ button {
   pointer-events: none;
   z-index: 5;
 }
+.raid-banner.besieged {
+  background: linear-gradient(180deg, #d21f0c, #7e1205);
+  font-size: 23px;
+  border-color: #ffbf3f;
+  box-shadow: 0 0 18px rgba(255,60,30,0.8), 0 4px 14px rgba(0,0,0,0.6);
+  animation: besiege-flash 0.5s infinite;
+}
+@keyframes besiege-flash { 50% { filter: brightness(1.5); border-color: #fff; } }
 
 .toast {
   position: absolute;

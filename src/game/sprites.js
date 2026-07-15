@@ -260,6 +260,9 @@ export const RES_ICON_ART = {
   pop: ['..kk....', '..cc....', '.rrrr...', '.rrrr...', '..rr....', '..kk....', '.k..k...', '........'],
   morale: ['........', '.rr.rr..', 'rrrrrrr.', 'rrrrrrr.', '.rrrrr..', '..rrr...', '...r....', '........'],
   crown: ['........', '.g.gg.g.', '.g.gg.g.', '.gggggg.', '.gggggg.', '.gTggTg.', '.gggggg.', '........'],
+  // a hooded brigand for the unit inspector (raiders)
+  raider: ['..XX....', '..XX....', '.xRRx...', '.xRRx...', '..RR....', '..XX....', '.X..X...', '........'],
+  soldier: ['..ii....', '..cc....', '.uSSu...', '.uSSu...', '..SS....', '..ii....', '.i..i...', '........'],
 };
 
 function drawArt(ctx, rows, ox = 0, oy = 0) {

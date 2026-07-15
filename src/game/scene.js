@@ -147,7 +147,8 @@ export class KingdomScene extends Phaser.Scene {
         this.buildingSprites.set(b.id, img);
       }
       img.setPosition(b.x * TILE + TILE / 2, b.y * TILE + TILE / 2 - (b.type === 'road' ? 0 : 2));
-      img.setTint(b.hp < b.maxHp * 0.5 ? 0xff8877 : 0xffffff);
+      // breached walls read as dark rubble; other damage tints red under half HP
+      img.setTint(b.breached ? 0x6b5a4a : b.hp < b.maxHp * 0.5 ? 0xff8877 : 0xffffff);
       img.setAlpha(state.claimed[idx(b.x, b.y)] ? 1 : 0.55);
     }
     for (const [id, img] of this.buildingSprites) {
@@ -228,9 +229,28 @@ export class KingdomScene extends Phaser.Scene {
         }
         emit('tick', this.ctx.state);
       } else {
-        const b = this.ctx.state.buildings.find((bb) => bb.x === tx && bb.y === ty);
-        this.ctx.selected = b || null;
-        emit('select', b || null);
+        // hit-test moving units first (they sit sub-tile), then buildings
+        const st = this.ctx.state;
+        const wx = wp.x / TILE, wy = wp.y / TILE;
+        let unit = null, kind = null, ud = 0.7;
+        for (const s of st.soldiers) {
+          const d = Math.hypot(s.x + 0.5 - wx, s.y + 0.5 - wy);
+          if (d < ud) { ud = d; unit = s; kind = 'soldier'; }
+        }
+        for (const r of st.raid.raiders) {
+          const d = Math.hypot(r.x + 0.5 - wx, r.y + 0.5 - wy);
+          if (d < ud) { ud = d; unit = r; kind = 'raider'; }
+        }
+        if (unit) {
+          this.ctx.selected = null;
+          emit('select', null);
+          emit('select-unit', { unit, kind });
+        } else {
+          const b = st.buildings.find((bb) => bb.x === tx && bb.y === ty);
+          this.ctx.selected = b || null;
+          emit('select-unit', null);
+          emit('select', b || null);
+        }
       }
     });
     this.input.on('wheel', (p, _o, _dx, dy) => {
@@ -246,6 +266,7 @@ export class KingdomScene extends Phaser.Scene {
       this.ctx.selected = null;
       emit('placement', null);
       emit('select', null);
+      emit('select-unit', null);
     });
     this.input.mouse.disableContextMenu();
     on('goto', ({ x, y }) => cam.centerOn(x * TILE, y * TILE));

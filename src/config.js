@@ -30,8 +30,9 @@ export const RES_INFO = {
 // prod: flat output per tick fully staffed. conv: inputs→outputs per tick fully staffed.
 export const BUILDINGS = {
   keep: {
-    name: 'Keep', desc: 'Seat of your rule. Radiates influence and houses 10 souls.',
+    name: 'Keep', desc: 'Seat of your rule. Its guard looses arrows on raiders — but if the keep is stormed, a dark age falls.',
     cost: {}, hp: 300, workers: 0, influence: 11, popCap: 10, unique: true, unbuildable: true,
+    range: 8, arrowDmg: 5,   // the keep's own guard: stronger than a watchtower, needs no garrison
   },
   house: {
     name: 'House', desc: 'Shelter for 5 more subjects.',
@@ -160,6 +161,21 @@ export const RAID = {
   warlordEveryWaves: 6,        // ≈ every 4 years at typical gaps
   warlordMinPop: 25,           // warlords only bother once the kingdom is worth it
   warlordSizeMult: 2.5, warlordHpMult: 1.5,
+};
+
+// ── The Keep as the kingdom's heart ────────────────────────────────
+// The keep defends itself (see BUILDINGS.keep range/arrowDmg — no garrison).
+// If raiders sack it anyway, a "dark age" falls: a one-time catastrophe you
+// climb back out of — NOT a game-over. The keep survives at its floor and the
+// realm rebuilds from it (design A2: collapse is recoverable, not a reset).
+export const KEEP = {
+  darkAge: {
+    lootFrac: 0.6,          // this share of every stockpile is carried off
+    moraleFloor: 12,        // morale is gutted to this
+    buildingsGutted: 5,     // this many other buildings are knocked to their sack floor
+    deaths: 3,              // up to this many subjects are lost in the storming
+  },
+  rallyOnBesiege: true,     // when the keep is attacked, all soldiers rush to defend it
 };
 
 // ── Seasons ────────────────────────────────────────────────────────

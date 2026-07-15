@@ -1,5 +1,5 @@
-import { MAP, T, TERRAIN_INFO, BUILDINGS, RAIDER, RAID, SOLDIER, ROAD_SPEED_MULT } from '../config.js';
-import { idx, inBounds, buildingAt, destroyBuilding } from './state.js';
+import { MAP, T, TERRAIN_INFO, BUILDINGS, RAIDER, RAID, SOLDIER, ROAD_SPEED_MULT, KEEP } from '../config.js';
+import { idx } from './state.js';
 import { prosperity } from './economy.js';
 import { logEvent, emit } from './events.js';
 import { killVillager, isMaster } from './villagers.js';
@@ -8,7 +8,8 @@ import { killVillager, isMaster } from './villagers.js';
 function wallSet(state) {
   const s = new Set();
   for (const b of state.buildings) {
-    if (b.type === 'wall' && b.hp > 0) s.add(idx(b.x, b.y));
+    // a breached wall is rubble — it no longer bars the way (raiders walk through)
+    if (b.type === 'wall' && b.hp > 0 && !b.breached) s.add(idx(b.x, b.y));
   }
   return s;
 }
@@ -131,6 +132,7 @@ function spawnRaid(state, rand) {
   raid.wave++;
   raid.startTick = state.tick;
   raid.lootStartTick = 0;
+  raid.keepBesieged = false;
 
   // wave size rides prosperity and your army; a raid that hurt last time
   // eases this one (rubber-band mercy), a fat unscathed kingdom gets none
@@ -216,13 +218,18 @@ function updateRaiders(state, rand) {
       }
       const next = rd.path[rd.pathI];
       const nx = next % N, ny = (next / N) | 0;
-      // wall in the way → batter it
-      const wall = state.buildings.find((b) => b.x === nx && b.y === ny && b.hp > 0 && b.type === 'wall');
+      // an intact wall in the way → batter it; a breached one is passable rubble
+      const wall = state.buildings.find(
+        (b) => b.x === nx && b.y === ny && b.hp > 0 && b.type === 'wall' && !b.breached);
       if (wall && rd.mode === 'march') {
         wall.hp -= RAIDER.dmg;
+        state.buildingsDirty = true;
         if (wall.hp <= 0) {
-          destroyBuilding(state, wall);
-          logEvent(state, 'A wall has been battered down!', 'raid');
+          // walls breach, they don't vanish: left as rubble at 1 HP, repairable
+          // in place. Raiders pour through; builders can wall it back up.
+          wall.hp = 1;
+          wall.breached = true;
+          logEvent(state, 'A wall is breached! Raiders pour through the gap!', 'raid');
         }
         continue;
       }
@@ -244,6 +251,14 @@ function updateRaiders(state, rand) {
         state.res[best] -= take;
         rd.loot += take;
       }
+      // the keep is the kingdom's heart — raiders reaching it sound the alarm
+      // and every soldier rushes to its defense (a grace window to hold)
+      if (target.type === 'keep' && !raid.keepBesieged) {
+        raid.keepBesieged = true;
+        logEvent(state, `The raiders are storming the KEEP! Rally to ${state.name}!`, 'raid');
+        state.raidShock = Math.min(40, state.raidShock + 12);
+        emit('keep-besieged');
+      }
       // grind the building down — raiders SACK capacity, they don't raze it.
       // The wound is measured in lost output-days, not rubble.
       target.hp -= RAID.lootDmg;
@@ -254,19 +269,25 @@ function updateRaiders(state, rand) {
         if (!target.sacked) {
           target.sacked = true;
           raid.sackedThisRaid = (raid.sackedThisRaid || 0) + 1;
-          logEvent(state, `${BUILDINGS[target.type].name} has been sacked!`, 'raid');
-          state.raidShock = Math.min(40, state.raidShock + 8);
-          // workers may die in the sacking — but only once per raid per
-          // building, so repairing mid-raid can't re-feed the grinder
-          if (target.deathRolledWave !== raid.wave) {
-            target.deathRolledWave = raid.wave;
-            for (const v of [...(target.workers || [])]) {
-              if (rand() < RAID.sackDeathChance) {
-                const wasMaster = isMaster(v);
-                killVillager(state, v);
-                logEvent(state, wasMaster
-                  ? `${v.name}, master ${target.type === 'smelter' ? 'smith' : 'of the ' + target.type}, was slain in the sacking. Years of craft die too.`
-                  : `${v.name} was slain defending the ${BUILDINGS[target.type].name.toLowerCase()}.`, 'bad');
+          // the keep falling is a catastrophe of its own — a dark age, not a
+          // routine sack (but the realm survives and rebuilds from it)
+          if (target.type === 'keep') {
+            keepDarkAge(state, rand);
+          } else {
+            logEvent(state, `${BUILDINGS[target.type].name} has been sacked!`, 'raid');
+            state.raidShock = Math.min(40, state.raidShock + 8);
+            // workers may die in the sacking — but only once per raid per
+            // building, so repairing mid-raid can't re-feed the grinder
+            if (target.deathRolledWave !== raid.wave) {
+              target.deathRolledWave = raid.wave;
+              for (const v of [...(target.workers || [])]) {
+                if (rand() < RAID.sackDeathChance) {
+                  const wasMaster = isMaster(v);
+                  killVillager(state, v);
+                  logEvent(state, wasMaster
+                    ? `${v.name}, master ${target.type === 'smelter' ? 'smith' : 'of the ' + target.type}, was slain in the sacking. Years of craft die too.`
+                    : `${v.name} was slain defending the ${BUILDINGS[target.type].name.toLowerCase()}.`, 'bad');
+                }
               }
             }
           }
@@ -300,10 +321,13 @@ function retargetOrFlee(state, rd, rand) {
   rd.mode = 'march';
 }
 
+// Any building with range+arrowDmg looses arrows on the nearest raider: the
+// watchtower, and the keep (its own guard — no garrison needed).
 function updateTowers(state) {
   for (const b of state.buildings) {
-    if (b.type !== 'tower' || b.hp <= 0) continue;
-    const def = BUILDINGS.tower;
+    if (b.hp <= 0) continue;
+    const def = BUILDINGS[b.type];
+    if (!def.range || !def.arrowDmg) continue;
     let nearest = null, nd = def.range;
     for (const rd of state.raid.raiders) {
       const d = Math.hypot(rd.x - b.x, rd.y - b.y);
@@ -312,7 +336,11 @@ function updateTowers(state) {
     if (nearest) {
       nearest.hp -= def.arrowDmg;
       emit('arrow', { fx: b.x, fy: b.y, tx: nearest.x, ty: nearest.y });
-      if (nearest.hp <= 0) logEvent(state, 'A raider falls to tower arrows.', 'good');
+      if (nearest.hp <= 0) {
+        logEvent(state, b.type === 'keep'
+          ? "A raider falls to the keep's archers."
+          : 'A raider falls to tower arrows.', 'good');
+      }
     }
   }
 }
@@ -329,11 +357,16 @@ function updateSoldiers(state, rand) {
     const speed = SOLDIER.speed * (onRoad ? ROAD_SPEED_MULT : 1);
     const raiders = state.raid.raiders.filter((r) => r.hp > 0);
     if (raiders.length) {
+      // when the keep is besieged, every soldier rushes its attackers — target
+      // the raider nearest the KEEP, not the one nearest to me
+      const anchor = (state.raid.keepBesieged && keep) ? keep : s;
       let nearest = null, nd = Infinity;
       for (const rd of raiders) {
-        const d = Math.hypot(rd.x - s.x, rd.y - s.y);
+        const d = Math.hypot(rd.x - anchor.x, rd.y - anchor.y);
         if (d < nd) { nd = d; nearest = rd; }
       }
+      // distance for the ATTACK check is always soldier→raider
+      nd = nearest ? Math.hypot(nearest.x - s.x, nearest.y - s.y) : Infinity;
       if (nd < 1.1) {
         const vet = state.villagers.find((v) => v.id === s.villagerId);
         nearest.hp -= SOLDIER.dmg * (1 + (vet?.skills.soldier || 0));
@@ -369,9 +402,50 @@ function updateSoldiers(state, rand) {
   state.soldiers = state.soldiers.filter((s) => s.hp > 0);
 }
 
+// The keep has fallen — a dark age. A one-time catastrophe (stockpiles carried
+// off, morale broken, districts gutted, subjects lost) that you climb back out
+// of. The keep itself survives at its floor; the realm is not razed (A2).
+function keepDarkAge(state, rand) {
+  const D = KEEP.darkAge;
+  logEvent(state, `THE KEEP HAS FALLEN. ${state.name} enters a dark age.`, 'bad');
+  emit('keep-sacked');
+
+  // stockpiles carried off
+  for (const r of Object.keys(state.res)) {
+    state.res[r] = Math.max(0, state.res[r] * (1 - D.lootFrac));
+  }
+  // morale broken
+  state.morale = Math.min(state.morale, D.moraleFloor);
+  state.raidShock = 40;
+
+  // districts gutted — knock the most valuable standing buildings to their floor
+  const others = state.buildings
+    .filter((b) => b.type !== 'keep' && b.hp > b.maxHp * RAID.abandonHpFrac)
+    .sort((a, b) => b.hp - a.hp)
+    .slice(0, D.buildingsGutted);
+  for (const b of others) {
+    b.hp = Math.max(1, b.maxHp * RAID.abandonHpFrac);
+    b.sacked = true;
+  }
+  state.buildingsDirty = true;
+
+  // subjects lost in the storming (never the last soul — the realm endures)
+  let toll = 0;
+  for (let i = 0; i < D.deaths && state.villagers.length > 1; i++) {
+    const v = state.villagers[Math.floor(rand() * state.villagers.length)];
+    killVillager(state, v);
+    toll++;
+  }
+  if (toll > 0) {
+    logEvent(state, `${toll} ${toll > 1 ? 'souls are' : 'soul is'} lost in the sack of the keep.`, 'bad');
+  }
+  logEvent(state, 'From the ashes of the keep, the realm must be rebuilt.', 'info');
+}
+
 function endRaid(state, rand) {
   const raid = state.raid;
   raid.phase = 'quiet';
+  raid.keepBesieged = false;
   raid.lastSacked = raid.sackedThisRaid || 0;
   raid.timer = RAID.minGapTicks + Math.floor(rand() * 200) - Math.min(150, Math.floor(prosperity(state) / 15));
   // rubber-band: a raid that hurt buys quiet ticks to rebuild in
