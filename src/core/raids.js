@@ -1,4 +1,4 @@
-import { MAP, T, TERRAIN_INFO, BUILDINGS, RAIDER, RAID, SOLDIER, ROAD_SPEED_MULT, KEEP, COMBAT, SKILL } from '../config.js';
+import { MAP, T, TERRAIN_INFO, BUILDINGS, RAIDER, RAID, SOLDIER, ROAD_SPEED_MULT, KEEP, COMBAT, SKILL, MERCENARY } from '../config.js';
 import { idx } from './state.js';
 import { prosperity } from './economy.js';
 import { logEvent, emit } from './events.js';
@@ -353,6 +353,14 @@ function updateTowers(state) {
   }
 }
 
+// combat skill of a fighter: a mercenary carries its own; a subject-soldier's
+// comes from their villager record.
+function soldierSkill(state, s) {
+  if (s.merc) return s.skill || 0;
+  const v = state.villagers.find((vl) => vl.id === s.villagerId);
+  return v?.skills.soldier || 0;
+}
+
 function updateSoldiers(state, rand) {
   const keep = state.buildings.find((b) => b.type === 'keep');
   const roads = new Set();
@@ -382,10 +390,7 @@ function updateSoldiers(state, rand) {
   // force-ratio: outnumber the raiders → your soldiers take far less (Finding 8.1)
   const forceRatio = Math.min(1, liveRaiders.length / Math.max(1, state.soldiers.length));
   // a living veteran on the field lets rookies season under fire
-  const hasVeteran = state.soldiers.some((so) => {
-    const vv = state.villagers.find((v) => v.id === so.villagerId);
-    return vv && (vv.skills.soldier || 0) >= COMBAT.veteranSkill;
-  });
+  const hasVeteran = state.soldiers.some((so) => soldierSkill(state, so) >= COMBAT.veteranSkill);
 
   for (const s of state.soldiers) {
     s.px = s.x; s.py = s.y;
@@ -396,8 +401,7 @@ function updateSoldiers(state, rand) {
     // if they're skilled enough to disengage and the keep isn't being stormed.
     // (Green soldiers can't pull back in time; the keep-besieged fight is to
     // the death.) This is how a veteran corps SURVIVES a long war of attrition.
-    const sv = state.villagers.find((v) => v.id === s.villagerId);
-    const sSkill = sv?.skills.soldier || 0;
+    const sSkill = soldierSkill(state, s);
     const retreating = !state.raid.keepBesieged &&
       s.hp < SOLDIER.hp * COMBAT.retreatBelowFrac && sSkill >= COMBAT.retreatSkillGate;
     if (retreating && keep) {
@@ -424,8 +428,8 @@ function updateSoldiers(state, rand) {
       // distance for the ATTACK check is always soldier→raider
       nd = nearest ? Math.hypot(nearest.x - s.x, nearest.y - s.y) : Infinity;
       if (nd < 1.1) {
-        const vet = state.villagers.find((v) => v.id === s.villagerId);
-        const skill = vet?.skills.soldier || 0;
+        const vet = s.merc ? null : state.villagers.find((v) => v.id === s.villagerId);
+        const skill = sSkill;
 
         // OFFENSE: strike, with a skill-scaled crit chance (veterans burst)
         const crit = rand() < COMBAT.baseCrit + skill * COMBAT.critSkillScale;
@@ -479,9 +483,14 @@ function updateSoldiers(state, rand) {
       s.hp = Math.min(SOLDIER.hp, s.hp + 0.4); // rest and mend wounds between raids
     }
   }
-  // a fallen soldier is a fallen villager — their skills fall with them
+  // a fallen soldier is a fallen villager — their skills fall with them. A
+  // fallen mercenary is just a hireling lost: no subject dies with them.
   for (const s of state.soldiers) {
     if (s.hp > 0) continue;
+    if (s.merc) {
+      logEvent(state, 'A mercenary falls in your service.', 'bad');
+      continue;
+    }
     const vet = state.villagers.find((v) => v.id === s.villagerId);
     if (vet) {
       const wasMaster = isMaster(vet);
@@ -578,11 +587,63 @@ export function recruitSoldier(state) {
 }
 
 export function dismissSoldier(state) {
-  const s = state.soldiers[state.soldiers.length - 1];
+  // dismiss a subject-soldier first (mercs are dismissed via their own control)
+  const s = [...state.soldiers].reverse().find((so) => !so.merc) || state.soldiers[state.soldiers.length - 1];
   if (!s) return { ok: false, reason: 'No soldiers to dismiss' };
+  const i = state.soldiers.indexOf(s);
   const vet = state.villagers.find((v) => v.id === s.villagerId);
   if (vet) { vet.job = 'idle'; }
-  state.soldiers.pop();
+  state.soldiers.splice(i, 1);
   logEvent(state, vet ? `${vet.name} hangs up the sword and returns to the fields.` : 'A soldier stands down.', 'info');
   return { ok: true };
+}
+
+export function mercCount(state) { return state.soldiers.filter((s) => s.merc).length; }
+
+// Hire a company of mercenaries: an up-front gold sum buys pre-trained fighters
+// who cost steep per-tick gold and leave if unpaid. They spare your veterans.
+export function hireMercenaries(state) {
+  const companies = Math.ceil(mercCount(state) / MERCENARY.companySize);
+  if (companies >= MERCENARY.maxCompanies) return { ok: false, reason: 'No more companies will treat with you' };
+  for (const [r, amt] of Object.entries(MERCENARY.hireCost)) {
+    if (state.res[r] < amt) return { ok: false, reason: `Not enough ${r}` };
+  }
+  for (const [r, amt] of Object.entries(MERCENARY.hireCost)) state.res[r] -= amt;
+  const keep = state.buildings.find((b) => b.type === 'keep');
+  const bx = keep ? keep.x : 0, by = keep ? keep.y + 2 : 0;
+  for (let i = 0; i < MERCENARY.companySize; i++) {
+    state.soldiers.push({
+      id: state.nextId++, merc: true, skill: MERCENARY.skill,
+      x: bx + (i - 1), y: by, px: bx + (i - 1), py: by, hp: MERCENARY.hp,
+    });
+  }
+  logEvent(state, `A mercenary company of ${MERCENARY.companySize} takes your coin.`, 'good');
+  return { ok: true };
+}
+
+export function dismissMercenaries(state) {
+  const before = mercCount(state);
+  if (!before) return { ok: false, reason: 'No mercenaries to release' };
+  // release the most recent company
+  let toRelease = Math.min(MERCENARY.companySize, before);
+  for (let i = state.soldiers.length - 1; i >= 0 && toRelease > 0; i--) {
+    if (state.soldiers[i].merc) { state.soldiers.splice(i, 1); toRelease--; }
+  }
+  logEvent(state, 'A mercenary company is released from your service.', 'info');
+  return { ok: true };
+}
+
+// per-tick gold upkeep for mercenaries; if the coffers run dry they walk off
+export function mercenaryUpkeepTick(state) {
+  const n = mercCount(state);
+  if (!n) return;
+  const due = n * MERCENARY.upkeepPerTick;
+  if (state.res.gold >= due) {
+    state.res.gold -= due;
+    state.delta.gold -= due;
+  } else {
+    // can't pay — the whole lot desert
+    state.soldiers = state.soldiers.filter((s) => !s.merc);
+    logEvent(state, 'Your coffers run dry — the mercenaries desert!', 'bad');
+  }
 }

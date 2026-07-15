@@ -3,7 +3,7 @@ import { mulberry32 } from './rng.js';
 import { economyTick, maintenanceTick } from './economy.js';
 import { populationTick } from './population.js';
 import { tradeTick } from './trade.js';
-import { raidTick } from './raids.js';
+import { raidTick, mercenaryUpkeepTick } from './raids.js';
 import { claimTick, recedeTick, territorySize } from './territory.js';
 import { winTick } from './win.js';
 import { saveGame } from './state.js';
@@ -37,6 +37,7 @@ export function makeSim(state) {
       populationTick(state);
       tradeTick(state, rand);
       raidTick(state, rand);
+      mercenaryUpkeepTick(state);
 
       if (state.tick % 2 === 0) {
         if (state.starving) recedeTick(state);

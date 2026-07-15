@@ -1,10 +1,10 @@
-import { BUILDINGS, RESOURCES, RES_INFO, TICK_MS, SOLDIER, T, MAP } from '../config.js';
+import { BUILDINGS, RESOURCES, RES_INFO, TICK_MS, SOLDIER, T, MAP, MERCENARY } from '../config.js';
 import { iconDataURL, buildingIconURL, PALETTE } from '../game/sprites.js';
 import { on, emit } from '../core/events.js';
 import { currentSeason, currentYear, makeSim } from '../core/sim.js';
 import { territorySize } from '../core/territory.js';
 import { demolish, clearSave, saveGame, createState } from '../core/state.js';
-import { recruitSoldier, dismissSoldier } from '../core/raids.js';
+import { recruitSoldier, dismissSoldier, hireMercenaries, dismissMercenaries, mercCount } from '../core/raids.js';
 import { countMasters } from '../core/villagers.js';
 import { outputMult } from '../core/economy.js';
 import { sell, buy, sellPrice, buyPrice } from '../core/trade.js';
@@ -176,6 +176,22 @@ export function buildUI(root, ctx) {
     render();
   };
   panels.Kingdom.appendChild(dismissBtn);
+
+  const hireBtn = el('button', 'action',
+    `Hire mercenaries (${MERCENARY.hireCost.gold} gold + upkeep)`);
+  hireBtn.onclick = () => {
+    const r = hireMercenaries(state);
+    if (!r.ok) showToast(r.reason);
+    render();
+  };
+  panels.Kingdom.appendChild(hireBtn);
+  const releaseMercBtn = el('button', 'action', 'Release mercenaries');
+  releaseMercBtn.onclick = () => {
+    const r = dismissMercenaries(state);
+    if (!r.ok) showToast(r.reason);
+    render();
+  };
+  panels.Kingdom.appendChild(releaseMercBtn);
 
   // ── Trade tab ────────────────────────────────────────────────────
   const merchStatus = el('div', 'merch-status');

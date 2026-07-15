@@ -173,6 +173,21 @@ export const COMBAT = {
   retreatSkillGate: 0.4,       // …but only if skilled enough to disengage cleanly
 };
 
+// ── Mercenaries ────────────────────────────────────────────────────
+// Hired outsiders you pay in GOLD (not a subject under arms). They fight like
+// seasoned soldiers but cost steep per-tick upkeep and WALK if you can't pay —
+// an emergency valve to absorb a big raid without bleeding your veterans, and a
+// gold sink that can't quietly become a cheap standing army. They aren't your
+// people: no seasoning, no home, and their death costs you no villager.
+export const MERCENARY = {
+  companySize: 3,            // fighters hired per contract
+  hireCost: { gold: 120 },   // up-front gold to hire a company
+  upkeepPerTick: 0.12,       // gold per merc per tick — steep; unpaid → they leave
+  skill: 0.55,               // pre-trained: just shy of veteran (0.6)
+  hp: 60,
+  maxCompanies: 4,           // contracts you can hold at once
+};
+
 // ── Raiders ────────────────────────────────────────────────────────
 // Raiders SACK buildings (grind HP to the abandon floor), they rarely raze.
 // A raid is an economic wound measured in lost output-days, not lost tiles.
