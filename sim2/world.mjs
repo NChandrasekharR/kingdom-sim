@@ -406,12 +406,14 @@ export class World {
       if (!v.alive) continue;
       need += P.eatPerTick * (v.job === 'soldier' ? P.soldierEatMult : 1);
     }
-    // eat bread (2 eq) then food
+    // eat RAW FOOD first (it rots anyway); bread only on shortfall — so bread
+    // accumulates as the reserve instead of being devoured as baked (2026-07-16,
+    // mirrors the game's eat-order flip)
     let supplied = 0;
-    const fromBread = Math.min(this.res.bread * this.P.breadFoodEq, need);
-    this.res.bread -= fromBread / this.P.breadFoodEq; supplied += fromBread;
-    const fromFood = Math.min(this.res.food, need - supplied);
+    const fromFood = Math.min(this.res.food, need);
     this.res.food -= fromFood; supplied += fromFood;
+    const fromBread = Math.min(this.res.bread * this.P.breadFoodEq, need - supplied);
+    this.res.bread -= fromBread / this.P.breadFoodEq; supplied += fromBread;
 
     const deficit = need - supplied;
     const fed = need > 0 ? supplied / need : 1;
@@ -423,7 +425,7 @@ export class World {
         if (v.hunger >= P.starveDeathTicks) {
           v.alive = false;
           this.stats.villagersLost++; this.stats.starvationDeaths++;
-          if (this.skillOf(v) > 0.6) this.stats.mastersLost++;
+          if (this.skillOf(v) >= (this.P.skill.masterAt ?? 0.6)) this.stats.mastersLost++;
         }
       }
     } else {
@@ -460,7 +462,7 @@ export class World {
     this._guilds = this._guilds || new Set();
     const masterTypes = new Set();
     for (const v of this.villagers) {
-      if (v.alive && v.job === 'producer' && v.workplace && this.skillOf(v) >= 0.6) {
+      if (v.alive && v.job === 'producer' && v.workplace && this.skillOf(v) >= (this.P.skill.masterAt ?? 0.6)) {
         masterTypes.add(v.workplace.type);
         this._guilds.add(v.workplace.type);
       }
@@ -683,7 +685,7 @@ export class World {
             for (const v of t.workers) {
               if (this.rng.chance(0.12)) {
                 v.alive = false; this.stats.villagersLost++;
-                if (this.skillOf(v) > 0.6) this.stats.mastersLost++;
+                if (this.skillOf(v) >= (this.P.skill.masterAt ?? 0.6)) this.stats.mastersLost++;
               }
             }
           }
@@ -823,7 +825,7 @@ export class World {
         this.stats.villagersLost++;
         this.stats.villagersHunted++;
         this._huntedThisRaid = (this._huntedThisRaid || 0) + 1;
-        if (this.skillOf(v) > 0.6) this.stats.mastersLost++;
+        if (this.skillOf(v) >= (this.P.skill.masterAt ?? 0.6)) this.stats.mastersLost++;
         if (P.huntDeathsPerRaidCap > 0 && this._huntedThisRaid >= P.huntDeathsPerRaidCap) break;
       }
     }
@@ -937,7 +939,7 @@ export class World {
   }
 
   snapshot() {
-    const masters = this.villagers.filter((v) => v.alive && this.skillOf(v) >= 0.6).length;
+    const masters = this.villagers.filter((v) => v.alive && this.skillOf(v) >= (this.P.skill.masterAt ?? 0.6)).length;
     const avgSkill = this.pop ? this.villagers.filter((v) => v.alive)
       .reduce((s, v) => s + this.skillOf(v), 0) / this.pop : 0;
     const avgHp = this.buildings.length ? this.buildings.reduce((s, b) => s + b.hp / b.maxHp, 0) / this.buildings.length : 0;

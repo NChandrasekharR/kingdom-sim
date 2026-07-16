@@ -155,11 +155,15 @@ export const HP = {
 };
 
 // ── Skills (villagers learn by doing; knowledge is mortal) ─────────
+// RETUNED 2026-07-16 (Duncastle log: 201 masters of 245 pop — mastery was the
+// default state of a human being, so losing one meant nothing). A master is
+// now YEARS of devoted work (~4+ years at the same craft), and the bar is
+// higher — Pillar B only has teeth if masters are precious.
 export const SKILL = {
-  gainPerTick: 0.0008,         // proficiency per tick worked (master in ~1.5 years)
+  gainPerTick: 0.0004,         // proficiency per tick worked (halved)
   max: 1.0,                    // output multiplier = 1 + skill (a true master doubles output)
-  decayPerTickIdle: 0.0003,    // unused skills fade
-  masterAt: 0.6,               // at this skill you count as a master
+  decayPerTickIdle: 0.0003,    // unused skills fade (now bites harder relative to gain)
+  masterAt: 0.8,               // at this skill you count as a master (was 0.6)
   apprenticeFloor: 0.35,       // juniors working beside a living master hold at least this
   guildFloor: 0.3,             // a craft once mastered here never drops below this baseline
 };

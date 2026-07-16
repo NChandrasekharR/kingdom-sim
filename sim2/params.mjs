@@ -75,8 +75,10 @@ export const DEFAULTS = {
 
   // — skills (Pillar B) —
   skill: {
-    gainPerTick: 0.0008,         // proficiency gained per tick worked
+    gainPerTick: 0.0004,         // proficiency gained per tick worked (halved 2026-07-16:
+                                 // Duncastle playtest had 201 masters of 245 pop)
     max: 1.0,                    // 0..max; output mult = 1 + skill (so master = 2x at 1.0)
+    masterAt: 0.8,               // the master bar (was a hardcoded 0.6 across world.mjs)
     decayPerTickIdle: 0.0003,    // unused skills fade
     apprenticeFloor: 0.35,       // juniors near a master hold ≥this (raised 0.15→0.35: knowledge floor, Finding 5)
     masterTrainsRadius: 1,       // a master lifts nearby juniors' floor

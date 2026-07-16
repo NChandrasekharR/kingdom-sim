@@ -36,7 +36,7 @@ export function buildUI(root, ctx) {
   for (const r of [...RESOURCES]) {
     const chip = el('div', 'chip', `${icon(r)}<span class="amt">0</span><span class="delta"></span>`);
     chip.title = RES_INFO[r].name;
-    resEls[r] = { amt: chip.querySelector('.amt'), delta: chip.querySelector('.delta') };
+    resEls[r] = { chip, amt: chip.querySelector('.amt'), delta: chip.querySelector('.delta') };
     resbar.appendChild(chip);
   }
   const popChip = el('div', 'chip', `${icon('pop')}<span class="amt">0</span>`);
@@ -474,6 +474,11 @@ export function buildUI(root, ctx) {
     }
     popChip.querySelector('.amt').textContent = `${state.pop}/${state.popCap}`;
     popChip.classList.toggle('warn', state.starving);
+    // surplus grain is rotting — the food chip goes moldy until it's baked away
+    resEls.food.chip.classList.toggle('rot', !!state.spoiling);
+    resEls.food.chip.title = state.spoiling
+      ? 'Food — the surplus is ROTTING. Bake it into bread: bread keeps.'
+      : RES_INFO.food.name;
     moraleChip.querySelector('.amt').textContent = Math.round(state.morale);
     moraleChip.classList.toggle('warn', state.morale < 30);
 

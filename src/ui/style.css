@@ -90,6 +90,8 @@ body {
 .chip .delta.pos { color: var(--good); }
 .chip .delta.neg { color: var(--bad); }
 .chip.warn { background: linear-gradient(180deg, #e8b39a, #d99a7e); animation: pulse 1.2s infinite; }
+/* surplus food rotting: the chip goes moldy until the player bakes it away */
+.chip.rot { background: linear-gradient(180deg, #b9c08a, #99a26b); border-color: #6b7a3f; }
 
 @keyframes pulse { 50% { filter: brightness(1.18); } }
 

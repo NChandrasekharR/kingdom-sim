@@ -589,9 +589,12 @@ function updateSoldiers(state, rand) {
           + (cover.get(rd) || 0) * COMBAT.coverPenalty;
         if (d < nd) { nd = d; nearest = rd; }
       }
-      if (nearest) cover.set(nearest, (cover.get(nearest) || 0) + 1);
+      // every raider in reach may already be dead this tick (killed by towers
+      // or an earlier soldier, culled only at tick's end) — hold position
+      if (!nearest) continue;
+      cover.set(nearest, (cover.get(nearest) || 0) + 1);
       // distance for the ATTACK check is always soldier→raider
-      nd = nearest ? Math.hypot(nearest.x - s.x, nearest.y - s.y) : Infinity;
+      nd = Math.hypot(nearest.x - s.x, nearest.y - s.y);
       if (nd < 1.1) {
         const vet = s.merc ? null : state.villagers.find((v) => v.id === s.villagerId);
         const skill = sSkill;

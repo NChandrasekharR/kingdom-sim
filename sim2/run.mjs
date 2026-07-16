@@ -65,6 +65,9 @@ export function verdict(w) {
     finalGold: Math.round(w.res.gold),
     tributeGold: Math.round(s.tributeGold || 0),
     tributesPaid: s.tributesPaid || 0,
+    finalBread: Math.round(w.res.bread),
+    mastersFrac: w.pop ? +((w.villagers.filter((v) => v.alive &&
+      w.skillOf(v) >= (w.P.skill.masterAt ?? 0.6)).length) / w.pop).toFixed(2) : 0,
   };
 }
 

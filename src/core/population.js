@@ -14,7 +14,10 @@ export function populationTick(state) {
   }
   state.popCap = cap;
 
-  // eat: bread first (1 bread = 2 food-equivalents), then raw food.
+  // eat: RAW FOOD first (it rots anyway), bread only when the fields fall
+  // short — so bread ACCUMULATES as the winter/siege reserve instead of being
+  // devoured the tick it's baked (Duncastle log: 47k food rotted, bread stuck
+  // at 0 under the old bread-first order). 1 bread = 2 food-equivalents.
   // Soldiers eat 3× — the army's true cost is farmland, not gold.
   let need = 0;
   for (const v of state.villagers) {
@@ -22,17 +25,17 @@ export function populationTick(state) {
   }
   const totalNeed = need;
   state.ateBread = false;
+  const fromFood = Math.min(state.res.food, need);
+  state.res.food -= fromFood;
+  state.delta.food -= fromFood;
+  need -= fromFood;
   const fromBread = Math.min(state.res.bread * 2, need);
   if (fromBread > 0.001) {
     state.res.bread -= fromBread / 2;
     state.delta.bread -= fromBread / 2;
     need -= fromBread;
-    state.ateBread = true;
+    state.ateBread = true;   // drawing on the reserve (winter, siege, shortfall)
   }
-  const fromFood = Math.min(state.res.food, need);
-  state.res.food -= fromFood;
-  state.delta.food -= fromFood;
-  need -= fromFood;
 
   // spoilage: raw food above the buffer rots (bread keeps) — convert surplus or lose it
   const freeFood = totalNeed * FOOD.spoilFreeTicks;
@@ -96,9 +99,11 @@ export function populationTick(state) {
   // skills rise with use, fade in idleness; guild memory holds the floor
   skillsTick(state);
 
-  // morale drifts toward a target set by conditions
+  // morale drifts toward a target set by conditions. A stocked bread larder is
+  // comfort (the reserve, not the meal — bread is eaten only when fields fall
+  // short, so the old ate-bread bonus would never fire in good times).
   let target = 50;
-  if (state.ateBread) target += 8;
+  if (state.ateBread || state.res.bread * 2 >= state.pop) target += 8;
   const churches = state.buildings.filter((b) => b.type === 'church' && b.hp > 0).length;
   target += Math.min(churches * 6, 18);
   const stock = state.res.food + state.res.bread * 2;
