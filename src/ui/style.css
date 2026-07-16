@@ -139,6 +139,37 @@ button {
   pointer-events: none;
   z-index: 5;
 }
+.tribute-banner {
+  position: absolute;
+  top: 12px; left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: linear-gradient(180deg, #3d2f14, #241a0a);
+  color: #ffe9c8;
+  font-family: 'Pirata One', serif;
+  font-size: 17px;
+  letter-spacing: 1px;
+  padding: 8px 16px;
+  border: 1px solid #e0b04c;
+  border-radius: 4px;
+  box-shadow: 0 0 14px rgba(224,176,76,0.5), 0 4px 14px rgba(0,0,0,0.6);
+  z-index: 20;
+}
+.tribute-banner b { color: #e0b04c; }
+.pay-tribute {
+  font-family: 'Alegreya', serif;
+  font-weight: 700;
+  font-size: 13px;
+  padding: 4px 12px;
+  background: linear-gradient(180deg, #e0b04c, #a3762f);
+  color: #241a0a;
+  border: 1px solid #241a0a;
+  border-radius: 3px;
+}
+.pay-tribute:hover { filter: brightness(1.15); }
+
 .raid-banner.besieged {
   background: linear-gradient(180deg, #d21f0c, #7e1205);
   font-size: 23px;

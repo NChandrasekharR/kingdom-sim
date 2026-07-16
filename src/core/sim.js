@@ -100,6 +100,7 @@ export function dumpStats(state) {
       mastersNow: countMasters(state), mastersLost: s.mastersLost,
     },
     foodSpoiled: Math.round(s.foodSpoiled || 0),
+    tribute: { paid: s.tributesPaid || 0, gold: Math.round(s.tributeGold || 0), appetite: state.tributeAppetite || 0 },
   };
   // eslint-disable-next-line no-console
   console.log('%c⚜ ' + state.name + ' — run summary', 'font-weight:bold;font-size:14px', summary);

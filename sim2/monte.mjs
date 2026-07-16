@@ -83,6 +83,7 @@ async function main() {
     const merged = { ...scenario, params: withOverrides(scenario.params || {}, pt.overrides) };
     const labels = {};
     const finals = [], crisis = [], prosp = [], recov = [], peaks = [], finPops = [], huntFracs = [];
+    const golds = [], tributes = [];
     let interesting = 0, spirals = 0, collapses = 0;
 
     for (let i = 0; i < args.runs; i++) {
@@ -99,6 +100,8 @@ async function main() {
       peaks.push(v.peakPop);
       finPops.push(v.finalPop);
       huntFracs.push(v.huntFrac || 0);
+      golds.push(v.finalGold || 0);
+      tributes.push(v.tributeGold || 0);
     }
 
     const row = {
@@ -113,13 +116,16 @@ async function main() {
       peakPopMed: Math.round(pct(peaks, 0.5)),
       finalPopMed: Math.round(pct(finPops, 0.5)),
       huntFracMed: +pct(huntFracs, 0.5).toFixed(2),
+      goldMed: Math.round(pct(golds, 0.5)),
+      tributeMed: Math.round(pct(tributes, 0.5)),
       breakdown: Object.entries(labels).sort((a, b) => b[1] - a[1])
         .map(([k, n]) => `${k}:${n}`).join(' '),
     };
     table.push(row);
     console.log(`${pt.label.padEnd(38)} interesting=${(row.interesting * 100).toFixed(0)}% ` +
       `collapse=${(row.collapse * 100).toFixed(0)}% crisisMed=${row.crisisMed} ` +
-      `prospMed=${row.prospMed} pop=${row.finalPopMed} hunt=${row.huntFracMed}  [${row.breakdown}]`);
+      `prospMed=${row.prospMed} pop=${row.finalPopMed} hunt=${row.huntFracMed} ` +
+      `gold=${row.goldMed} tribute=${row.tributeMed}  [${row.breakdown}]`);
   }
 
   // write full results

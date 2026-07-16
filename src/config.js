@@ -207,9 +207,12 @@ export const MERCENARY = {
   companySize: 3,            // fighters hired per contract
   hireCost: { gold: 120 },   // up-front gold to hire a company
   upkeepPerTick: 0.12,       // gold per merc per tick — steep; unpaid → they leave
+  // no hard cap on companies — the market itself is the cap: every extra
+  // company under contract raises EVERY sword's price (captains talk). Four
+  // companies pay double per merc; a huge merc host is a fortune per season.
+  upkeepEscalation: 0.35,    // + this × (companies−1) to the per-merc rate
   skill: 0.55,               // pre-trained: just shy of veteran (0.6)
   hp: 60,
-  maxCompanies: 8,           // contracts you can hold at once (up to 24 swords)
 };
 
 // ── Villagers as bodies on the map (the spatial layer) ────────────
@@ -255,6 +258,20 @@ export const RAID = {
   warlordEveryWaves: 6,        // ≈ every 4 years at typical gaps
   warlordMinPop: 25,           // warlords only bother once the kingdom is worth it
   warlordSizeMult: 2.5, warlordHpMult: 1.5,
+};
+
+// ── Tribute (Danegeld) — sim2-validated 2026-07-16 ─────────────────
+// A warlord would as soon take gold as blood: before he marches, a rider
+// demands a share of your TREASURY. Paying skips the wave — and whets the
+// appetite (next demand ×appetiteMult). Facing him, win or bleed, resets it.
+// The intended arc: pay while weak, build an army, eventually refuse. This is
+// the gold sink: sim median 3,867 gold paid over a 25-year run, 0% collapse.
+export const TRIBUTE = {
+  enabled: true,
+  demandFrac: 0.25,          // share of the treasury a fresh demand asks
+  demandMin: 40,             // a warlord doesn't march for pennies
+  appetiteMult: 1.6,         // each payment multiplies the next demand
+  decideTicks: 90,           // how long the rider waits for an answer
 };
 
 // ── The Keep as the kingdom's heart ────────────────────────────────

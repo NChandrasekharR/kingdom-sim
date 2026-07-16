@@ -4,7 +4,7 @@ import { on, emit } from '../core/events.js';
 import { currentSeason, currentYear, makeSim } from '../core/sim.js';
 import { territorySize } from '../core/territory.js';
 import { demolish, clearSave, saveGame, createState } from '../core/state.js';
-import { recruitSoldier, dismissSoldier, hireMercenaries, dismissMercenaries, mercCount, rallyToKeep } from '../core/raids.js';
+import { recruitSoldier, dismissSoldier, hireMercenaries, dismissMercenaries, mercCount, mercUpkeepRate, rallyToKeep, payTribute } from '../core/raids.js';
 import { countMasters } from '../core/villagers.js';
 import { outputMult } from '../core/economy.js';
 import { sell, buy, sellPrice, buyPrice } from '../core/trade.js';
@@ -89,9 +89,21 @@ export function buildUI(root, ctx) {
   const mapDiv = el('div', 'map');
   mapDiv.id = 'map';
   const raidBanner = el('div', 'raid-banner hidden', '⚔ RAIDERS APPROACH ⚔');
+  const tributeBanner = el('div', 'tribute-banner hidden');
+  const tributeText = el('span', 'tribute-text');
+  const tributePayBtn = el('button', 'pay-tribute', 'Pay the tribute');
+  tributeBanner.append(tributeText, tributePayBtn);
+  tributePayBtn.onclick = () => {
+    const r = payTribute(state);
+    if (!r.ok) showToast(r.reason);
+    render();
+  };
+  on('tribute-demand', (d) => {
+    tributeText.innerHTML = `☠ ${d.name} demands <b>${d.gold} gold</b> — pay, or he marches. `;
+  });
   const toast = el('div', 'toast hidden');
   const selPanel = el('div', 'sel-panel hidden');
-  mapWrap.append(mapDiv, raidBanner, toast, selPanel);
+  mapWrap.append(mapDiv, raidBanner, tributeBanner, toast, selPanel);
 
   const sidebar = el('aside', 'sidebar');
   const mini = el('canvas', 'minimap');
@@ -477,7 +489,7 @@ export function buildUI(root, ctx) {
     const masters = countMasters(state);
     const sacked = state.buildings.filter((b) => b.sacked && b.hp > 0).length;
     const mercs = mercCount(state);
-    const mercUpkeep = (mercs * MERCENARY.upkeepPerTick).toFixed(2);
+    const mercUpkeep = mercUpkeepRate(state).toFixed(2);
     kStats.innerHTML = `
       <div class="stat"><b>${state.pop}</b> subjects — ${jobs.producer} working · ${jobs.builder} repairing · ${jobs.soldier} under arms · ${jobs.idle} idle</div>
       ${mercs > 0 ? `<div class="stat"><b class="merc-name">${mercs}</b> mercenaries under contract · <span class="bad">${mercUpkeep} gold/tick upkeep</span></div>` : ''}
@@ -503,7 +515,11 @@ export function buildUI(root, ctx) {
         : '—';
     }
 
-    raidBanner.classList.toggle('hidden', state.raid.phase === 'quiet');
+    // a standing tribute demand replaces the raid banner (same spot, a choice
+    // instead of an alarm); the demand dies when the rider leaves or is paid
+    const demanding = !!state.raid.demand && state.raid.phase === 'warning';
+    tributeBanner.classList.toggle('hidden', !demanding);
+    raidBanner.classList.toggle('hidden', state.raid.phase === 'quiet' || demanding);
     if (state.raid.phase === 'quiet') raidBanner.classList.remove('besieged');
     raidBanner.textContent = state.raid.keepBesieged
       ? '⚠ THE KEEP IS BESIEGED ⚠'

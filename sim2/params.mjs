@@ -180,6 +180,20 @@ export const DEFAULTS = {
     huntDeathsPerRaidCap: 0,     // 0 = uncapped; >0 hard-caps hunt deaths per raid
     // towers must be staffed by a watchman to fire (competes for civilian labor)
     towerNeedsWatchman: true,
+
+    // ── tribute (Danegeld): a warlord takes gold instead of blood ──────
+    // When a warlord wave is due, he first demands a share of the TREASURY
+    // (the demand reads your visible wealth — this is the gold sink). Paying
+    // skips the wave but WHETS THE APPETITE: the next demand is ×appetiteMult.
+    // Refusing means facing him — and facing him, win or bleed, resets the
+    // appetite (the legend of easy coin dies). Intended arc: pay while weak,
+    // build an army, eventually refuse.
+    tribute: {
+      enabled: true,
+      demandFrac: 0.25,          // share of the treasury a fresh demand asks
+      demandMin: 40,             // a warlord doesn't march for pennies
+      appetiteMult: 1.6,         // each payment multiplies the next demand
+    },
   },
 
   // — winter (Pillar C) —
@@ -190,6 +204,10 @@ export const DEFAULTS = {
 
   // — the scripted "player" policy —
   player: {
+    // tribute stance: 'auto' = pay only when the warlord outmatches the shield,
+    // 'always' = the danegeld habit (stress-tests the appetite spiral),
+    // 'never' = always fight. Sweepable: --sweep player.tributePolicy=never,auto,always
+    tributePolicy: 'auto',
     // ── tier (B1): 0 = passive legacy bot, 1 = competent, 2 = sharp ──
     // Numeric so monte.mjs can sweep it: --sweep player.iq=0,1,2
     // iq 0 reproduces the pre-B1 behavior exactly (reactive repair, fixed army).

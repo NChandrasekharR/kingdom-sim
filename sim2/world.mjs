@@ -546,8 +546,11 @@ export class World {
     this._sackedThisRaid = 0;
     this._huntedThisRaid = 0;
 
-    // warlord: on a fixed wave cadence, but only once the kingdom is worth it
-    const wavesPerWarlord = Math.max(1, Math.round(P.warlordEveryYears * P.ticksPerYear / P.baseGapTicks));
+    // warlord: on a fixed wave cadence, but only once the kingdom is worth it.
+    // (ticksPerYear lives at the top level of params, NOT in the raid block —
+    // reading it off P made this NaN and silently disabled warlords for every
+    // campaign to date; found 2026-07-16 while validating tribute.)
+    const wavesPerWarlord = Math.max(1, Math.round(P.warlordEveryYears * this.P.ticksPerYear / P.baseGapTicks));
     const isWarlord = P.warlordEveryYears > 0 && this.pop >= (P.warlordMinPop || 0) &&
       raid.wave % wavesPerWarlord === 0;
 
@@ -561,8 +564,30 @@ export class World {
       raid._sizeMult = Math.max(P.minSizeMult, Math.min(1.2, ease));
       size *= raid._sizeMult;
     }
-    if (isWarlord) { size *= P.warlordSizeMult; this.stats.warlords++; }
+    if (isWarlord) size *= P.warlordSizeMult;
     size = Math.min(P.sizeCap, Math.max(1, Math.round(size)));
+
+    // Danegeld: a warlord would as soon take gold as blood. The demand reads
+    // the treasury; paying skips the wave but whets the appetite. Refusing —
+    // facing him — resets it: the legend of easy coin dies with the demand.
+    if (isWarlord && P.tribute?.enabled) {
+      const demand = Math.max(P.tribute.demandMin, Math.round(
+        this.res.gold * P.tribute.demandFrac *
+        Math.pow(P.tribute.appetiteMult, this._tributeAppetite || 0)));
+      if (this._paysTribute(size, demand)) {
+        this.res.gold -= demand;
+        this._tributeAppetite = (this._tributeAppetite || 0) + 1;
+        this.stats.tributeGold = (this.stats.tributeGold || 0) + demand;
+        this.stats.tributesPaid = (this.stats.tributesPaid || 0) + 1;
+        raid.phase = 'quiet';
+        raid.timer = Math.max(120, P.baseGapTicks + this.rng.int(P.gapJitter)
+          - Math.min(180, this.prosperity() / 12));
+        this.log.push({ tick: this.tick, kind: 'raid', text: `Tribute paid: ${demand} gold (appetite ${this._tributeAppetite})` });
+        return;
+      }
+      this._tributeAppetite = 0;
+    }
+    if (isWarlord) this.stats.warlords++;
 
     this.raiders = [];
     for (let i = 0; i < size; i++) {
@@ -575,6 +600,22 @@ export class World {
     raid.phase = 'active';
     this.stats.raids++;
     this.log.push({ tick: this.tick, kind: 'raid', text: `Raid: ${size} raiders${isWarlord ? ' (WARLORD)' : ''}` });
+  }
+
+  // Does this player pay the warlord off? The passive bot never does. A
+  // competent player pays when the wave looks stronger than the shield
+  // (soldiers + staffed towers); a sharp player also refuses to be bled dry.
+  _paysTribute(size, demand) {
+    const pol = this.P.player.tributePolicy || 'auto';
+    if (pol === 'never' || !this.P.player.iq) return false;   // the passive bot never pays
+    if (this.res.gold < demand) return false;
+    if (pol === 'always') return true;             // the danegeld habit (worst case for the spiral)
+    // 'auto': pay only when the wave looks stronger than the shield. A soldier
+    // accounts for ~2 raiders over a raid, a staffed tower ~3 (kills for free).
+    const shield = this.soldiers.length * 2 + (this._staffedTowers ?? this.count('tower')) * 3;
+    if (shield >= size) return false;              // we can take him — keep the coin
+    if (this.P.player.iq >= 2 && demand > this.res.gold * 0.5) return false;  // sharp: never gutted
+    return true;
   }
 
   pickTarget() {

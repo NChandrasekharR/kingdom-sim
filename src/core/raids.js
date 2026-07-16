@@ -1,4 +1,4 @@
-import { MAP, T, TERRAIN_INFO, BUILDINGS, RAIDER, RAID, SOLDIER, ROAD_SPEED_MULT, KEEP, COMBAT, SKILL, MERCENARY, HUNT } from '../config.js';
+import { MAP, T, TERRAIN_INFO, BUILDINGS, RAIDER, RAID, SOLDIER, ROAD_SPEED_MULT, KEEP, COMBAT, SKILL, MERCENARY, HUNT, TRIBUTE } from '../config.js';
 import { idx } from './state.js';
 import { prosperity } from './economy.js';
 import { logEvent, emit } from './events.js';
@@ -101,7 +101,23 @@ export function raidTick(state, rand) {
     if (raid.timer <= 0) {
       raid.phase = 'warning';
       raid.timer = RAID.warningTicks;
-      logEvent(state, 'Raiders sighted on the horizon! Sound the horn!', 'raid');
+      // is the coming wave a warlord? He sends a rider ahead of his host:
+      // pay the tribute, or he marches (the Danegeld choice — see TRIBUTE)
+      raid.incomingWarlord = RAID.warlordEveryWaves > 0 && state.pop >= RAID.warlordMinPop &&
+        (raid.wave + 1) % RAID.warlordEveryWaves === 0;
+      if (raid.incomingWarlord && TRIBUTE.enabled) {
+        const rid = state.nextId++;
+        const name = `Warlord ${RAIDER_FIRST[rid % RAIDER_FIRST.length]} ${RAIDER_EPITHET[(rid * 11) % RAIDER_EPITHET.length]}`;
+        const gold = Math.max(TRIBUTE.demandMin, Math.round(
+          state.res.gold * TRIBUTE.demandFrac *
+          Math.pow(TRIBUTE.appetiteMult, state.tributeAppetite || 0)));
+        raid.demand = { gold, name };
+        raid.timer = TRIBUTE.decideTicks;   // the rider waits for an answer
+        logEvent(state, `A rider from ${name}: "${gold} gold — or I come and take it."`, 'raid');
+        emit('tribute-demand', raid.demand);
+      } else {
+        logEvent(state, 'Raiders sighted on the horizon! Sound the horn!', 'raid');
+      }
       emit('raid-warning');
     }
   } else if (raid.phase === 'warning') {
@@ -179,10 +195,21 @@ function spawnRaid(state, rand) {
   const ease = 1 - (raid.lastSacked || 0) * RAID.easeAfterSack;
   sizeF *= Math.max(RAID.minSizeMult, Math.min(1.2, ease));
 
-  // warlords: a dread wave on a cadence, once the kingdom is worth the march
-  const isWarlord = RAID.warlordEveryWaves > 0 && state.pop >= RAID.warlordMinPop &&
-    raid.wave % RAID.warlordEveryWaves === 0;
-  if (isWarlord) sizeF *= RAID.warlordSizeMult;
+  // warlords: a dread wave on a cadence, once the kingdom is worth the march.
+  // Decided at the warning (so the tribute rider could be sent); an unpaid
+  // demand means he marches — and facing him resets his appetite: the legend
+  // of easy coin dies with the demand.
+  const isWarlord = raid.incomingWarlord ?? (RAID.warlordEveryWaves > 0 &&
+    state.pop >= RAID.warlordMinPop && raid.wave % RAID.warlordEveryWaves === 0);
+  raid.incomingWarlord = false;
+  if (raid.demand) {
+    logEvent(state, `No answer came. ${raid.demand.name} marches.`, 'raid');
+    raid.demand = null;
+  }
+  if (isWarlord) {
+    state.tributeAppetite = 0;
+    sizeF *= RAID.warlordSizeMult;
+  }
   const size = Math.min(RAID.sizeCap, Math.max(1, Math.round(sizeF)));
   raid.sackedThisRaid = 0;
 
@@ -744,18 +771,43 @@ export function dismissSoldier(state) {
   return { ok: true };
 }
 
+// Pay the warlord's tribute: the wave is bought off, the appetite grows.
+// Only possible while the rider waits (the warning window).
+export function payTribute(state) {
+  const raid = state.raid;
+  const d = raid.demand;
+  if (!d || raid.phase !== 'warning') return { ok: false, reason: 'No demand stands' };
+  if (state.res.gold < d.gold) return { ok: false, reason: 'Not enough gold' };
+  state.res.gold -= d.gold;
+  state.delta.gold -= d.gold;
+  state.tributeAppetite = (state.tributeAppetite || 0) + 1;
+  state.stats.tributeGold = (state.stats.tributeGold || 0) + d.gold;
+  state.stats.tributesPaid = (state.stats.tributesPaid || 0) + 1;
+  raid.demand = null;
+  raid.incomingWarlord = false;
+  raid.phase = 'quiet';
+  raid.timer = RAID.minGapTicks;   // bought peace — but not a long one
+  logEvent(state, `You pay ${d.gold} gold. ${d.name} turns away — for now. Word spreads of easy coin.`, 'info');
+  emit('tribute-paid');
+  return { ok: true };
+}
+
 export function mercCount(state) { return state.soldiers.filter((s) => s.merc).length; }
+
+// The market's price for the swords you hold: every extra company under
+// contract raises EVERY merc's per-tick rate (captains talk). This is the
+// soft cap — no hard limit, but a great host costs a fortune per season.
+export function mercUpkeepRate(state) {
+  const n = mercCount(state);
+  if (!n) return 0;
+  const companies = Math.ceil(n / MERCENARY.companySize);
+  return n * MERCENARY.upkeepPerTick * (1 + MERCENARY.upkeepEscalation * (companies - 1));
+}
 
 // Hire a company of mercenaries: an up-front gold sum buys pre-trained fighters
 // who cost steep per-tick gold and leave if unpaid. They spare your veterans.
 export function hireMercenaries(state) {
-  // cap on TOTAL mercenary headcount — robust to battle losses/desertion. Hire
-  // brings you UP TO the cap: if a full company won't fit, hire as many as do,
-  // so you can always top up after losses rather than being stuck near the cap.
-  const cap = MERCENARY.maxCompanies * MERCENARY.companySize;
-  const room = cap - mercCount(state);
-  if (room <= 0) return { ok: false, reason: 'No more companies will treat with you' };
-  const hiring = Math.min(MERCENARY.companySize, room);
+  const hiring = MERCENARY.companySize;
   for (const [r, amt] of Object.entries(MERCENARY.hireCost)) {
     if (state.res[r] < amt) return { ok: false, reason: `Not enough ${r}` };
   }
@@ -786,9 +838,8 @@ export function dismissMercenaries(state) {
 
 // per-tick gold upkeep for mercenaries; if the coffers run dry they walk off
 export function mercenaryUpkeepTick(state) {
-  const n = mercCount(state);
-  if (!n) return;
-  const due = n * MERCENARY.upkeepPerTick;
+  const due = mercUpkeepRate(state);
+  if (!due) return;
   if (state.res.gold >= due) {
     state.res.gold -= due;
     state.delta.gold -= due;

@@ -62,6 +62,9 @@ export function verdict(w) {
     huntFrac: s.villagersLost ? +((s.villagersHunted || 0) / s.villagersLost).toFixed(2) : 0,
     outputLostToHp: Math.round(s.outputLostToHp),
     peakPop: s.peakPop, finalPop: w.pop,
+    finalGold: Math.round(w.res.gold),
+    tributeGold: Math.round(s.tributeGold || 0),
+    tributesPaid: s.tributesPaid || 0,
   };
 }
 
