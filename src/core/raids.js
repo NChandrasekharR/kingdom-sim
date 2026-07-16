@@ -120,7 +120,19 @@ export function raidTick(state, rand) {
       for (const rd of raid.raiders) if (rd.mode !== 'flee') startFlee(state, rd);
       logEvent(state, 'Their sacks full, the raiders melt back into the wilds.', 'info');
     }
-    if (raid.raiders.length === 0) endRaid(state, rand);
+    // the raid is OVER the moment the last raider turns tail — the kingdom
+    // exhales, villagers come out of hiding, the alarm clears. The stragglers
+    // still walk off the map (and can be shot in the back on the way out).
+    const allFleeing = raid.raiders.length > 0 &&
+      raid.raiders.every((rd) => rd.mode === 'flee' || rd.mode === 'gone');
+    if (raid.raiders.length === 0 || allFleeing) endRaid(state, rand, allFleeing);
+  }
+
+  // stragglers from an already-ended raid keep walking home (and towers keep
+  // loosing parting shots) even though the alarm state is over
+  if (raid.phase !== 'active' && raid.raiders.length) {
+    updateRaiders(state, rand);
+    updateTowers(state);
   }
 
   updateSoldiers(state, rand);
@@ -129,6 +141,27 @@ export function raidTick(state, rand) {
   if (raid.phase === 'active') resolveHunt(state, rand);
 }
 
+// A manual order: every soldier falls back to the keep and holds there for a
+// while, engaging only what comes close. The horn that calls the army home.
+export function rallyToKeep(state) {
+  if (!state.buildings.some((b) => b.type === 'keep')) return { ok: false, reason: 'No keep to rally to' };
+  if (!state.soldiers.length) return { ok: false, reason: 'No soldiers to rally' };
+  state.rallyUntil = state.tick + 150;
+  logEvent(state, 'The horn sounds — the army falls back to the keep!', 'info');
+  return { ok: true };
+}
+
+// raiders have names too — it makes the Chronicle read like a saga
+const RAIDER_FIRST = [
+  'Ulf', 'Grim', 'Skarde', 'Ragna', 'Toke', 'Bront', 'Halvar', 'Yrsa',
+  'Kettil', 'Ash', 'Vragi', 'Sorka', 'Drust', 'Moira', 'Fenn', 'Orm',
+];
+const RAIDER_EPITHET = [
+  'Redknife', 'the Cruel', 'Wolfjaw', 'Nine-Fingers', 'the Vulture',
+  'Bloodbraid', 'the Lame', 'Ironmaw', 'the Quiet Blade', 'Corpsegrin',
+  'the Burned', 'Longreach', 'Two-Axe', 'the Hollow', 'Ratbane',
+];
+
 function spawnRaid(state, rand) {
   const raid = state.raid;
   const N = MAP.size;
@@ -136,6 +169,8 @@ function spawnRaid(state, rand) {
   raid.startTick = state.tick;
   raid.lootStartTick = 0;
   raid.keepBesieged = false;
+  // per-raid ledger, reported when the raid ends (and dumped to the console)
+  raid.tally = { killed: 0, soldiersLost: 0, mercsLost: 0, hunted: 0, loot: 0, walls: 0 };
 
   // wave size rides prosperity and your army; a raid that hurt last time
   // eases this one (rubber-band mercy), a fat unscathed kingdom gets none
@@ -166,10 +201,12 @@ function spawnRaid(state, rand) {
     if (!target) break;
     const path = findPath(state, sx, sy, target.x, target.y);
     if (!path) continue;
+    const rid = state.nextId++;
     raid.raiders.push({
       x: sx + (rand() - 0.5), y: sy + (rand() - 0.5), px: sx, py: sy,
       hp: (RAIDER.hp + raid.wave * 2) * (isWarlord ? RAID.warlordHpMult : 1),
       loot: 0,
+      name: `${RAIDER_FIRST[rid % RAIDER_FIRST.length]} ${RAIDER_EPITHET[(rid * 11) % RAIDER_EPITHET.length]}`,
       path, pathI: 0, mode: 'march', targetId: target.id,
       spawn: { x: sx, y: sy },
     });
@@ -236,6 +273,7 @@ function updateRaiders(state, rand) {
           wall.hp = 1;
           wall.breached = true;
           state.stats.wallsBreached++;
+          if (raid.tally) raid.tally.walls++;
           logEvent(state, 'A wall is breached! Raiders pour through the gap!', 'raid');
         }
         continue;
@@ -257,6 +295,7 @@ function updateRaiders(state, rand) {
         const take = Math.min(2, state.res[best]);
         state.res[best] -= take;
         rd.loot += take;
+        if (raid.tally) raid.tally.loot += take;
       }
       // the keep is the kingdom's heart — raiders reaching it sound the alarm
       // and every soldier rushes to its defense (a grace window to hold)
@@ -341,9 +380,13 @@ function updateTowers(state) {
       emit('arrow', { fx: b.x, fy: b.y, tx: nearest.x, ty: nearest.y });
       if (nearest.hp <= 0) {
         state.stats.raidersKilled++;
+        if (state.raid.tally) state.raid.tally.killed++;
+        const watchman = b.workers?.[0];
         logEvent(state, b.type === 'keep'
-          ? "A raider falls to the keep's archers."
-          : 'A raider falls to tower arrows.', 'good');
+          ? `${nearest.name} falls to the keep's archers.`
+          : watchman
+            ? `${nearest.name} falls to watchman ${watchman.name}'s arrow.`
+            : `${nearest.name} falls to tower arrows.`, 'good');
       }
     }
   }
@@ -387,18 +430,20 @@ function resolveHunt(state, rand) {
     rd.hp -= HUNT.villagerDmg * (1 + 0.5 * bestSkill(prey));
     if (rd.hp <= 0) {
       state.stats.raidersKilled++;
-      logEvent(state, `Cornered, ${prey.name} turns with a hoe — and fells the raider!`, 'good');
+      if (state.raid.tally) state.raid.tally.killed++;
+      logEvent(state, `Cornered, ${prey.name} turns with a hoe — and fells ${rd.name}!`, 'good');
       continue;
     }
     if (rand() < HUNT.killChance) {
       const wasMaster = isMaster(prey);
       if (wasMaster) state.stats.mastersLost++;
       state.stats.villagersHunted = (state.stats.villagersHunted || 0) + 1;
+      if (state.raid.tally) state.raid.tally.hunted++;
       killVillager(state, prey);
       state.raidShock = Math.min(40, state.raidShock + 4);
       logEvent(state, wasMaster
-        ? `${prey.name}, a master of the craft, was run down in the open. The knowledge dies too.`
-        : `${prey.name} was run down in the open fields.`, 'bad');
+        ? `${prey.name}, a master of the craft, was run down by ${rd.name}. The knowledge dies too.`
+        : `${prey.name} was run down in the open by ${rd.name}.`, 'bad');
     } else {
       // escaped by a hair — a burst of terror-speed toward the keep
       ejectVillager(prey);
@@ -446,7 +491,13 @@ function updateSoldiers(state, rand) {
     return false;
   };
   // when the keep is besieged the gloves come off — defend it wherever they are
-  const engageable = state.raid.keepBesieged ? liveRaiders : liveRaiders.filter(nearTerritory);
+  let engageable = state.raid.keepBesieged ? liveRaiders : liveRaiders.filter(nearTerritory);
+  // a manual rally overrides everything but a besieged keep: the army holds at
+  // the keep and only meets what comes to its walls
+  const rallying = keep && !state.raid.keepBesieged && (state.rallyUntil || 0) > state.tick;
+  if (rallying) {
+    engageable = engageable.filter((rd) => Math.hypot(rd.x - keep.x, rd.y - keep.y) < 6);
+  }
   // force-ratio: outnumber the raiders → your soldiers take far less (Finding 8.1)
   const forceRatio = Math.min(1, liveRaiders.length / Math.max(1, state.soldiers.length));
   // a living veteran on the field lets rookies season under fire
@@ -527,7 +578,12 @@ function updateSoldiers(state, rand) {
             (vet.skills.soldier || 0) + SKILL.gainPerTick * (COMBAT.seasonRookieBonus - 1));
         }
 
-        if (nearest.hp <= 0) { state.stats.raidersKilled++; logEvent(state, 'A raider is cut down by your soldiers.', 'good'); }
+        if (nearest.hp <= 0) {
+          state.stats.raidersKilled++;
+          if (state.raid.tally) state.raid.tally.killed++;
+          const killer = s.merc ? 'a mercenary blade' : (vet ? vet.name : 'your soldiers');
+          logEvent(state, `${nearest.name} is cut down by ${killer}${crit ? ' — a mighty blow!' : '.'}`, 'good');
+        }
       } else {
         const dx = nearest.x - s.x, dy = nearest.y - s.y;
         const d = Math.max(0.001, Math.hypot(dx, dy));
@@ -548,6 +604,7 @@ function updateSoldiers(state, rand) {
   for (const s of state.soldiers) {
     if (s.hp > 0) continue;
     if (s.merc) {
+      if (state.raid.tally) state.raid.tally.mercsLost++;
       logEvent(state, 'A mercenary falls in your service.', 'bad');
       continue;
     }
@@ -556,6 +613,7 @@ function updateSoldiers(state, rand) {
       const wasMaster = isMaster(vet);
       state.stats.soldiersFallen++;
       if (wasMaster) state.stats.veteransFallen++;
+      if (state.raid.tally) state.raid.tally.soldiersLost++;
       killVillager(state, vet);
       logEvent(state, wasMaster
         ? `${vet.name}, a veteran of many battles, fell defending the realm.`
@@ -605,7 +663,7 @@ function keepDarkAge(state, rand) {
   logEvent(state, 'From the ashes of the keep, the realm must be rebuilt.', 'info');
 }
 
-function endRaid(state, rand) {
+function endRaid(state, rand, fled = false) {
   const raid = state.raid;
   raid.phase = 'quiet';
   raid.keepBesieged = false;
@@ -616,9 +674,35 @@ function endRaid(state, rand) {
   // rubber-band: a raid that hurt buys quiet ticks to rebuild in
   raid.timer += raid.lastSacked * RAID.mercyPerSack;
   raid.timer = Math.max(120, raid.timer);
-  logEvent(state, raid.lastSacked > 0
-    ? `The raid is over. ${raid.lastSacked} building${raid.lastSacked > 1 ? 's' : ''} lie sacked — repairs await.`
-    : 'The raid is over. The kingdom breathes again.', 'info');
+
+  // the reckoning: one Chronicle line that tells you what the raid cost —
+  // and the raw ledger in the console for tuning (kingdom.summary()'s sibling)
+  const t = raid.tally || {};
+  const parts = [];
+  if (t.killed) parts.push(`${t.killed} raider${t.killed > 1 ? 's' : ''} slain`);
+  const lost = (t.soldiersLost || 0) + (t.hunted || 0);
+  if (lost) {
+    const bits = [];
+    if (t.soldiersLost) bits.push(`${t.soldiersLost} soldier${t.soldiersLost > 1 ? 's' : ''}`);
+    if (t.hunted) bits.push(`${t.hunted} subject${t.hunted > 1 ? 's' : ''}`);
+    parts.push(`${bits.join(' and ')} lost`);
+  }
+  if (t.mercsLost) parts.push(`${t.mercsLost} sellsword${t.mercsLost > 1 ? 's' : ''} dead`);
+  if (raid.lastSacked) parts.push(`${raid.lastSacked} building${raid.lastSacked > 1 ? 's' : ''} sacked`);
+  if (t.walls) parts.push(`${t.walls} wall${t.walls > 1 ? 's' : ''} breached`);
+  if (t.loot >= 1) parts.push(`${Math.round(t.loot)} goods carried off`);
+  const head = fled ? 'The raiders break and flee!' : 'The raid is over.';
+  logEvent(state, parts.length
+    ? `${head} The reckoning: ${parts.join(' · ')}.`
+    : `${head} The kingdom breathes again — not a thing was lost.`, 'info');
+  // browser-only so headless CSV runs stay clean
+  if (typeof window !== 'undefined') {
+    // eslint-disable-next-line no-console
+    console.log(`⚔ raid ${raid.wave} reckoning`, {
+      ...t, sacked: raid.lastSacked, fled,
+      ticks: state.tick - (raid.startTick || state.tick),
+    });
+  }
 }
 
 export function recruitSoldier(state) {

@@ -4,7 +4,7 @@ import { on, emit } from '../core/events.js';
 import { currentSeason, currentYear, makeSim } from '../core/sim.js';
 import { territorySize } from '../core/territory.js';
 import { demolish, clearSave, saveGame, createState } from '../core/state.js';
-import { recruitSoldier, dismissSoldier, hireMercenaries, dismissMercenaries, mercCount } from '../core/raids.js';
+import { recruitSoldier, dismissSoldier, hireMercenaries, dismissMercenaries, mercCount, rallyToKeep } from '../core/raids.js';
 import { countMasters } from '../core/villagers.js';
 import { outputMult } from '../core/economy.js';
 import { sell, buy, sellPrice, buyPrice } from '../core/trade.js';
@@ -193,6 +193,15 @@ export function buildUI(root, ctx) {
   };
   panels.Kingdom.appendChild(releaseMercBtn);
 
+  const rallyBtn = el('button', 'action', '⟲ Rally to the keep');
+  rallyBtn.title = 'Sound the horn: every soldier falls back and holds at the keep for a while.';
+  rallyBtn.onclick = () => {
+    const r = rallyToKeep(state);
+    if (!r.ok) showToast(r.reason);
+    render();
+  };
+  panels.Kingdom.appendChild(rallyBtn);
+
   // ── Trade tab ────────────────────────────────────────────────────
   const merchStatus = el('div', 'merch-status');
   const tradeTable = el('div', 'trade-table');
@@ -327,7 +336,7 @@ export function buildUI(root, ctx) {
       selPanel.innerHTML = `
         <img class="bicon" src="${iconDataURL('raider')}" alt="">
         <div class="sel-info">
-          <div class="sel-name"><span class="bad">Raider</span></div>
+          <div class="sel-name"><span class="bad">${unit.name || 'Raider'}</span></div>
           <div class="sel-hp">HP ${Math.ceil(unit.hp)} · loot ${Math.round(unit.loot)} · ${mode}</div>
           <div class="sel-desc">A brigand come to sack the realm.</div>
         </div>`;
@@ -343,6 +352,7 @@ export function buildUI(root, ctx) {
     toastTimer = setTimeout(() => toast.classList.add('hidden'), 2200);
   }
   on('toast', showToast);
+  on('merchant-arrived', () => showToast('🐫 A merchant caravan has arrived — see the Trade tab'));
 
   // ── Victory ──────────────────────────────────────────────────────
   const victory = el('div', 'victory hidden');

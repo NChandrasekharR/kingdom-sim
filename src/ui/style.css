@@ -80,7 +80,13 @@ body {
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.4), 0 1px 2px rgba(0,0,0,0.5);
 }
 .chip .icon { width: 16px; height: 16px; image-rendering: pixelated; }
-.chip .delta { font-size: 11px; font-weight: 400; }
+/* numbers in a fixed-width face so the resource bar doesn't jitter as they tick */
+.chip .amt, .chip .delta, .trade-row .price {
+  font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  font-variant-numeric: tabular-nums;
+}
+.chip .amt { font-size: 12.5px; }
+.chip .delta { font-size: 10.5px; font-weight: 400; }
 .chip .delta.pos { color: var(--good); }
 .chip .delta.neg { color: var(--bad); }
 .chip.warn { background: linear-gradient(180deg, #e8b39a, #d99a7e); animation: pulse 1.2s infinite; }

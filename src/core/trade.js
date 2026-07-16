@@ -1,5 +1,5 @@
 import { RES_INFO, MERCHANT, ROAD_MERCHANT_FACTOR } from '../config.js';
-import { logEvent } from './events.js';
+import { logEvent, emit } from './events.js';
 
 const TRADABLE = ['food', 'wood', 'stone', 'ore', 'iron', 'bread'];
 
@@ -15,6 +15,7 @@ export function tradeTick(state, rand) {
       m.prices[r] = RES_INFO[r].base * (0.65 + rand());
     }
     logEvent(state, 'A merchant caravan has arrived at your gates.', 'trade');
+    emit('merchant-arrived');
   } else if (m.status === 'here' && m.timer <= 0) {
     m.status = 'away';
     m.timer = MERCHANT.awayMin + Math.floor(rand() * (MERCHANT.awayMax - MERCHANT.awayMin));
