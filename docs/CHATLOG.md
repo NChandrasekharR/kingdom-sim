@@ -403,6 +403,109 @@ and `README.md`.
 
 ---
 
+## Turn 14 — Merge + the two ports (2026-07-16, new session)
+
+**User:**
+> Review the codebase and branches. Explain to me from first principles what
+> this is and what needs to be done next
+
+**Claude:** full first-principles review (the four layers: game / diagnosis /
+validator / record), then — asked for "real thoughts as Fable" — an honest
+critique: the apparatus risks outgrowing the artifact; the sim can prove SAFE
+but not FUN (bot too good); combat over-invested while bread sat unported; the
+late game has no *want*; the best next move is boring: merge and ship.
+
+**Chandra:** "Merge the branch, port bread, port spatial layer."
+
+**What got built & committed:**
+1. **Merge** — `phase1-defense-and-keep` fast-forwarded into `main` (no conflicts).
+2. **Food spoilage** (`60bec47`) — the sim-validated mechanic finally ported:
+   raw food above a 60-tick-of-eating buffer rots at 1%/tick; bread keeps.
+   Found in passing: bread reads 0 even in the sim because bread was eaten
+   FIRST — flagged as a design question (resolved Turn 16).
+3. **Phase 3 spatial layer** (`1331386`) — villagers are bodies on the map
+   (walk home↔work, rendered, clickable, own inspector card); the unified death
+   rule ships (12% die-at-post roll REMOVED; sacked buildings eject crews;
+   civilians panic within 3 tiles of a raider and flee to the keep; the hunt
+   runs LAST on Campaign-6 numbers with real spatial pin/shelter checks);
+   watchman towers (workers: 1, staffed before farms, inert unstaffed, arrows
+   scale with watch skill).
+
+---
+
+## Turn 15 — The 21-idea review, done in order (2026-07-16 cont.)
+
+**Chandra** pasted a 21-item playtest idea list ("review these ideas"). Claude
+graded them against the settled design: tribute = the standout (THE gold sink);
+a cheap legibility batch; an army-AI cluster needing diagnosis first; two
+already-exist items (skill-based auto-assign, pop recovery); two handle-with-care
+(pop rise-and-fall brushes the rejected backpressure decision; merchant-always-
+here reopens infinite liquidation). **Chandra: "do it in order."** Four batches,
+each verified + committed:
+
+1. **Legibility** (`57f136a`) — raids end when the last raider turns tail
+   (stragglers walk off under parting arrows); named raiders + two-way kill
+   attribution ("falls to watchman Aldric's arrow" / "run down by Grim the
+   Cruel"); per-raid reckoning in the Chronicle + raw tally in the console;
+   merchant-arrival toast; Rally-to-the-Keep button; tabular-monospace numbers.
+2. **Tribute + merc market** (`091abf2`) — Danegeld: a warlord's rider demands
+   a share of the TREASURY (0.25×gold, min 40); pay → wave skipped, next demand
+   ×1.6 (appetite); face him → appetite resets. Golden banner UI with a Pay
+   button. sim2-validated (Campaign 9): SAFE (0-1% collapse), REAL (median
+   3.9k gold sunk baseline iq1). **Found a latent sim2 bug: warlords NEVER
+   spawned in any prior campaign** (NaN cadence — `ticksPerYear` read off the
+   wrong param block). Mercs uncapped; escalating upkeep (+35%/company) is the
+   market's own cap.
+3. **Army fights as a line** (`a5c9454`) — harness-diagnosed the "raider falls,
+   then soldiers die en masse" pattern: ALL soldiers dogpiled one raider,
+   entered melee the same tick, died the same tick. Coverage-spread targeting
+   (death clusters halved, win rate unchanged); mercs pick targets first (first
+   contact); ROUT at 40% raid losses (6v22 harness: 18/30 routs, ZERO wipes);
+   hold-the-line / sally-forth stance toggle.
+4. **Militia** (`1526633`) — the iron is forged once: standing down keeps the
+   arms; re-mustering the most-seasoned reservist is free; standing army eats
+   3×, militia farm at 1×.
+
+---
+
+## Turn 16 — The Duncastle log + the two small fixes (2026-07-16 cont.)
+
+**Chandra playtested** (Duncastle, yr 19) and pasted `kingdom.summary()`.
+Claude's read: **the war systems now work** (101/156 fallen vs Ravensholt's
+226/226, K/D 6.26, 0 breaches, 3 hunted in 19 years — civilians protected), but
+three numbers told on the economy: **47,690 food rotted with bread stuck at 0**
+(bread-first eating made the reserve structurally impossible); **201 of 245
+subjects were masters** (mastery was the default state of a human being);
+**tribute 0 paid** (a strong player rightly refuses — Danegeld is drama for the
+weak, not a sink for the rich; the rich player's want problem stands). The log's
+real conclusion: year 19, everything solved, five hoards, nothing to want.
+
+**Chandra: "make the small fixes."** (`a33b8d5`):
+- **Eat-order flip** (game + sim2): raw food first (it rots anyway), bread only
+  on shortfall — bread finally ACCUMULATES (game seed-42: 3,139 loaves by yr 12;
+  sim iq0 banks 2,200-2,600). Morale +8 now from a STOCKED LARDER, not daily
+  eating. Food chip goes moldy with a teaching tooltip while surplus rots.
+- **Masters precious** (game + sim2): gain halved (0.0004), bar raised
+  (masterAt 0.8); sim2's five hardcoded 0.6 bars parameterized. Sim masters
+  0.85+ → 0.40-0.54. Campaign 11: 0% collapse everywhere.
+- Fixed a null-guard crash the spread-targeting change introduced (all raiders
+  in reach dead mid-tick), caught by headless seed 42.
+- **Side effect to watch:** pop booms harder (seed 42: 153→375) — the ex-rot
+  becomes bread becomes people; housing still gates.
+
+**User:**
+> cool, log everything including the chat, sim logs sessions etc. clean up
+> stale / drifted stuff.
+
+**Claude:** (this) — appended Turns 14-16, Session 4 in `CHANGELOG.md` and
+`DECISIONS.md`, Campaigns 9-11 + the Duncastle playtest in `SIMULATIONS.md`,
+rewrote the `OPEN-QUESTIONS.md` pickup section, fixed drifted claims (README
+"game unchanged by the redesign", stale merc cap / sack-death / bread-first /
+master-bar references, the warlord-free caveat on all pre-2026-07-16 sim
+campaigns).
+
+---
+
 ## Artifacts produced across the sessions
 
 **Game (shipped, live):**
@@ -437,3 +540,15 @@ and `README.md`.
   `config.js` HP/SKILL/RAID blocks, UI workforce/selection updates
 - `design/FINDINGS.md` Findings 6–9; `docs/SIMULATIONS.md` (simulation
   register); updated `DECISIONS.md`, `OPEN-QUESTIONS.md`, `sim2/README.md`
+
+**Session 4 (Turns 14–16, 2026-07-16):**
+- Everything merged to `main`; 7 commits `60bec47`→`a33b8d5`
+- `src/` spatial layer: villager bodies + movement in `villagers.js`,
+  eject-and-hunt + tribute + line-combat + rout + militia in `raids.js`,
+  spoilage + eat-order in `population.js`, `VILLAGER`/`HUNT`/`TRIBUTE`/`FOOD`
+  config blocks, tribute banner + stance/rally/muster UI in `ui.js`
+- `sim2/` tribute + `player.tributePolicy`, `skill.masterAt`, warlord-cadence
+  fix, `breadMed`/`mastersFracMed`/`goldMed`/`tributeMed` monte columns
+- Scratchpad harnesses (combat dogpile, rout, tribute pay/refuse) — session
+  tools, not committed
+- `docs/` Session 4 across all five records + drift cleanup

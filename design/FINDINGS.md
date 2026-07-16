@@ -7,6 +7,16 @@ each section.
 These are findings to inform the design decision, not final tuning. Several are
 design *choices* (how punishing should the game be?) that need a human call.
 
+> **⚠ Postscript (2026-07-16):** every number in this file was computed with a
+> latent bug that silently disabled cadence-warlords (see
+> `docs/SIMULATIONS.md`, "Caveat on Campaigns 1–8"). The findings' *shapes*
+> (failure modes, mechanisms, dominant strategies) hold; the absolute
+> difficulty numbers are lower-pressure baselines. Post-fix references live in
+> Campaigns 9+. Also since superseded: the 12%-die-at-post sack roll was
+> REPLACED by the unified eject-and-hunt rule (Session 4, Campaign 6 numbers),
+> and the "~66 population equilibrium" was later diagnosed as housing-gating
+> on one seed (Turn 12) — there was no bounding mechanism.
+
 ---
 
 ## Finding 1 — Naive logistics starves small villages (FIXED in model)

@@ -4,8 +4,80 @@ Commit-level record of what shipped, newest session first. For the narrative see
 [`CHATLOG.md`](CHATLOG.md); for the *why* see [`DECISIONS.md`](DECISIONS.md); for
 the sim numbers see [`SIMULATIONS.md`](SIMULATIONS.md).
 
-Branch: `phase1-defense-and-keep` (not yet merged to `main`; Vercel deploy is
-manual and still runs the pre-this-session build).
+Everything is on `main` (Session 4 merged the Session-3 branch). The Vercel
+deploy is manual and still runs the pre-Session-3 build — redeploy pending.
+
+---
+
+## Session 4 — Merge, the two ports, and the 21-idea run (2026-07-16)
+
+Seven commits on `main`, from the fast-forward merge of `phase1-defense-and-keep`
+(`b0417ad`). Arc: first-principles review → merge + the two overdue ports →
+Chandra's 21-item playtest list done in four prioritized batches → the Duncastle
+playtest log → two economy fixes it demanded. All sim-validated where balance
+was at stake; all verified headless + browser; production builds clean.
+
+### The ports
+
+**`60bec47` — Port food spoilage to game (bread finally matters)**
+- Raw food above a per-capita buffer (`FOOD.spoilFreeTicks=60` of eating) rots
+  at 1%/tick; bread keeps — sim numbers verbatim. Chronicle event teaches the
+  mechanic; `foodSpoiled` in stats + `kingdom.summary()`. Headless: food
+  oscillates 300–1,000 instead of hoarding into the thousands.
+
+**`1331386` — Port Phase 3 spatial layer: villager bodies, eject-and-hunt, watchman towers**
+- Villagers get positions, walk home↔work, render as sprites, click-to-inspect.
+- UNIFIED DEATH RULE ships: the 12% die-at-post sack roll is REMOVED; sacked
+  buildings eject crews; civilians panic within `VILLAGER.panicRadius=3` of a
+  raider and flee to the keep (leaving the labor pool until the raid ends); the
+  hunt (`HUNT` block, Campaign-6 numbers: cadence 20, killChance 0.35, hoe-swing
+  fightback) runs LAST in the raid tick with REAL spatial checks — a soldier
+  within 1.6 tiles pins a raider; keep/house proximity shelters.
+- Watchtowers need a villager watchman (`workers: 1`, first in `WORK_PRIORITY`,
+  inert unstaffed, arrows scale with watch skill; fallen tower ejects him).
+
+### The 21-idea batches
+
+**`57f136a` — Legibility batch**
+- Raids END when the last raider turns tail (stragglers still walk off, towers
+  take parting shots); named raiders + two-way kill attribution; per-raid
+  reckoning (Chronicle line + console tally, browser-only so headless CSVs stay
+  clean); merchant-arrival toast; Rally-to-the-Keep button (150-tick fallback);
+  tabular-monospace resource/trade numbers.
+
+**`091abf2` — Tribute (Danegeld) + uncapped merc market — THE gold sink**
+- Warlord's rider demands `TRIBUTE.demandFrac=0.25` of the treasury (min 40);
+  pay → wave skipped, appetite ×1.6; face him → appetite resets. Banner UI.
+- sim2 Campaign 9: safe (0-1% collapse baseline+gauntlet), real (median 3.9k
+  gold sunk). **Fixed the latent sim2 warlord-cadence NaN** — warlords never
+  spawned in ANY prior campaign (see SIMULATIONS.md caveat).
+- Mercs: hard cap removed; escalating upkeep (+35% per extra company on every
+  merc) is the market's own soft cap. `mercUpkeepRate()` drives the UI.
+
+**`a5c9454` — Army fights as a line: spread targeting, merc first contact, rout, stance**
+- Diagnosed die-en-masse (dogpile → same-tick melee entry → same-tick deaths);
+  coverage-spread targeting (`coverPenalty=2.5`) halves death clusters, win
+  rate unchanged; mercs pick targets first; ROUT at `routFrac=0.4` raid losses
+  (keep-besieged fights to the death); hold/sally stance toggle in Kingdom tab.
+
+**`1526633` — Mobilise/demobilise: militia**
+- `v.armed` persists; stand down = militia (eats 1×, keeps skill); re-muster
+  free, most-seasoned first; recruit button shows the reserve.
+
+### The Duncastle fixes
+
+**`a33b8d5` — Bread is the reserve + masters are precious + rot indicator**
+- EAT-ORDER FLIP (game + sim2): raw food first, bread only on shortfall — bread
+  accumulates (seed-42: 3,139 loaves by yr 12; Duncastle had rotted 47,690 food
+  with bread at 0). Morale +8 from a stocked larder (`bread*2 >= pop`), not
+  daily eating. Food chip goes moldy (`.rot`) + tooltip while surplus rots.
+- MASTERS: `gainPerTick` 0.0008→0.0004, `masterAt` 0.6→0.8 (game + sim2, which
+  also got its five hardcoded 0.6 bars parameterized). Duncastle had 201
+  masters of 245 pop; sim now 0.40-0.54.
+- Null-guard fix in soldier targeting (all raiders in reach dead mid-tick —
+  introduced by the spread change, caught by headless seed 42).
+- Side effect to WATCH: pop booms harder (seed 42: 153→375) — ex-rot becomes
+  bread becomes people; housing still gates.
 
 ---
 

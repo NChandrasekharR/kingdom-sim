@@ -16,11 +16,11 @@ open questions, and pointers to the design docs and models.
 
 | File | What it is |
 |------|-----------|
-| [`CHATLOG.md`](CHATLOG.md) | Full annotated transcript of all working sessions (13 turns: build → redesign → review → implementation → playtest-driven combat/pop rework). |
+| [`CHATLOG.md`](CHATLOG.md) | Full annotated transcript of all working sessions (16 turns: build → redesign → review → implementation → playtest-driven combat/pop rework → merge/ports/21-idea run). |
 | [`DECISIONS.md`](DECISIONS.md) | Every choice made, with rationale, so nothing gets relitigated. |
 | [`CHANGELOG.md`](CHANGELOG.md) | Commit-level record of what shipped, per session. |
-| [`OPEN-QUESTIONS.md`](OPEN-QUESTIONS.md) | Consolidated register of unresolved questions — **start here to pick up the work** (Session 3 section). |
-| [`SIMULATIONS.md`](SIMULATIONS.md) | Register of every simulation campaign — question, command, numbers (~6,500 Monte Carlo runs + playtests). |
+| [`OPEN-QUESTIONS.md`](OPEN-QUESTIONS.md) | Consolidated register of unresolved questions — **start here to pick up the work** (Session 4 section). |
+| [`SIMULATIONS.md`](SIMULATIONS.md) | Register of every simulation campaign — question, command, numbers (~8,300 Monte Carlo runs + harness trials + 3 playtests). |
 | `README.md` | This index. |
 
 ## The design docs (`../design/`) — forward-looking
@@ -40,31 +40,30 @@ open questions, and pointers to the design docs and models.
 
 ## The game itself (`../src/`)
 
-The shipped Vite + Phaser game. **Unchanged by the redesign** — still has the
-snowball. Live at https://kingdom-sim-fawn.vercel.app. See the repo root and
-project memory for structure.
+The Vite + Phaser game, now carrying the FULL redesign (everything through
+Session 4 is on `main`). ⚠ The live deploy at
+https://kingdom-sim-fawn.vercel.app still runs the OLD pre-redesign build —
+redeploy is manual (`npx vercel --prod`) and pending Chandra's playtest of
+current `main`.
 
 ---
 
-## The one-paragraph state of things (2026-07-15)
+## The one-paragraph state of things (2026-07-16)
 
-**The redesign foundation shipped (Sessions 1-2) and Session 3 layered on a
-playtest-driven combat + population overhaul.** Foundation: `model/` proved the
-old economy snowballed; HP-as-output + villager units were designed, `sim2/`
-Monte-Carlo-validated them (~6,500 runs total), and `src/` implemented named
-mortal villagers, HP-coupled output, sack-based raids, soldiers-as-villagers,
-save migration. **Session 3** (branch `phase1-defense-and-keep`) added: walls
-that breach instead of shatter; click-to-inspect units; a Keep that auto-defends
-and, if sacked, triggers a recoverable "dark age" (not a game-over); a
-sim-validated spatial-hunt proxy (raiders hunt villagers — NOT yet ported to the
-game); `kingdom.summary()` run telemetry; a **probabilistic combat rework**
-(crits, veterans who tilt the dice and season rookies, force-ratio, and real
-spatial home-ground/tower-cover bonuses — so *where you fight decides the
-battle*); soldiers that hold territory; **mercenaries** (hire on steep gold
-upkeep, a gold sink); and a **population fix** so surplus food fuels a boom
-(resources finally build a kingdom). Two human playtests drove the whole loop.
-**Open (see `OPEN-QUESTIONS.md` Session 3):** the late game is hollow — the
-biggest lever is *giving it something to want* (wonders / a rival / costly
-expansion), plus perimeter walls (38 breaches), a gold sink, bread-in-game, and
-Phase 3 (spatial villagers). The live Vercel deploy still runs the pre-Session-3
-build; branch not merged to `main`.
+**Everything is merged and on `main`.** The arc: `model/` proved the launch
+economy snowballed → HP-as-output + mortal villagers were designed and
+`sim2/`-validated (~8,300 Monte Carlo runs to date) → `src/` implements it all.
+As of Session 4 the game has: villagers as **bodies on the map** (walk to work,
+panic near raiders, flee to the keep; one death rule — caught in the open);
+watchman-staffed towers; walls that breach; a Keep whose fall is a recoverable
+dark age; **probabilistic line combat** (crits, veterans, home-ground/tower
+cover, coverage-spread targeting, rout at 40% losses, hold/sally stance);
+**mercenaries** priced by an escalating market; **tribute/Danegeld** with an
+appetite spiral (the sim-validated gold sink); **militia** (re-muster free);
+food **spoilage with bread as the accumulating reserve**; masters that take
+years to make; named raiders, per-raid reckonings, and `kingdom.summary()`
+telemetry. Three human playtests drove the tuning; the Duncastle log (yr 19)
+says the war layer *works* and the economy is solved-then-hoarded — so the one
+big open thing is **giving the late game something to want** (wonders / a
+rival / costly expansion; see `OPEN-QUESTIONS.md` Session 4). Known caveat:
+sim2 campaigns 1–8 ran warlord-free (cadence bug, fixed 2026-07-16).

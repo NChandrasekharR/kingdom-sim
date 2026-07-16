@@ -122,6 +122,10 @@ soft-failure contract (A1/A2) intact.
    core): pop reaches a tense equilibrium **~66** (old snowball: 186), food
    oscillates 177–984 seasonally, gold 24,730 (sink gap noted), 12 raids,
    **0 buildings destroyed** (sack-not-raze working). Crowns: Plenty only.
+   *[Corrected 2026-07-15 (Turn 12): the "~66 equilibrium" was ONE low seed
+   eyeballed as emergent — pop is housing-gated, a smooth 48→175 ramp across
+   seeds. There was no population-bounding mechanism; see the Turn-12
+   diagnosis and the Session-3 growth decisions.]*
 2. **Controlled raid test** (scratch harness, 3 forced waves against an
    8-building town): 1–2 sackings/wave with named log lines, mercy gap
    scaling 196 → 299 ticks with damage, sacked buildings repaired past 50%
@@ -226,11 +230,113 @@ tracks the housing cap, no collapse, 0 buildings lost. Live: 3000 food + housing
 
 ---
 
+## ⚠ Caveat on Campaigns 1–8: warlord-free (discovered 2026-07-16)
+
+While validating tribute (Campaign 9), a latent bug surfaced: sim2's warlord
+cadence computed `wavesPerWarlord` from `P.ticksPerYear` with `P = params.raid`
+— but `ticksPerYear` lives at the params TOP level, so the expression was NaN
+and **cadence-warlords never spawned in any prior campaign**. (Gauntlet's
+pressure came from its scripted events, which is why it still differentiated.)
+The fix moved baseline iq1 from 98% too-easy to **50% interesting** — warlords
+carry a large share of the difficulty design. Campaigns 1–8 numbers stand as
+*warlord-free baselines*; Campaigns 9+ are the post-fix reference.
+
+---
+
+## Campaign 9 — Tribute (Danegeld) A/B (2026-07-16, `sim2/`)
+
+**Question:** is paying warlords off SAFE (no collapse spiral), and does it
+actually sink gold? Stress the appetite spiral with a pay-always policy.
+**Method:** `node sim2/monte.mjs baseline --runs 100 --sweep
+player.tributePolicy=never,auto,always player.iq=0,1` (+ same on `gauntlet`).
+`tributePolicy`: never / auto (pay only when the wave outmatches the shield) /
+always (the danegeld habit).
+
+| Scenario, tier | policy | interesting | collapse | tribute sunk (med) | final gold (med) |
+|---|---|---|---|---|---|
+| baseline iq1 | never | **50%** | 0% | 0 | 1,798 |
+| baseline iq1 | auto/always | 1%/0% (too-easy) | 0% | **3,867** | 2,905 |
+| gauntlet iq1 | never | **77%** | 1% | 0 | 1,584 |
+| gauntlet iq1 | auto | 5% (too-easy) | 0% | **2,276** | 1,854 |
+| iq0 (never pays) | — | 100% | 0% | 0 | 7–8k |
+
+**Findings:** (1) paying is SAFE — no collapse/spiral anywhere, pop stable;
+(2) the sink is REAL — median tribute paid exceeds the final treasury;
+(3) paying trades tension for safety (the bot that buys off every dangerous
+warlord goes too-easy) — in the game this is the PLAYER's choice, priced by the
+appetite spiral; (4) the warlord-cadence bug (caveat above) was found here.
+
+---
+
+## Campaign 10 — The die-en-masse diagnosis + the line fixes (2026-07-16, game harnesses)
+
+**Question (Chandra's playtest observation):** why does one raider falling
+precede soldiers dying en masse?
+**Method:** scratch harnesses driving the REAL game core: 30-trial controlled
+fights (8v12, 10v20 keep defense; 6v22 field battle for the rout).
+
+**Diagnosis:** all soldiers target the nearest raider → the army enters melee
+on the SAME tick → wounds accrue in parallel → deaths land on the same tick
+(death-span 0; 11/30 trials with ≥3 deaths inside 30 ticks at 10v20). A
+synchronized cascade, not bad luck.
+
+**A/B after coverage-spread targeting (+2.5 effective distance per ally on a
+raider, mercs pick first):** death clusters 11→5 of 30, avg local gang
+0.61→0.52, losses 2.03→1.97, **win rate unchanged 63%** — balance-neutral by
+design.
+
+**Rout check (6 v 22 field battle, `routFrac=0.4`):** 18/30 routs, **0 total
+wipes** (avg 3.4/6 survivors). Keep-besieged fights excluded (to the death).
+
+---
+
+## Campaign 11 — Eat-order flip + master retune (2026-07-16, `sim2/` + game)
+
+**Question:** with raw-food-first eating, does bread actually accumulate — and
+do the skill retunes (gain 0.0004, masterAt 0.8) keep the balance?
+**Method:** `node sim2/monte.mjs baseline|gauntlet --runs 100 --sweep
+player.iq=0,1` with new defaults; new `breadMed`/`mastersFracMed` columns;
+game check via `node model/simulate.mjs 12 42`.
+
+| Scenario, tier | collapse | bread (med) | masters frac (med) |
+|---|---|---|---|
+| baseline iq0 | 0% | **2,581** | 0.52 (was ~0.85+) |
+| baseline iq1 | 0% | 0 (bot liquidates + pays tribute) | 0.54 |
+| gauntlet iq0 | 0% | **2,185** | 0.40 |
+| gauntlet iq1 | 0% | 0 | 0.12 |
+
+**Game headless (seed 42):** 3,139 loaves banked by yr 12, food holds near the
+buffer. **Side effect:** pop 153→375 — the ex-rot becomes bread becomes people
+(growth reads total stock); housing still gates. WATCH in the next playtest.
+Also caught + fixed a null-guard crash in soldier targeting (spread change +
+mid-tick corpses).
+
+---
+
+## Playtest 3 — Duncastle, year 19 (2026-07-16, real game, post-Session-4 build)
+
+`kingdom.summary()`: pop 245/245 (peak 245), 0 starved, 343 born; army 51
+standing / 156 recruited / 101 fallen (27 veterans), K/D 6.26, 632 raiders
+killed; 21 raids (avg 27.1, max 40), 3 warlords, 6 sacked, **0 wall breaches,
+0 keep falls, 3 hunted**; crowns plenty+people; gold 9,078, iron 1,440;
+**foodSpoiled 47,690, bread 0; 201/245 masters; tribute 0 paid**.
+
+**Read:** the war layer WORKS in human hands (vs Ravensholt's 226/226 army
+wipe); civilians are protected (3 hunted in 19 years — the design bar).
+The economy told on itself: 47.7k rot + bread 0 (eat-order flaw), 82% masters
+(Pillar B toothless), tribute unpaid (strong players rightly refuse), iron the
+new gold. Drove the Campaign-11 fixes; the surviving conclusion is the
+late-game WANT problem.
+
+---
+
 ## Cumulative totals
 
-~6,500 Monte Carlo runs across eight campaigns, plus many headless 12-year runs
-of the real game, isolated in-game combat feel-tests (hundreds of trials per
-matchup), and two full human playtests with `kingdom.summary()` telemetry. Every
-number is reproducible from the commands listed; `sim2/README.md` documents the
-harness. Note the Session-3 learning: for spatial combat *feel*, the human
-playtest is the ground truth — synthetic stacked-tile tests mislead.
+~8,300 Monte Carlo runs across eleven campaigns, plus many headless 12-year
+runs of the real game, ~240 controlled harness trials against the real game
+core (combat, rout, tribute), and three full human playtests with
+`kingdom.summary()` telemetry. Every number is reproducible from the commands
+listed; `sim2/README.md` documents the harness. Two standing lessons: (1) for
+spatial combat *feel*, the human playtest is the ground truth — synthetic
+stacked-tile tests mislead; (2) Campaigns 1–8 ran warlord-free (see the caveat
+above) — treat pre-2026-07-16 difficulty numbers as lower-pressure baselines.

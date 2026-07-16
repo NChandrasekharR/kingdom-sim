@@ -5,7 +5,7 @@ in one place. Grouped by area. Status key:
 **OPEN** (needs a decision) · **EXPERIMENT** (answerable by running the sim) ·
 **DEFERRED** (parked for later) · **RESOLVED** (settled — moved to `DECISIONS.md`).
 
-Last updated: 2026-07-12.
+Last updated: 2026-07-16 (Session 4 — see the pickup section at the bottom).
 
 ---
 
@@ -69,43 +69,52 @@ in case the redesign doesn't ship and we patch the current game instead.
 
 ---
 
-## Session 3 (2026-07-15) — what shipped and what's open now
+## Session 4 (2026-07-16) — what shipped and what's open now
 
-*(This is the pickup point for the next chat. Branch `phase1-defense-and-keep`,
-not merged to `main`, Vercel not redeployed. Full record: `CHANGELOG.md`,
-`CHATLOG.md` Turns 12-13, `DECISIONS.md` Session 3, `SIMULATIONS.md` Campaigns
-6-8.)*
+*(This is the pickup point for the next chat. Everything is merged to `main`
+(7 commits, `60bec47`→`a33b8d5`); the Vercel deploy is STILL the pre-Session-3
+build. Full record: `CHANGELOG.md` Session 4, `CHATLOG.md` Turns 14-16,
+`DECISIONS.md` Session 4, `SIMULATIONS.md` Campaigns 9-11 + Playtest 3.)*
 
-**SHIPPED this session:** walls breach (not shatter); click-to-inspect units;
-Keep auto-defends + besieged alarm + recoverable dark-age; sim2 spatial-hunt
-proxy (validated, NOT ported to game); `kingdom.summary()` telemetry;
-probabilistic combat (crits/veterans/force-ratio/home-ground/tower-cover);
-soldiers hold territory; veterans survive attrition; mercenaries (gold-upkeep
-sink, purple, own card); **population booms on food surplus** (fixed the stall).
+**SHIPPED this session:** the Session-3 branch merged; food spoilage ported
+(and then the **eat-order flip** — bread finally accumulates as the reserve,
+moldy-chip indicator); the **Phase 3 spatial layer** ported (villager bodies,
+eject-and-hunt with real pin/shelter checks, watchman towers); the legibility
+batch (flee-ends-raid, named raiders + kill attribution, per-raid reckoning,
+merchant toast, rally button, tabular numbers); **tribute/Danegeld**
+(sim-validated gold sink with the appetite spiral) + the uncapped escalating
+merc market; the **army-line rework** (spread targeting, merc first contact,
+rout at 40%, hold/sally stance); **militia** (free re-muster); **masters made
+precious** (gain halved, bar 0.8). Plus two bug finds: sim2's warlords NEVER
+spawned before today (all prior campaigns were warlord-free — see the
+SIMULATIONS caveat), and a null-guard crash in the new soldier targeting.
 
-**OPEN — the recommended next direction (Claude's honest take, ratified as a
-"recorded direction, not yet chosen"):** the late game is *hollow* — economy
-solved by ~yr5, then you hoard. The biggest lever for making it INTERESTING is
-**give the late game something to want**: an ambition/prestige sink (wonders/
-monuments that cost huge resources, a rival kingdom to contend with, costly
-expansion). Not more combat tuning — combat is now the strong layer.
+**Resolved from the Session-3 leftovers list:** #4 bread (ported + eat-order
+fixed), #5 Phase 3 (ported), #3 gold *partially* (tribute + merc upkeep sink it
+for weak/merc-reliant players — but Duncastle showed a strong player never pays:
+the rich player's gold pool is really the want-problem below).
 
-**OPEN — concrete leftovers:**
-1. **Late-game "something to want"** (above) — the highest-value new work.
-2. **Walls don't hold the perimeter** — 38 breaches in a 22-yr playtest; raiders
-   pour through to soldiers. Make walls tougher / breaches rarer / raiders path
-   around, so towers thin them OUTSIDE the line.
-3. **Gold still pools** (~24k+; mercenary upkeep helps but a dedicated sink may
-   still be wanted). Long-standing.
-4. **Bread still does nothing in the game** — spoilage/bread-as-reserve is
-   sim-validated (Campaign 7, balance-neutral) but NOT ported to `src/`.
-   You had 12k food and 0 bread.
-5. **Phase 3 — spatial villager layer** (villagers as bodies, eject-and-hunt
-   combat ported from the validated 2a proxy, watchman towers) — the big build,
-   de-risked by Campaign 6 but not started.
-6. **Raids are big** (avg 31, peak 40, three warlords in a long run) — a
-   one-number `RAID` dial if they feel punishing rather than epic.
+**OPEN — the next session (unchanged in direction, sharpened by Duncastle):**
+1. **Late-game "something to want"** — Duncastle yr 19: two crowns, every
+   threat handled, five hoards (gold 9k, iron 1.4k…), nothing to buy. Ambition/
+   prestige sinks: wonders, a rival kingdom, costly expansion. A design session
+   at the whiteboard with Chandra, not a patch. **The sim can't help here.**
+2. **Walls don't hold the perimeter** — 38 breaches in Ravensholt (Duncastle
+   had 0 — possibly fixed by the army/tower changes, possibly just a stronger
+   player position; confirm in the next playtest before building anything).
+3. **Raid size dial** — avg 27, max 40 (cap) in Duncastle; felt epic-not-unfair
+   there, but it's the first knob if the next playtest disagrees. Tune against
+   the per-raid reckoning telemetry now available.
 
-**Watch (may not be problems):** population is housing-gated again by design
-(food fuels it) — intentional. The army ending a snapshot at 0 soldiers after
-winning 11.5:1 and reigning 22 years may be *fine*, not a bug — don't chase it.
+**WATCH in the next playtest (may not be problems):**
+- **Population booms harder post-eat-order-fix** (headless seed 42: 153→375;
+  ex-rot becomes bread becomes people). Housing still gates; Chandra's
+  no-pop-limiter decision stands — but see how it feels.
+- **Masters fraction in real play** — sim says 0.40-0.54 (from 0.85+); if a
+  human run still mints too many, the next knob is idle decay, not the bar.
+- **Tribute in human hands** — does the pay/refuse choice ever tempt? If it
+  never fires for a competent player, that's fine (drama for hard times), but
+  check an early-game or post-dark-age moment.
+
+**Deploy:** the live Vercel build predates ALL of Sessions 3-4 — redeploy
+(`npx vercel --prod`) once Chandra has playtested the current main.

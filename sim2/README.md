@@ -68,6 +68,21 @@ Tuning philosophy: difficulty numbers should be set against **iq 1**, with iq 0
 as the floor (a beginner must survive) and iq 2 as the ceiling (an optimizer
 must not trivialize).
 
+**Tribute stance** (`player.tributePolicy`, sweepable `never,auto,always`):
+how the bot answers a warlord's Danegeld demand. `auto` (default) pays only
+when the wave outmatches the shield; `always` stress-tests the appetite spiral;
+`never` always fights. iq 0 never pays regardless. See Campaign 9.
+
+## ⚠ Warlord-cadence bug (fixed 2026-07-16)
+
+Every campaign before 2026-07-16 ran with **zero cadence-warlords** — the
+cadence math read `ticksPerYear` off the wrong params block (NaN). Gauntlet
+still pressured via its scripted events, but treat all pre-fix numbers as
+lower-pressure baselines; the fix alone moved baseline iq1 from 98% too-easy
+to 50% interesting. `skill.masterAt` (default 0.8, was a hardcoded 0.6) and the
+`breadMed`/`mastersFracMed`/`goldMed`/`tributeMed` monte columns also landed
+that day.
+
 ## Note
 This is a DESIGN TOOL, not game code. It shares no modules with `../src/`. It's
 abstract where the game is spatial (e.g. logistics uses a "town core" abstraction

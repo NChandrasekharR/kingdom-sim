@@ -5,6 +5,83 @@ first within each section. For still-open questions see `OPEN-QUESTIONS.md`.
 
 ---
 
+## Session 4 — merge, ports, and the 21-idea run (2026-07-16)
+
+- **Eat RAW FOOD first; bread is the RESERVE (shipped, game + sim2).** Reverses
+  the (implicit, never-decided) bread-first eat order that both codebases
+  carried. Why: with bread eaten first, bread stock could never accumulate — the
+  Duncastle playtest rotted 47,690 food with bread stuck at 0, so the whole
+  spoilage→bake loop was structurally dead. Now raw food (which rots anyway) is
+  eaten first and bread is tapped only on shortfall (winter, siege). The +8
+  bread morale moved from "ate bread today" to "the larder is stocked"
+  (`bread*2 >= pop`) — under the new order daily bread-eating never happens in
+  good times, so the old trigger would have silently killed the bakery's morale
+  value. Do NOT restore bread-first.
+
+- **Tribute = Danegeld with an appetite spiral (shipped, sim-validated).** Only
+  WARLORDS demand tribute (the rider precedes the wave); the demand reads the
+  TREASURY (0.25×gold, min 40) so it scales with the hoard; paying skips the
+  wave and multiplies the next demand ×1.6; facing him — win or bleed — resets
+  the appetite. Intended arc: pay while weak, build, eventually refuse.
+  **Accepted limitation (Duncastle confirmed):** a strong player rightly never
+  pays — Danegeld is drama for the weak, NOT a gold sink for the rich. The
+  rich player's gold problem is the late-game-want problem, not a tuning gap.
+
+- **Mercenary companies: no hard cap; the MARKET is the cap (shipped).** The
+  old `maxCompanies: 8` was a blunt guard against a cheap permanent army. Now
+  every extra company under contract raises EVERY merc's per-tick rate (+35%/
+  company) — a great host costs a fortune per season, and the cap emerges from
+  economics instead of a rule.
+
+- **The army fights as a LINE (shipped, harness-diagnosed).** All soldiers
+  targeting the nearest raider meant the whole army entered melee on the same
+  tick and crossed the death threshold together — Chandra's "raider falls, then
+  soldiers die en masse" was a synchronized cascade, not bad luck. Allies
+  already covering a raider now add distance-penalty (2.5/ally); mercs pick
+  targets first (sellswords make first contact and screen subjects). Death
+  clusters halved; win rate unchanged — deliberately balance-neutral.
+
+- **The line BREAKS at 40% raid losses (shipped).** Rout: survivors fall back
+  to the keep for the rest of the raid — trading buildings for lives ends the
+  226-recruited/226-fallen total-wipe pattern (field harness: 18/30 routs, zero
+  wipes, 3.4/6 survivors). Keep-besieged fights remain to the death.
+
+- **Stance is a policy dial, default HOLD (shipped).** 'Hold the line' (fight
+  only on/near claimed land, where home-ground + tower cover live) vs 'Sally
+  forth' (pursue anywhere — loot recovered, blood risked; open-field odds are
+  already priced: ~41% vs ~98%). Fits A3's few-global-dials principle.
+
+- **Stand down = MILITIA, not civilian (shipped).** The iron is forged once
+  (`v.armed` persists); re-mustering the most-seasoned reservist is free.
+  Standing army eats 3×; militia farm at 1× until the horn. The strategic loop
+  is army-size-over-time, not pay-iron-again.
+
+- **Masters are YEARS of work (shipped, game + sim2).** `gainPerTick` halved to
+  0.0004, `masterAt` 0.6→0.8. Why: Duncastle had 201 masters in a pop of 245 —
+  Pillar B (knowledge is mortal, masters precious) has no teeth when mastery is
+  the default human condition. Veterans stay at 0.6 (now ~3y of service;
+  rookie seasoning near a veteran offsets). Sim masters-fraction: 0.85+ →
+  0.40–0.54.
+
+- **Raids end when the last raider turns tail (shipped).** The raid state
+  (alarm, holed-up villagers, banner) clears on all-fleeing; the bodies still
+  walk off the map and take parting arrows. The player's read of "the raid" is
+  the threat, not the pathing.
+
+- **Warlord-cadence sim bug: prior campaign numbers stand as WARLORD-FREE
+  baselines.** All pre-2026-07-16 sim2 campaigns ran with zero cadence-warlords
+  (NaN bug). Rather than re-litigate old tuning, the numbers are kept with a
+  caveat (see SIMULATIONS.md) and new campaigns supersede them. The fix moved
+  baseline iq1 from 98% too-easy to 50% interesting — warlords were carrying
+  more of the difficulty design than anyone knew.
+
+- **Panic-flee is a game-side extension beyond the validated sim proxy
+  (accepted).** The sim's hunt only ejected workers of SACKED buildings; the
+  game also panics any civilian within 3 tiles of a raider (they flee to the
+  keep and leave the labor pool until the raid ends). More disruption than the
+  sim modeled, but it's the honest spatial reading of "caught in the open" —
+  accepted on headless regression evidence (pop bands healthy, 0 collapse).
+
 ## Session 3 — playtest-driven decisions (2026-07-15)
 
 Made during the defense/combat/population session (branch
