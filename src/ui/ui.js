@@ -4,7 +4,7 @@ import { on, emit } from '../core/events.js';
 import { currentSeason, currentYear, makeSim } from '../core/sim.js';
 import { territorySize } from '../core/territory.js';
 import { demolish, clearSave, saveGame, createState } from '../core/state.js';
-import { recruitSoldier, dismissSoldier, hireMercenaries, dismissMercenaries, mercCount, mercUpkeepRate, rallyToKeep, payTribute } from '../core/raids.js';
+import { recruitSoldier, dismissSoldier, hireMercenaries, dismissMercenaries, mercCount, mercUpkeepRate, rallyToKeep, payTribute, armedReserve } from '../core/raids.js';
 import { countMasters } from '../core/villagers.js';
 import { outputMult } from '../core/economy.js';
 import { sell, buy, sellPrice, buyPrice } from '../core/trade.js';
@@ -343,10 +343,10 @@ export function buildUI(root, ctx) {
         .filter(([, s]) => s > 0.05)
         .sort((a, b) => b[1] - a[1])
         .map(([k, s]) => `${k} ${Math.round(s * 100)}%`).join(' · ') || 'unskilled hands';
-      const doing = unit.fleeing ? '<span class="bad">fleeing for the keep!</span>'
+      const doing = (unit.fleeing ? '<span class="bad">fleeing for the keep!</span>'
         : unit.job === 'producer' ? `working the ${unit.workType || 'fields'}`
         : unit.job === 'builder' ? 'repairing the works'
-        : 'idling by the keep';
+        : 'idling by the keep') + (unit.armed ? ' · <b>militia</b>' : '');
       selPanel.innerHTML = `
         <img class="bicon" src="${iconDataURL('villager')}" alt="">
         <div class="sel-info">
@@ -501,6 +501,10 @@ export function buildUI(root, ctx) {
     for (const v of state.villagers) jobs[v.job] = (jobs[v.job] || 0) + 1;
     const masters = countMasters(state);
     const sacked = state.buildings.filter((b) => b.sacked && b.hp > 0).length;
+    const reserve = armedReserve(state).length;
+    recruitBtn.textContent = reserve > 0
+      ? `Muster militia (free — ${reserve} armed in reserve)`
+      : `Recruit soldier (${SOLDIER.cost.iron} iron — then eats 3×)`;
     const mercs = mercCount(state);
     const mercUpkeep = mercUpkeepRate(state).toFixed(2);
     kStats.innerHTML = `

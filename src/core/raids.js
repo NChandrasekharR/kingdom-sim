@@ -759,42 +759,65 @@ function endRaid(state, rand, fled = false) {
   }
 }
 
+// Subjects who have borne arms before (the iron was forged once) — the militia
+// reserve. Standing down doesn't melt the sword: re-mustering a veteran is free.
+export function armedReserve(state) {
+  return state.villagers.filter((v) => v.armed && v.job !== 'soldier');
+}
+
 export function recruitSoldier(state) {
   const barracks = state.buildings.filter((b) => b.type === 'barracks' && b.hp > 0);
   if (!barracks.length) return { ok: false, reason: 'Build a barracks first' };
   if (state.soldiers.length >= barracks.length * SOLDIER.perBarracks) {
     return { ok: false, reason: 'Barracks are full' };
   }
-  // a soldier is a villager under arms, not a coin purchase
-  const recruit = state.villagers.find((v) => v.job === 'idle')
+  // a soldier is a villager under arms, not a coin purchase. Muster the most
+  // seasoned of the armed reserve first — their iron is already forged — and
+  // only pay iron to arm someone new.
+  const reserve = armedReserve(state)
+    .sort((a, b) => (b.skills.soldier || 0) - (a.skills.soldier || 0))[0];
+  const recruit = reserve
+    || state.villagers.find((v) => v.job === 'idle')
     || state.villagers.find((v) => v.job === 'producer');
   if (!recruit) return { ok: false, reason: 'No subject free to serve' };
-  for (const [r, amt] of Object.entries(SOLDIER.cost)) {
-    if (state.res[r] < amt) return { ok: false, reason: `Not enough ${r}` };
+  if (!recruit.armed) {
+    for (const [r, amt] of Object.entries(SOLDIER.cost)) {
+      if (state.res[r] < amt) return { ok: false, reason: `Not enough ${r}` };
+    }
+    for (const [r, amt] of Object.entries(SOLDIER.cost)) state.res[r] -= amt;
+    recruit.armed = true;
   }
-  for (const [r, amt] of Object.entries(SOLDIER.cost)) state.res[r] -= amt;
+  const wasVeteran = (recruit.skills.soldier || 0) >= COMBAT.veteranSkill;
   recruit.job = 'soldier';
   recruit.workplaceId = null;
   recruit.workType = null;
+  recruit.fleeing = false;
   state.stats.soldiersRecruited++;
   const b = barracks[0];
   state.soldiers.push({
     id: state.nextId++, villagerId: recruit.id,
     x: b.x, y: b.y + 1, px: b.x, py: b.y + 1, hp: SOLDIER.hp,
   });
-  logEvent(state, `${recruit.name} takes up arms.`, 'good');
+  logEvent(state, reserve
+    ? `${recruit.name} takes up the sword once more${wasVeteran ? ' — a veteran returns to the line' : ''}.`
+    : `${recruit.name} takes up arms.`, 'good');
   return { ok: true };
 }
 
 export function dismissSoldier(state) {
-  // dismiss a subject-soldier first (mercs are dismissed via their own control)
+  // dismiss a subject-soldier first (mercs are dismissed via their own control).
+  // They keep their arms and their craft: standing down makes MILITIA, not
+  // civilians — re-mustering them later costs nothing (the iron was paid once),
+  // and they eat like a citizen until called again.
   const s = [...state.soldiers].reverse().find((so) => !so.merc) || state.soldiers[state.soldiers.length - 1];
   if (!s) return { ok: false, reason: 'No soldiers to dismiss' };
   const i = state.soldiers.indexOf(s);
   const vet = state.villagers.find((v) => v.id === s.villagerId);
-  if (vet) { vet.job = 'idle'; }
+  if (vet) { vet.job = 'idle'; vet.armed = true; }
   state.soldiers.splice(i, 1);
-  logEvent(state, vet ? `${vet.name} hangs up the sword and returns to the fields.` : 'A soldier stands down.', 'info');
+  logEvent(state, vet
+    ? `${vet.name} stands down to the fields — sword oiled and hung by the door.`
+    : 'A soldier stands down.', 'info');
   return { ok: true };
 }
 
