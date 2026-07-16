@@ -1,4 +1,4 @@
-import { SKILL } from '../config.js';
+import { SKILL, VILLAGER } from '../config.js';
 
 // Villagers are discrete agents: a job, a skill per craft, a stomach.
 // "15 pop" is 15 little lives — which is what makes losing one mean something.
@@ -23,7 +23,98 @@ export function makeVillager(state, job = 'idle') {
     workplaceId: null,   // building id while producing
     skills: {},          // craft (building type, 'builder', 'soldier') → 0..1
     hunger: 0,
+    // a body on the map: born at the keep (lazily placed on the first move tick),
+    // walks to work, panics from raiders, flees for the keep. px/py = previous
+    // position, for render interpolation (same contract as soldiers/raiders).
+    x: null, y: null, px: null, py: null,
+    fleeing: false,      // running for the keep; holed up until the raid ends
   };
+}
+
+// a small deterministic per-villager offset so crews don't stack on one pixel
+function offset(v, salt) {
+  return (((v.id * salt) % 5) - 2) * 0.3;
+}
+
+// Walk every civilian body one step: to work, to the keep plaza, or — if
+// raiders are near — AWAY, fleeing for the keep's shelter. Runs every tick;
+// production stays non-spatial (positions are presentation + hunt substrate).
+export function villagersMoveTick(state) {
+  const keep = state.buildings.find((b) => b.type === 'keep');
+  if (!keep) return;
+  const raidActive = state.raid.phase === 'active';
+  const raiders = raidActive ? state.raid.raiders.filter((r) => r.hp > 0 && r.mode !== 'flee' && r.mode !== 'gone') : [];
+  const byId = new Map(state.buildings.map((b) => [b.id, b]));
+  // builders head for the most damaged building (worst-first, like their repairs)
+  let worst = null, worstFrac = 1;
+  for (const b of state.buildings) {
+    if (b.hp <= 0 || b.hp >= b.maxHp) continue;
+    const f = b.hp / b.maxHp;
+    if (f < worstFrac) { worstFrac = f; worst = b; }
+  }
+
+  for (const v of state.villagers) {
+    if (v.job === 'soldier') continue;      // the soldier body is its own unit
+    if (v.x == null) {                      // first breath: at the keep's gate
+      v.x = keep.x + offset(v, 37); v.y = keep.y + 1.5 + Math.abs(offset(v, 53));
+      v.px = v.x; v.py = v.y;
+    }
+    v.px = v.x; v.py = v.y;
+
+    // panic: a raider bearing down sends a civilian running for the keep
+    if (raidActive && !v.fleeing) {
+      for (const rd of raiders) {
+        if (Math.hypot(rd.x - v.x, rd.y - v.y) < VILLAGER.panicRadius) {
+          v.fleeing = true;
+          v.job = 'idle'; v.workplaceId = null; v.workType = null;
+          break;
+        }
+      }
+    }
+
+    // pick where this body is headed
+    let tx, ty;
+    if (v.fleeing) {
+      tx = keep.x + offset(v, 37); ty = keep.y + 1.5 + Math.abs(offset(v, 53));
+    } else if (v.job === 'producer' && byId.get(v.workplaceId)) {
+      const b = byId.get(v.workplaceId);
+      tx = b.x + offset(v, 37); ty = b.y + 0.8 + offset(v, 53) * 0.5;
+    } else if (v.job === 'builder' && worst) {
+      tx = worst.x + offset(v, 37); ty = worst.y + 0.8;
+    } else {
+      // idle folk mill about the keep plaza
+      tx = keep.x + offset(v, 37) * 2; ty = keep.y + 2 + Math.abs(offset(v, 53)) * 2;
+    }
+    const dx = tx - v.x, dy = ty - v.y;
+    const d = Math.hypot(dx, dy);
+    if (d > 0.4) {
+      const step = Math.min(VILLAGER.walkSpeed, d);
+      v.x += (dx / d) * step; v.y += (dy / d) * step;
+    }
+  }
+}
+
+// Eject a worker from a sacked/falling building: they drop everything and run.
+// Nobody dies at their post — death happens only in the open (the hunt).
+export function ejectVillager(v) {
+  if (v.job === 'soldier') return;
+  v.fleeing = true;
+  v.job = 'idle'; v.workplaceId = null; v.workType = null;
+}
+
+// Is this villager under shelter right now? (near the keep's guard, or close
+// enough to an intact house to duck inside)
+export function isSheltered(state, v) {
+  if (v.x == null) return true;
+  for (const b of state.buildings) {
+    if (b.hp <= 0) continue;
+    if (b.type === 'keep') {
+      if (Math.hypot(b.x - v.x, b.y - v.y) <= VILLAGER.keepShelterRadius) return true;
+    } else if (b.type === 'house' && !b.sacked) {
+      if (Math.hypot(b.x - v.x, b.y - v.y) <= VILLAGER.houseShelterRadius) return true;
+    }
+  }
+  return false;
 }
 
 // skill key: producers skill by the building type they work; others by job

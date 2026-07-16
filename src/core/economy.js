@@ -15,11 +15,12 @@ export function outputMult(b) {
 export function economyTick(state) {
   const active = (b) => b.hp > 0 && state.claimed[idx(b.x, b.y)];
 
-  // reset non-soldier jobs; soldiers persist (recruited/lost explicitly)
+  // reset non-soldier jobs; soldiers persist (recruited/lost explicitly).
+  // A fleeing villager is holed up until the raid ends — no hands to give.
   for (const v of state.villagers) {
     if (v.job !== 'soldier') { v.job = 'idle'; v.workplaceId = null; v.workType = null; }
   }
-  const pool = state.villagers.filter((v) => v.job !== 'soldier');
+  const pool = state.villagers.filter((v) => v.job !== 'soldier' && !v.fleeing);
 
   // 1. builders: enough hands to work through everything below the threshold
   const needRepair = state.buildings.filter(

@@ -302,6 +302,24 @@ export function buildUI(root, ctx) {
           <div class="sel-hp">HP ${Math.ceil(unit.hp)}/${MERCENARY.hp} (${hpPct}%) · skill ${Math.round((unit.skill || 0) * 100)}%</div>
           <div class="sel-desc">A hired sword. Paid in gold; deserts if the coffers run dry.</div>
         </div>`;
+    } else if (kind === 'villager') {
+      const gone = !state.villagers.includes(unit);
+      if (gone) { selUnit = null; selPanel.classList.add('hidden'); return; }
+      const skills = Object.entries(unit.skills)
+        .filter(([, s]) => s > 0.05)
+        .sort((a, b) => b[1] - a[1])
+        .map(([k, s]) => `${k} ${Math.round(s * 100)}%`).join(' · ') || 'unskilled hands';
+      const doing = unit.fleeing ? '<span class="bad">fleeing for the keep!</span>'
+        : unit.job === 'producer' ? `working the ${unit.workType || 'fields'}`
+        : unit.job === 'builder' ? 'repairing the works'
+        : 'idling by the keep';
+      selPanel.innerHTML = `
+        <img class="bicon" src="${iconDataURL('villager')}" alt="">
+        <div class="sel-info">
+          <div class="sel-name">${unit.name}</div>
+          <div class="sel-hp">${doing} · skills: ${skills}</div>
+          <div class="sel-desc">A subject of ${state.name}. Caught in the open in a raid, they may not come home.</div>
+        </div>`;
     } else {
       const gone = unit.hp <= 0 || !state.raid.raiders.includes(unit);
       if (gone) { selUnit = null; selPanel.classList.add('hidden'); return; }

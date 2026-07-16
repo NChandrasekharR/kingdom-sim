@@ -8,7 +8,7 @@ import { claimTick, recedeTick, territorySize } from './territory.js';
 import { winTick } from './win.js';
 import { saveGame } from './state.js';
 import { logEvent, emit } from './events.js';
-import { countMasters } from './villagers.js';
+import { countMasters, villagersMoveTick } from './villagers.js';
 
 export function currentSeason(state) {
   return SEASONS[Math.floor(state.tick / SEASON_TICKS) % 4];
@@ -35,6 +35,7 @@ export function makeSim(state) {
       economyTick(state);
       maintenanceTick(state);
       populationTick(state);
+      villagersMoveTick(state);   // bodies walk (and panic) before the raid resolves
       tradeTick(state, rand);
       raidTick(state, rand);
       mercenaryUpkeepTick(state);
@@ -95,6 +96,7 @@ export function dumpStats(state) {
     },
     people: {
       born: s.villagersBorn, starved: s.villagersStarved,
+      huntedInRaids: s.villagersHunted || 0,
       mastersNow: countMasters(state), mastersLost: s.mastersLost,
     },
     foodSpoiled: Math.round(s.foodSpoiled || 0),

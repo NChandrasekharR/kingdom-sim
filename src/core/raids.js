@@ -1,8 +1,8 @@
-import { MAP, T, TERRAIN_INFO, BUILDINGS, RAIDER, RAID, SOLDIER, ROAD_SPEED_MULT, KEEP, COMBAT, SKILL, MERCENARY } from '../config.js';
+import { MAP, T, TERRAIN_INFO, BUILDINGS, RAIDER, RAID, SOLDIER, ROAD_SPEED_MULT, KEEP, COMBAT, SKILL, MERCENARY, HUNT } from '../config.js';
 import { idx } from './state.js';
 import { prosperity } from './economy.js';
 import { logEvent, emit } from './events.js';
-import { killVillager, isMaster } from './villagers.js';
+import { killVillager, isMaster, ejectVillager, isSheltered, bestSkill } from './villagers.js';
 
 // ── A* over the tile grid ──────────────────────────────────────────
 function wallSet(state) {
@@ -124,6 +124,9 @@ export function raidTick(state, rand) {
   }
 
   updateSoldiers(state, rand);
+  // the hunt runs LAST: only raiders that survived the towers and the line of
+  // soldiers get to run down civilians (the defense is the shield)
+  if (raid.phase === 'active') resolveHunt(state, rand);
 }
 
 function spawnRaid(state, rand) {
@@ -282,21 +285,10 @@ function updateRaiders(state, rand) {
           } else {
             logEvent(state, `${BUILDINGS[target.type].name} has been sacked!`, 'raid');
             state.raidShock = Math.min(40, state.raidShock + 8);
-            // workers may die in the sacking — but only once per raid per
-            // building, so repairing mid-raid can't re-feed the grinder
-            if (target.deathRolledWave !== raid.wave) {
-              target.deathRolledWave = raid.wave;
-              for (const v of [...(target.workers || [])]) {
-                if (rand() < RAID.sackDeathChance) {
-                  const wasMaster = isMaster(v);
-                  if (wasMaster) state.stats.mastersLost++;
-                  killVillager(state, v);
-                  logEvent(state, wasMaster
-                    ? `${v.name}, master ${target.type === 'smelter' ? 'smith' : 'of the ' + target.type}, was slain in the sacking. Years of craft die too.`
-                    : `${v.name} was slain defending the ${BUILDINGS[target.type].name.toLowerCase()}.`, 'bad');
-                }
-              }
-            }
+            // the unified death rule: nobody dies at their post. The sacked
+            // building EJECTS its crew — they run for the keep, and the only
+            // way a civilian dies is caught in the open (resolveHunt).
+            for (const v of [...(target.workers || [])]) ejectVillager(v);
           }
         }
         retargetOrFlee(state, rd, rand);
@@ -329,19 +321,23 @@ function retargetOrFlee(state, rd, rand) {
 }
 
 // Any building with range+arrowDmg looses arrows on the nearest raider: the
-// watchtower, and the keep (its own guard — no garrison needed).
+// watchtower — but only while a watchman is posted (an unstaffed tower is
+// inert, sim2-validated) — and the keep (its own guard, no garrison needed).
 function updateTowers(state) {
   for (const b of state.buildings) {
     if (b.hp <= 0) continue;
     const def = BUILDINGS[b.type];
     if (!def.range || !def.arrowDmg) continue;
+    if (def.workers > 0 && !(b.assigned > 0)) continue;   // no watchman, no arrows
+    // a practiced eye shoots truer: the watchman's skill sharpens every arrow
+    const watchSkill = b.workers?.length ? (b.workers[0].skills[b.type] || 0) : 0;
     let nearest = null, nd = def.range;
     for (const rd of state.raid.raiders) {
       const d = Math.hypot(rd.x - b.x, rd.y - b.y);
       if (d < nd) { nd = d; nearest = rd; }
     }
     if (nearest) {
-      nearest.hp -= def.arrowDmg;
+      nearest.hp -= def.arrowDmg * (1 + watchSkill);
       emit('arrow', { fx: b.x, fy: b.y, tx: nearest.x, ty: nearest.y });
       if (nearest.hp <= 0) {
         state.stats.raidersKilled++;
@@ -351,6 +347,70 @@ function updateTowers(state) {
       }
     }
   }
+}
+
+// ── The hunt (sim2 Campaign 6, ported spatially) ──────────────────
+// Runs LAST in the raid tick, after towers and soldiers have thinned the wave:
+// the defense is the shield, and only raiders that get past it run down
+// civilians. A chase resolves only every HUNT.cadenceTicks (occasional, not a
+// per-tick grind — the sim's load-bearing finding). A raider in melee with a
+// soldier is pinned; a villager near the keep or a house is sheltered. The
+// cornered villager swings first — a hoe, not a blade — then rolls to die.
+function resolveHunt(state, rand) {
+  if (state.tick % HUNT.cadenceTicks !== 0) return;
+  const raiders = state.raid.raiders.filter(
+    (rd) => rd.hp > 0 && (rd.mode === 'march' || rd.mode === 'loot'));
+  if (!raiders.length) return;
+  const civilians = state.villagers.filter((v) => v.job !== 'soldier' && v.x != null);
+  if (!civilians.length) return;
+
+  const caught = new Set();   // each villager faces at most one raider per round
+  for (const rd of raiders) {
+    // pinned: a soldier at sword's length keeps this raider too busy to hunt
+    let pinned = false;
+    for (const s of state.soldiers) {
+      if (s.hp > 0 && Math.hypot(s.x - rd.x, s.y - rd.y) < HUNT.pinRadius) { pinned = true; break; }
+    }
+    if (pinned) continue;
+
+    // the nearest exposed civilian within reach is run down
+    let prey = null, pd = HUNT.reach;
+    for (const v of civilians) {
+      if (caught.has(v.id)) continue;
+      const d = Math.hypot(v.x - rd.x, v.y - rd.y);
+      if (d < pd && !isSheltered(state, v)) { pd = d; prey = v; }
+    }
+    if (!prey) continue;
+    caught.add(prey.id);
+
+    // the villager swings back weakly first — a doomed farmer still chips the raider
+    rd.hp -= HUNT.villagerDmg * (1 + 0.5 * bestSkill(prey));
+    if (rd.hp <= 0) {
+      state.stats.raidersKilled++;
+      logEvent(state, `Cornered, ${prey.name} turns with a hoe — and fells the raider!`, 'good');
+      continue;
+    }
+    if (rand() < HUNT.killChance) {
+      const wasMaster = isMaster(prey);
+      if (wasMaster) state.stats.mastersLost++;
+      state.stats.villagersHunted = (state.stats.villagersHunted || 0) + 1;
+      killVillager(state, prey);
+      state.raidShock = Math.min(40, state.raidShock + 4);
+      logEvent(state, wasMaster
+        ? `${prey.name}, a master of the craft, was run down in the open. The knowledge dies too.`
+        : `${prey.name} was run down in the open fields.`, 'bad');
+    } else {
+      // escaped by a hair — a burst of terror-speed toward the keep
+      ejectVillager(prey);
+      const keep = state.buildings.find((b) => b.type === 'keep');
+      if (keep) {
+        const dx = keep.x - prey.x, dy = keep.y - prey.y;
+        const d = Math.max(0.001, Math.hypot(dx, dy));
+        prey.x += (dx / d) * Math.min(1.2, d); prey.y += (dy / d) * Math.min(1.2, d);
+      }
+    }
+  }
+  state.raid.raiders = state.raid.raiders.filter((rd) => rd.hp > 0);
 }
 
 // combat skill of a fighter: a mercenary carries its own; a subject-soldier's
@@ -549,6 +609,8 @@ function endRaid(state, rand) {
   const raid = state.raid;
   raid.phase = 'quiet';
   raid.keepBesieged = false;
+  // the danger passed: the fled come out of hiding and go back to work
+  for (const v of state.villagers) v.fleeing = false;
   raid.lastSacked = raid.sackedThisRaid || 0;
   raid.timer = RAID.minGapTicks + Math.floor(rand() * 200) - Math.min(150, Math.floor(prosperity(state) / 15));
   // rubber-band: a raid that hurt buys quiet ticks to rebuild in

@@ -82,8 +82,8 @@ export const BUILDINGS = {
     cost: { wood: 25, stone: 30, gold: 25 }, hp: 80, workers: 0, influence: 8,
   },
   tower: {
-    name: 'Watchtower', desc: 'Shoots raiders and extends the border.',
-    cost: { wood: 15, stone: 25 }, hp: 90, workers: 0, influence: 7,
+    name: 'Watchtower', desc: 'Shoots raiders and extends the border — but only while a watchman is posted.',
+    cost: { wood: 15, stone: 25 }, hp: 90, workers: 1, influence: 7,
     range: 7, arrowDmg: 3,
   },
   wall: {
@@ -100,7 +100,9 @@ export const BUILDINGS = {
   },
 };
 
-export const WORK_PRIORITY = ['farm', 'dock', 'lumber', 'quarry', 'mine', 'smelter', 'bakery', 'market'];
+// watchmen are posted before the fields are filled (sim2: unstaffed towers are
+// inert, and a tower is worth more than one farmhand) — defense competes for labor
+export const WORK_PRIORITY = ['tower', 'farm', 'dock', 'lumber', 'quarry', 'mine', 'smelter', 'bakery', 'market'];
 
 // ── Victory: the Three Crowns ──────────────────────────────────────
 export const WIN = {
@@ -210,6 +212,31 @@ export const MERCENARY = {
   maxCompanies: 8,           // contracts you can hold at once (up to 24 swords)
 };
 
+// ── Villagers as bodies on the map (the spatial layer) ────────────
+// Villagers are rendered agents: they walk between home and work, panic when
+// raiders come near, and flee toward the keep. Positions are presentation +
+// the substrate the hunt runs on — production itself stays non-spatial.
+export const VILLAGER = {
+  walkSpeed: 0.5,              // tiles/tick (slower than a raider's 0.85 — running is dangerous)
+  panicRadius: 3,              // a raider this close sends a civilian fleeing for the keep
+  keepShelterRadius: 2.5,      // huddled this close to the keep, you're under its guard
+  houseShelterRadius: 1.0,     // this close to an intact house, you duck inside
+};
+
+// ── The hunt: how civilians die in a raid (sim2-validated, Campaign 6) ──
+// ONE death channel: caught in the open. Sacked buildings eject their crews;
+// raiders that get past the towers and soldiers run down exposed villagers,
+// who swing back weakly before the kill roll. Numbers ported from sim2
+// (huntCadenceTicks is the load-bearing knob — a chase is occasional, not a
+// per-tick grind, or the toll scales with raid DURATION and craters the pop).
+export const HUNT = {
+  cadenceTicks: 20,            // a chase resolves only every N ticks
+  reach: 2.5,                  // an unpinned raider catches an exposed villager this close
+  pinRadius: 1.6,              // a soldier this close ties the raider up (can't hunt)
+  killChance: 0.35,            // a cornered villager usually dies (the drama)
+  villagerDmg: 1.5,            // the hoe-swing a villager lands first (vs soldier 8, raider hp 30)
+};
+
 // ── Raiders ────────────────────────────────────────────────────────
 // Raiders SACK buildings (grind HP to the abandon floor), they rarely raze.
 // A raid is an economic wound measured in lost output-days, not lost tiles.
@@ -218,7 +245,8 @@ export const RAID = {
   firstAfter: 300, warningTicks: 40, minGapTicks: 250,
   lootDmg: 4.5,                // building HP lost per raider per looting tick — THE difficulty dial (sim2-validated; first playtest knob)
   abandonHpFrac: 0.15,         // below this fraction a building is sacked: raiders move on, it survives gutted
-  sackDeathChance: 0.12,       // each worker in a building may die when it's sacked (once per raid)
+  // (the old sackDeathChance die-at-your-post roll is gone — a sacked building
+  // EJECTS its crew, and the only way a civilian dies is caught in the open: HUNT)
   sizeBase: 2, prosperityDivisor: 350, militaryPressure: 0.4, sizeCap: 40,
   easeAfterSack: 0.04,         // rubber-band: each building sacked last raid shrinks the next wave...
   minSizeMult: 0.5,

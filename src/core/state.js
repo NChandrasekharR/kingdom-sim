@@ -40,7 +40,7 @@ export function createState(seed = (Math.random() * 1e9) | 0) {
       peakPop: 6, peakTerritory: 0,
       raids: 0, warlords: 0, raidersKilled: 0, raidSizes: [],
       buildingsSacked: 0, wallsBreached: 0, keepFalls: 0,
-      villagersBorn: 0, villagersStarved: 0,
+      villagersBorn: 0, villagersStarved: 0, villagersHunted: 0,
       soldiersRecruited: 0, soldiersFallen: 0, veteransFallen: 0,
       mastersLost: 0, foodSpoiled: 0,
     },
@@ -222,7 +222,7 @@ export function loadGame() {
       peakPop: s.pop || 6, peakTerritory: 0,
       raids: 0, warlords: 0, raidersKilled: 0, raidSizes: [],
       buildingsSacked: 0, wallsBreached: 0, keepFalls: 0,
-      villagersBorn: 0, villagersStarved: 0,
+      villagersBorn: 0, villagersStarved: 0, villagersHunted: 0,
       soldiersRecruited: 0, soldiersFallen: 0, veteransFallen: 0,
       mastersLost: 0, foodSpoiled: 0,
     };

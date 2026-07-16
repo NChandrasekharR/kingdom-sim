@@ -176,6 +176,11 @@ export class KingdomScene extends Phaser.Scene {
   drawUnits(alpha) {
     const { state } = this.ctx;
     const units = [];
+    // villagers first (drawn under the fighters); fleeing folk flash alarm-tinted
+    for (const v of state.villagers) {
+      if (v.job === 'soldier' || v.x == null) continue;
+      units.push({ u: v, key: 'u-villager', size: 5, tint: v.fleeing ? 0xffb36b : 0xffffff });
+    }
     for (const s of state.soldiers) units.push({ u: s, key: s.merc ? 'u-merc' : 'u-soldier' });
     for (const r of state.raid.raiders) units.push({ u: r, key: 'u-raider' });
 
@@ -188,13 +193,14 @@ export class KingdomScene extends Phaser.Scene {
     for (let i = 0; i < this.unitPool.length; i++) {
       const img = this.unitPool[i];
       if (i >= units.length) { img.setVisible(false); continue; }
-      const { u, key } = units[i];
+      const { u, key, size, tint } = units[i];
       if (img.texture.key !== key) img.setTexture(key);
       img.setVisible(true);
       const x = (u.px + (u.x - u.px) * alpha) * TILE + TILE / 2;
       const y = (u.py + (u.y - u.py) * alpha) * TILE + TILE / 2;
       img.setPosition(x, y);
-      img.setDisplaySize(6, 6);
+      img.setDisplaySize(size || 6, size || 6);
+      img.setTint(tint || 0xffffff);
     }
 
     // tower arrows
@@ -256,6 +262,11 @@ export class KingdomScene extends Phaser.Scene {
         for (const r of st.raid.raiders) {
           const d = Math.hypot(r.x + 0.5 - wx, r.y + 0.5 - wy);
           if (d < ud) { ud = d; unit = r; kind = 'raider'; }
+        }
+        for (const v of st.villagers) {
+          if (v.job === 'soldier' || v.x == null) continue;
+          const d = Math.hypot(v.x + 0.5 - wx, v.y + 0.5 - wy);
+          if (d < ud) { ud = d; unit = v; kind = 'villager'; }
         }
         if (unit) {
           this.ctx.selected = null;

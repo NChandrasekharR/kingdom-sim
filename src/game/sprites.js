@@ -255,6 +255,14 @@ export const UNIT_ART = {
     'wwww.',
     '.k.k.',
   ],
+  // a subject going about their day: sun-browned face, homespun tunic, a hoe
+  villager: [
+    '.tt..',
+    '.cc.w',
+    'cccc.',
+    '.cc..',
+    '.k.k.',
+  ],
 };
 
 export const RES_ICON_ART = {
@@ -272,6 +280,7 @@ export const RES_ICON_ART = {
   raider: ['..XX....', '..XX....', '.xRRx...', '.xRRx...', '..RR....', '..XX....', '.X..X...', '........'],
   soldier: ['..ii....', '..cc....', '.uSSu...', '.uSSu...', '..SS....', '..ii....', '.i..i...', '........'],
   merc: ['..PP....', '..cc....', '.pPPp...', '.pPPp...', '..PP....', '..PP....', '.P..P...', '........'],
+  villager: ['..tt....', '..cc....', '.wwww...', '.wwww...', '..ww....', '..ww....', '.w..w...', '........'],
 };
 
 function drawArt(ctx, rows, ox = 0, oy = 0) {
