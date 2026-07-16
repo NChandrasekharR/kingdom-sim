@@ -172,11 +172,65 @@ Also added: villager-staffed watchtowers (a watchman per tower competes for
 civilian labor; unstaffed towers are inert) — verified assigning correctly,
 non-destabilizing.
 
+## Campaign 7 — Probabilistic combat rework (2026-07-15, `sim2/` + game feel-tests)
+
+**Question:** Replacing flat combat (`soldier takes fixed damage / flat death
+chance`) with per-exchange dice (crit / wound / kill scaling with conditions,
+veterans, force-ratio) — is it balance-safe, and does it fix the "army ground to
+nothing" the playtest showed?
+**Method:** `combat.model=flat|probabilistic` A/B in sim2 (baseline + gauntlet,
+iq0-2, dials 4.5-9, ~100 seeds/cell), plus direct combat feel-tests in the game.
+
+**Result — balance-safe, army survives.** Across all cells: 0% collapse, higher
+surviving population under probabilistic (e.g. baseline iq1 pop 36 vs flat's
+stall; gauntlet iq1 pop 35 vs 34), near-identical interesting%. High dial (dmg 9,
+iq1) probabilistic = 43% interesting / pop 55 / 0% collapse — high pressure
+becomes *survivable-and-interesting* rather than fatal.
+
+**Game feel-tests (isolated combat, tuned once from too-strong):**
+- 4 veterans (skill 0.9) vs 12 raiders: **41% open, 98% home ground** (by the keep).
+- 4 GREEN vs 12: **1% open, 65% home**. 6 vets + tower vs 14 = 100%, survivors 1-6.
+- Even fights (6-8 vs 6-8): near-bloodless; outnumbering the raiders = a rout.
+
+**Key learning:** *stacked-tile micro-tests are a poor benchmark* — piling all
+fighters+raiders on one tile makes localGang pressure hit everyone equally, so
+mercenaries add bodies but don't SHIELD veterans (no formation concept). Real
+spatial defense (chokepoints, breaches, positioning) isn't captured; trust the
+playtest for feel. Also validated in this campaign: **food spoilage**
+(bread-as-reserve) is balance-NEUTRAL — `food.spoilEnabled=true` caps the absurd
+14k food hoard to ~340 with zero change to interesting%/pop/collapse (the
+excess it removes was pure dead-weight). Sim-only; game side not yet built.
+
+## Campaign 8 — Playtest telemetry + the population diagnosis (2026-07-15, real game)
+
+**Question (from Chandra's live playtests):** does the reworked army hold, and
+why do resources pile up while pop stalls?
+**Method:** `kingdom.summary()` telemetry from two full playthroughs, plus a
+headless-model check of the growth-rate fix.
+
+**Ravensholt Y21.9 summary:** army wins **11.5:1** (2,604 raiders killed), reigns
+22 years, two crowns — BUT recruited 226 / fell 226 (72 veterans), army ends at
+0; 38 wall breaches; 12,413 food / 7,441 stone unused; pop stalled at 65 (cap 95).
+
+**Diagnosis (Chandra spotted it):** births ~13/yr ≈ war deaths ~10/yr → net
++2.7/yr, so pop crawls and stalls far below cap. The army-bleed, stalled-pop, and
+wasted-resources are ALL ONE PROBLEM: growth too slow vs attrition → people are
+the permanent bottleneck, everything else surplus. Growth was FLAT (surplus food
+did nothing).
+
+**Fix + headless verification** (`node model/simulate.mjs 12 <seed>` with
+surplus-fuelled growth): seed 42 pop **47→132**, seeds 7/123 **~170→~266**, all
+reach the People crown; food stops hoarding (pop eats it, stays ~300-500), pop
+tracks the housing cap, no collapse, 0 buildings lost. Live: 3000 food + housing
+→ pop 6→50 (cap) in ~1.25 years.
+
 ---
 
 ## Cumulative totals
 
-~4,900 Monte Carlo runs (~28M simulated ticks) across five campaigns, plus
-two 12-year headless runs of the real game and four traced policy-debug
-rounds. Every number above is reproducible from the commands listed;
-`sim2/README.md` documents the harness.
+~6,500 Monte Carlo runs across eight campaigns, plus many headless 12-year runs
+of the real game, isolated in-game combat feel-tests (hundreds of trials per
+matchup), and two full human playtests with `kingdom.summary()` telemetry. Every
+number is reproducible from the commands listed; `sim2/README.md` documents the
+harness. Note the Session-3 learning: for spatial combat *feel*, the human
+playtest is the ground truth — synthetic stacked-tile tests mislead.

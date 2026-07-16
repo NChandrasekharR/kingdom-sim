@@ -277,6 +277,132 @@ full change explanation in chat.
 
 ---
 
+## Turn 12 — Playtest-driven build session (2026-07-15, new session)
+
+A long working session that started as "review the docs and get to work" and
+turned into a tight design↔playtest↔build loop. Branch: `phase1-defense-and-keep`.
+
+**User:**
+> Review all the docs, codebase and open questions in this repo. and lets get to work.
+
+**Claude:** Read every doc + the full `src/`/`sim2/` codebase, ran the headless
+model across seeds to confirm state. Reported: the redesign foundation is
+shipped and validated, but (a) gold pools unbounded to ~24k, and (b) population
+is NOT bimodal as the docs claimed — it's a smooth 48→175 ramp with **no real
+bound** (pop tracks whatever housing the player builds; both `src/` and `sim2/`
+share the rule, and sim2 never tracked pop so it was never caught). Offered the
+three documented next-steps.
+
+**Chandra:** Chose to **fix pop bimodality first**. Claude diagnosed deeper
+(40-seed scan, trajectory traces): the "stuck at 10" seeds were a wood-starvation
+bot artifact; the ramp was pure housing-gating. Prototyped **food-margin gating**
+(headless A/B: median pop 75→36, real oscillating equilibrium). Chandra then said
+**"keep food as-is"** — food-margin would punish prudent winter-stockpiling —
+so the food-margin fix was **dropped**.
+
+**Chandra** then steered into a series of mechanics asks, each discussed and
+scoped: walls should have a **degraded/breach state** (not destroy-and-rebuild);
+**watchtowers cost a posted villager**; soldiers should **patrol/hold territory**
+instead of chasing raiders across the map; **villagers as their own sprites**;
+click a unit to **inspect** it; **raiders kill individual villagers who fight
+back weakly**; **town center (keep) sacked → consequence**. Through structured
+Q&A these resolved to: unified "caught in the open" death rule (buildings eject
+workers who flee/get hunted), villager-staffed towers, **keep = catastrophic but
+RECOVERABLE dark age (not game-over)**, full-spatial villager vision gated behind
+sim validation.
+
+**Discipline held:** for the combat-model change (which invalidates the 4,900-run
+balance), Chandra said **"first sim it out"** → abstract spatial proxy in sim2.
+
+**What got built & committed this turn (in order):**
+1. **Phase 1** (`82916ae`) — walls breach instead of shatter; click-to-inspect
+   soldiers/raiders; the Keep auto-defends + besieged alarm + soldier rally +
+   dark-age payload on sacking (recoverable, extends A2). Verified headless +
+   browser.
+2. **Phase 2a** (`316b4a7`) — sim2 spatial-combat proxy: `resolveHunt()` runs
+   last in the raid tick; sacked buildings eject workers into an exposed pool
+   raiders hunt; villagers fight back weakly; villager-staffed towers.
+   **Finding 10: hunt must NOT fire every tick** (per-tick grind cratered pop);
+   fixed with `huntCadenceTicks=20`. Validated equivalent to the old sack model
+   across baseline+gauntlet+specialists, iq0-2, ~100 seeds, 0% collapse. (Campaign 6.)
+3. **New Kingdom fix** (`93f5501`) — the button relied on `location.reload()`,
+   which is a no-op in the preview env; now resets state in place + a `new-game`
+   scene event. (A real robustness improvement.)
+
+**Chandra then asked to open it in the browser and playtest.**
+
+---
+
+## Turn 13 — The combat rework (playtest loop, 2026-07-15 cont.)
+
+**Chandra playtested** (Greyfen, then Ravensholt via `kingdom.summary()`), and
+the telemetry drove the rest of the session. The arc:
+
+**First, logging** (`fddbb5c`) — Chandra asked for run telemetry so we could see
+what actually happened. Built `kingdom.summary()` (console dump: pop peaks,
+war stats, army recruited/fallen/veterans, kill/death ratio, crowns) + auto-dump
+on collapse. This became the feedback instrument for everything after.
+
+**Playtest #1 (Greyfen Y10):** army ground to nothing — a wall of "fell
+defending the realm". Diagnosis: the sim's **force-ratio combat protection was
+validated but NEVER ported to the game** (`s.hp -= 4` flat every tick), and skill
+only boosted damage *dealt*, never survival. Chandra's asks (veterans, territory
+bonus, tower bonus) + "make combat **probabilistic** with crits, veterans tilt
+the dice, rookies age faster near veterans" defined the rework.
+
+**The combat rework** (`b87f2e2`) — sim-first (validated flat-vs-probabilistic
+across baseline+gauntlet, dials 4.5-9, 0% collapse, army survives), then ported
+to the game where **home-ground (claimed-tile) and tower-cover (arrow-range) are
+real spatial checks** + a **local-gang** wound scaling (being swarmed is deadly,
+holding a line is safe). Verified in-game: 6 vets + tower vs 14 raiders on home
+ground = 100% win, survivors vary 1-6 (real variance); same fight in the open
+= 41%; green swarmed = 1%. **Where and how you fight now decides the battle.**
+
+**"How do I keep my army inside my territory?"** (`d6eb6a3`) — the missing half:
+soldiers auto-chased raiders into the wilds, throwing away the home-ground bonus.
+Now they **hold claimed territory** and only engage raiders on/near it; hold at
+the keep when the border's clear. Keep-besieged still overrides.
+
+**Playtest #2 (Ravensholt Y22):** army now wins **11.5:1** and reigns 22 years —
+but **still lost all 226 soldiers** (72 veterans) to attrition, while drowning in
+resources. Two fixes:
+- **Veterans survive** (`fdd2ae7`) — experience lowers the kill-roll on a wounded
+  soldier; a badly-wounded skilled soldier **retreats to heal** rather than dying.
+- **Mercenaries** (`74f2531`, cap fix `919e068`, visuals `71ae221`) — hire hired
+  swords with surplus **gold + steep per-tick upkeep, desert if unpaid**. Fight
+  via the same combat but aren't your people (no seasoning, no villager dies).
+  A gold sink + an emergency valve to absorb big raids. Purple sprites, own
+  inspector card, count+upkeep in the Kingdom menu.
+
+**The key diagnosis (Chandra spotted it):** "so many resources, why isn't
+population growing?" — births ~13/yr barely beat war deaths ~10/yr → pop stalled
+at 65 despite 12k food + 30 empty housing. **The army-bleed, stalled-pop, and
+wasted-resources were ALL ONE PROBLEM:** growth too slow vs attrition, so people
+were the permanent bottleneck and everything else was surplus.
+
+**Population boom** (`8099e8a`) — growth now **scales with food-surplus-per-capita**
+(abundant food → boom, capped; faster baseline). Surplus food finally builds a
+population. Effect: seed 42 pop 47→132, food stops hoarding (pop eats it), pop
+tracks housing cap. **Resources finally mean something.**
+
+**Claude's honest synthesis (delivered on request):** combat is now the *strong*
+part (over-invested this session); the *hollow* part is the late-game economy —
+solved by ~yr5, then just hoard. The genuinely novel/good things: HP-as-output
+core, model-before-building discipline, named mortal villagers. Biggest untapped
+lever = give the late game **something to want** (ambition/prestige sinks:
+wonders, a rival kingdom, costly expansion), not more combat tuning.
+
+**User:**
+> pause. commit changes … write all chat logs, decisions, simulation result,
+> changelog etc to markdown. so next chat can take it up
+
+**Claude:** (this) — appended Turns 12–13, added the combat/pop decisions to
+`DECISIONS.md`, logged Campaign 6 + the combat/pop findings in `SIMULATIONS.md`,
+created `docs/CHANGELOG.md` (commit-level record), refreshed `OPEN-QUESTIONS.md`
+and `README.md`.
+
+---
+
 ## Artifacts produced across the sessions
 
 **Game (shipped, live):**

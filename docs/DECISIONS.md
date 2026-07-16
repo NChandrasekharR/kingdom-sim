@@ -5,6 +5,83 @@ first within each section. For still-open questions see `OPEN-QUESTIONS.md`.
 
 ---
 
+## Session 3 — playtest-driven decisions (2026-07-15)
+
+Made during the defense/combat/population session (branch
+`phase1-defense-and-keep`). Several were live calls Chandra made mid-build.
+
+- **Food-margin population gating: REJECTED.** Prototyped and validated in a
+  headless A/B (median pop 75→36, real equilibrium), but Chandra rejected it:
+  gating growth on production *flow* punishes prudent play (stockpiling food for
+  winter should still let pop grow). Food stays as-is; pop scales by building
+  housing. The unbounded-pop diagnosis stands as a finding; the fix is
+  intentionally not pursued.
+
+- **Population growth scales with food ABUNDANCE (shipped).** The *actual* pop
+  fix. Root cause Chandra spotted: births (~13/yr) barely beat war attrition
+  (~10/yr), so pop stalled at 65 despite 12k food + empty housing — the
+  army-bleed / stalled-pop / wasted-resources were one problem. Growth now
+  scales with food-surplus-per-capita (`GROWTH` config). Surplus food finally
+  builds a population; pop tracks the housing cap and consumes the surplus.
+
+- **Walls breach, they don't shatter.** A battered wall becomes passable rubble
+  at 1 HP, repairable in place — the last exception to "sack, don't raze" is
+  gone. Walls are now durable investments, not coin-flips over rubble.
+
+- **Keep-fall = catastrophic but RECOVERABLE dark age, NOT a game-over.** Chandra
+  weighed a true hard-fail lose condition and explicitly chose the recoverable
+  dark age (keep survives at floor, huge losses, run continues). This *extends*
+  A2 and does not reverse the Turn-2 "sandbox, no hard fail" stance. The keep
+  auto-defends (watchtower-grade, no garrison) so only an overwhelming force can
+  sack it.
+
+- **Villager death is unified: "caught in the open" (sim design; game port
+  pending).** When a building is sacked/destroyed it EJECTS its workers, who flee
+  and can be hunted down; there is one civilian death channel, not two. This
+  *replaces* the old sack-death dice roll (cleaner than the two-channel model
+  first proposed). Watchtowers are staffed by a villager watchman who flees/dies
+  like anyone. Validated in sim2; the game still uses the old sack roll until
+  Phase 3 ports the spatial layer.
+
+- **Combat is probabilistic, not flat (shipped).** Each soldier↔raider exchange
+  is a dice roll (crit / wound / kill-when-badly-wounded) whose severity scales
+  with conditions. Veterans tilt every die (more crits, harder to wound, harder
+  to finish off, retreat when hurt) and season nearby rookies. **Where you fight
+  decides the battle** — home ground (claimed tiles) and tower cover cut wound
+  odds; being locally swarmed is deadly. This ports the sim's force-ratio fix
+  that had never made it into the game. Chandra's design instincts (crits,
+  veterans, territory/tower bonuses, rookies-age-near-veterans) drove it.
+
+- **Soldiers HOLD territory, they don't sortie.** The army only engages raiders
+  on/near claimed land and holds at the keep otherwise — so it fights where the
+  home-ground bonus applies instead of chasing raiders into the wilds (~98% vs
+  ~41% win). Chosen over patrol-routes for simplicity/readability.
+
+- **Mercenaries: hired swords on gold upkeep (shipped).** Hire a company with a
+  gold lump; steep per-tick gold **upkeep**; they **desert if unpaid**. They
+  fight but aren't your people (no seasoning, no villager dies) — an emergency
+  valve that absorbs a big raid so veterans don't have to, and a **gold sink**.
+  Deliberately can't become a cheap permanent army (the loop the redesign killed).
+  Cap raised to 24 with top-up-after-losses.
+
+- **"Model before building" reaffirmed for combat.** The probabilistic combat
+  and the spatial-hunt model both went through sim2 *first* (they change the war
+  balance the 4,900 runs rest on) before any game code. But a **key learning**
+  landed: stacked-tile micro-tests are a bad benchmark (all fighters pile on one
+  tile, so mercs add bodies but don't shield veterans — no formation concept).
+  The true read is Chandra's playtest; don't over-tune against synthetic tests.
+
+- **Honest project assessment (Claude, on request):** combat is now the *strong*
+  layer (over-invested this session); the *hollow* part is the late-game economy
+  (solved by ~yr5, then hoard). The novel/good things: HP-as-output core,
+  model-before-building discipline, named mortal villagers. The biggest untapped
+  lever for making it *interesting* (not just balanced) is giving the late game
+  **something to want** — an ambition/prestige sink (wonders, a rival kingdom,
+  costly expansion) — not more combat tuning. Recorded as a direction, not yet
+  chosen.
+
+---
+
 ## Product & scope
 
 - **Real-time ticks, not turn-based** (Turn 1). Pause / 1× / 3× speed. Wanted the

@@ -69,23 +69,43 @@ in case the redesign doesn't ship and we patch the current game instead.
 
 ---
 
-## The three that matter most right now
+## Session 3 (2026-07-15) — what shipped and what's open now
 
-*(Updated 2026-07-14: the foundation SHIPPED. B1/B2 resolved; the three
-anti-degenerate mechanics are in both sim2 and the game; villager agents +
-HP-as-output are implemented in `src/` with the validated numbers
-(`lootDmg=4.5`, `outputFloor=0.4`, guild floor 0.3, etc.). Old saves migrate.)*
+*(This is the pickup point for the next chat. Branch `phase1-defense-and-keep`,
+not merged to `main`, Vercel not redeployed. Full record: `CHANGELOG.md`,
+`CHATLOG.md` Turns 12-13, `DECISIONS.md` Session 3, `SIMULATIONS.md` Campaigns
+6-8.)*
 
-1. **Playtest the real game** — the sim numbers are the starting point, not
-   gospel. First knobs to watch: `RAID.lootDmg` (4.5), `RAID.maxRaidTicks`
-   (200 — raid events run long in real time), and skill gain (14/20 villagers
-   were masters by year 5 in testing; masters may be too cheap — Pillar B wants
-   them precious).
-2. **Pillar C proper** — warlord telegraphing (a season's dread warning, not
-   just a bigger wave), winter-fuel/bigger-colder knobs (B6), smarter raid
-   targeting in the spatial game.
-3. **Gold still pools** — the redesign bounded population and buildings, but
-   gold reached ~24k in a 12-year headless run (Plenty crown trivial). Needs a
-   sink (warlord tribute? repair fees? festival costs?).
+**SHIPPED this session:** walls breach (not shatter); click-to-inspect units;
+Keep auto-defends + besieged alarm + recoverable dark-age; sim2 spatial-hunt
+proxy (validated, NOT ported to game); `kingdom.summary()` telemetry;
+probabilistic combat (crits/veterans/force-ratio/home-ground/tower-cover);
+soldiers hold territory; veterans survive attrition; mercenaries (gold-upkeep
+sink, purple, own card); **population booms on food surplus** (fixed the stall).
 
-Everything else can follow playtesting.
+**OPEN — the recommended next direction (Claude's honest take, ratified as a
+"recorded direction, not yet chosen"):** the late game is *hollow* — economy
+solved by ~yr5, then you hoard. The biggest lever for making it INTERESTING is
+**give the late game something to want**: an ambition/prestige sink (wonders/
+monuments that cost huge resources, a rival kingdom to contend with, costly
+expansion). Not more combat tuning — combat is now the strong layer.
+
+**OPEN — concrete leftovers:**
+1. **Late-game "something to want"** (above) — the highest-value new work.
+2. **Walls don't hold the perimeter** — 38 breaches in a 22-yr playtest; raiders
+   pour through to soldiers. Make walls tougher / breaches rarer / raiders path
+   around, so towers thin them OUTSIDE the line.
+3. **Gold still pools** (~24k+; mercenary upkeep helps but a dedicated sink may
+   still be wanted). Long-standing.
+4. **Bread still does nothing in the game** — spoilage/bread-as-reserve is
+   sim-validated (Campaign 7, balance-neutral) but NOT ported to `src/`.
+   You had 12k food and 0 bread.
+5. **Phase 3 — spatial villager layer** (villagers as bodies, eject-and-hunt
+   combat ported from the validated 2a proxy, watchman towers) — the big build,
+   de-risked by Campaign 6 but not started.
+6. **Raids are big** (avg 31, peak 40, three warlords in a long run) — a
+   one-number `RAID` dial if they feel punishing rather than epic.
+
+**Watch (may not be problems):** population is housing-gated again by design
+(food fuels it) — intentional. The army ending a snapshot at 0 soldiers after
+winning 11.5:1 and reigning 22 years may be *fine*, not a bug — don't chase it.
