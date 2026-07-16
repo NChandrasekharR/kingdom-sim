@@ -195,6 +195,11 @@ export const COMBAT = {
   veteranKillResist: 0.7,      // × skill lowers the kill-roll on a wounded soldier
   retreatBelowFrac: 0.5,       // a soldier below this HP fraction falls back to mend…
   retreatSkillGate: 0.4,       // …but only if skilled enough to disengage cleanly
+  // the army fights as a LINE, not a mob (die-en-masse fix, 2026-07-16):
+  // harness showed all soldiers dogpiling one raider, entering melee on the
+  // same tick, and crossing the death threshold together — synchronized wipes.
+  coverPenalty: 2.5,           // effective distance added per ally already on a raider
+  routFrac: 0.4,               // lose this share of the army in one raid → the line breaks
 };
 
 // ── Mercenaries ────────────────────────────────────────────────────

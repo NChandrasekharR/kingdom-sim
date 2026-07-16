@@ -29,6 +29,7 @@ export function createState(seed = (Math.random() * 1e9) | 0) {
     morale: 55, raidShock: 0,
     starving: false, spoiling: false, growthAcc: 0, starveAcc: 0, expandAcc: 0,
     tributeAppetite: 0,   // warlord demands paid in a row — each whets the next
+    stance: 'hold',       // 'hold' = fight on claimed land only; 'sally' = pursue anywhere
     ateBread: false,
     soldiers: [],
     crowns: { dominion: false, plenty: false, people: false },

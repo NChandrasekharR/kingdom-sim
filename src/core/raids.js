@@ -212,6 +212,8 @@ function spawnRaid(state, rand) {
   }
   const size = Math.min(RAID.sizeCap, Math.max(1, Math.round(sizeF)));
   raid.sackedThisRaid = 0;
+  raid.armyAtStart = state.soldiers.length;   // for the rout check
+  raid.routed = false;
 
   // pick a land tile on the map edge
   let sx = 0, sy = 0, tries = 0;
@@ -517,11 +519,25 @@ function updateSoldiers(state, rand) {
     }
     return false;
   };
-  // when the keep is besieged the gloves come off — defend it wherever they are
-  let engageable = state.raid.keepBesieged ? liveRaiders : liveRaiders.filter(nearTerritory);
-  // a manual rally overrides everything but a besieged keep: the army holds at
-  // the keep and only meets what comes to its walls
-  const rallying = keep && !state.raid.keepBesieged && (state.rallyUntil || 0) > state.tick;
+  // when the keep is besieged the gloves come off — defend it wherever they are.
+  // Stance: 'hold' (default) fights only on/near claimed land, where the bonuses
+  // live; 'sally' pursues any raider on the map — loot recovered, blood risked.
+  const sallying = state.stance === 'sally';
+  let engageable = (state.raid.keepBesieged || sallying) ? liveRaiders : liveRaiders.filter(nearTerritory);
+  // the line BREAKS when a raid has bled too much of the army: survivors fall
+  // back to the keep and live to fight the next one (no more 226/226 wipes)
+  const raid = state.raid;
+  if (!raid.routed && !raid.keepBesieged && (raid.armyAtStart || 0) >= 4) {
+    const lost = (raid.tally?.soldiersLost || 0) + (raid.tally?.mercsLost || 0);
+    if (lost >= raid.armyAtStart * COMBAT.routFrac) {
+      raid.routed = true;
+      logEvent(state, 'Your line breaks! The survivors fall back to the keep.', 'bad');
+    }
+  }
+  // a manual rally — or a broken line — overrides everything but a besieged
+  // keep: the army holds at the keep and only meets what comes to its walls
+  const rallying = keep && !state.raid.keepBesieged &&
+    ((state.rallyUntil || 0) > state.tick || raid.routed);
   if (rallying) {
     engageable = engageable.filter((rd) => Math.hypot(rd.x - keep.x, rd.y - keep.y) < 6);
   }
@@ -530,7 +546,14 @@ function updateSoldiers(state, rand) {
   // a living veteran on the field lets rookies season under fire
   const hasVeteran = state.soldiers.some((so) => soldierSkill(state, so) >= COMBAT.veteranSkill);
 
-  for (const s of state.soldiers) {
+  // the army fights as a LINE: each soldier takes the nearest raider FEW ALLIES
+  // ALREADY COVER (coverage-penalized distance), instead of everyone dogpiling
+  // one man — the harness showed the dogpile entering melee on the same tick
+  // and dying on the same tick. Mercs pick first: sellswords make first contact.
+  const cover = new Map();   // raider -> soldiers already on them
+  const order = [...state.soldiers].sort((a, b) => (b.merc ? 1 : 0) - (a.merc ? 1 : 0));
+
+  for (const s of order) {
     s.px = s.x; s.py = s.y;
     const onRoad = roads.has(idx(Math.round(s.x), Math.round(s.y)));
     const speed = SOLDIER.speed * (onRoad ? ROAD_SPEED_MULT : 1);
@@ -556,13 +579,17 @@ function updateSoldiers(state, rand) {
     const raiders = engageable;
     if (raiders.length) {
       // when the keep is besieged, every soldier rushes its attackers — target
-      // the raider nearest the KEEP, not the one nearest to me
+      // the raider nearest the KEEP, not the one nearest to me. Allies already
+      // covering a raider make him a worse pick (the line spreads out).
       const anchor = (state.raid.keepBesieged && keep) ? keep : s;
       let nearest = null, nd = Infinity;
       for (const rd of raiders) {
-        const d = Math.hypot(rd.x - anchor.x, rd.y - anchor.y);
+        if (rd.hp <= 0) continue;
+        const d = Math.hypot(rd.x - anchor.x, rd.y - anchor.y)
+          + (cover.get(rd) || 0) * COMBAT.coverPenalty;
         if (d < nd) { nd = d; nearest = rd; }
       }
+      if (nearest) cover.set(nearest, (cover.get(nearest) || 0) + 1);
       // distance for the ATTACK check is always soldier→raider
       nd = nearest ? Math.hypot(nearest.x - s.x, nearest.y - s.y) : Infinity;
       if (nd < 1.1) {

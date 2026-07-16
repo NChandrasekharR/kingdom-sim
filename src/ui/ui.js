@@ -205,6 +205,19 @@ export function buildUI(root, ctx) {
   };
   panels.Kingdom.appendChild(releaseMercBtn);
 
+  const stanceBtn = el('button', 'action');
+  const stanceLabel = () => state.stance === 'sally'
+    ? '⚔ Stance: Sally forth (pursue raiders anywhere)'
+    : '🛡 Stance: Hold the line (fight on home ground)';
+  stanceBtn.textContent = stanceLabel();
+  stanceBtn.title = 'Hold the line keeps the army on claimed land, where home-ground and tower cover protect it. Sally forth pursues any raider on the map — loot recovered, blood risked.';
+  stanceBtn.onclick = () => {
+    state.stance = state.stance === 'sally' ? 'hold' : 'sally';
+    stanceBtn.textContent = stanceLabel();
+    showToast(state.stance === 'sally' ? 'The army will pursue raiders into the wilds.' : 'The army will hold the line at home.');
+  };
+  panels.Kingdom.appendChild(stanceBtn);
+
   const rallyBtn = el('button', 'action', '⟲ Rally to the keep');
   rallyBtn.title = 'Sound the horn: every soldier falls back and holds at the keep for a while.';
   rallyBtn.onclick = () => {
