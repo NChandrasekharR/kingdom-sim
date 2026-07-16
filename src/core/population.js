@@ -1,4 +1,4 @@
-import { BUILDINGS, EAT_PER_POP, SOLDIER_EAT_MULT, GROWTH_FLOOR, STARVE_DEATH_HUNGER, GROWTH } from '../config.js';
+import { BUILDINGS, EAT_PER_POP, SOLDIER_EAT_MULT, GROWTH_FLOOR, STARVE_DEATH_HUNGER, GROWTH, FOOD } from '../config.js';
 import { idx } from './state.js';
 import { logEvent } from './events.js';
 import { makeVillager, killVillager, skillsTick } from './villagers.js';
@@ -33,6 +33,21 @@ export function populationTick(state) {
   state.res.food -= fromFood;
   state.delta.food -= fromFood;
   need -= fromFood;
+
+  // spoilage: raw food above the buffer rots (bread keeps) — convert surplus or lose it
+  const freeFood = totalNeed * FOOD.spoilFreeTicks;
+  const excess = state.res.food - freeFood;
+  const spoiling = excess > 0;
+  if (spoiling) {
+    const spoiled = excess * FOOD.spoilRate;
+    state.res.food -= spoiled;
+    state.delta.food -= spoiled;
+    state.stats.foodSpoiled = (state.stats.foodSpoiled || 0) + spoiled;
+  }
+  if (spoiling && !state.spoiling) {
+    logEvent(state, 'Grain rots in the overflowing stores. Bake it into bread — bread keeps.', 'bad');
+  }
+  state.spoiling = spoiling;
 
   const wasStarving = state.starving;
   state.starving = need > 0.001;

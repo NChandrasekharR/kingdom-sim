@@ -69,7 +69,7 @@ export const BUILDINGS = {
     conv: { in: { ore: 0.3, wood: 0.15 }, out: { iron: 0.15 } },
   },
   bakery: {
-    name: 'Bakery', desc: 'Bakes bread — each loaf feeds two.',
+    name: 'Bakery', desc: 'Bakes bread — each loaf feeds two, and bread never spoils.',
     cost: { wood: 20, stone: 10 }, hp: 50, workers: 2,
     conv: { in: { food: 0.4 }, out: { bread: 0.4 } }, // reworked 0.25→0.4: a real "feed more per worker" upgrade
   },
@@ -114,6 +114,15 @@ export const ROAD_MERCHANT_FACTOR = 0.004; // per road tile, capped at 40% faste
 // ── Population & morale ────────────────────────────────────────────
 export const EAT_PER_POP = 0.04;        // food-equivalents per tick per person
 export const SOLDIER_EAT_MULT = 3;      // a soldier eats 3× a citizen (the army's real cost)
+
+// Food spoilage (sim2-validated): raw food above a per-capita buffer rots; bread
+// keeps. This is what makes the bakery matter — a fat surplus is exactly when you
+// should be baking it into bread for winter and sieges. A struggling hamlet whose
+// stores fit inside the buffer is never nagged.
+export const FOOD = {
+  spoilFreeTicks: 60,          // food covering this many ticks of eating never spoils
+  spoilRate: 0.01,             // fraction of the EXCESS raw food lost per tick
+};
 export const GROWTH_FLOOR = 1.5;        // need stock > pop*this to grow
 export const STARVE_DEATH_HUNGER = 60;  // ticks-worth of accumulated hunger before death
 

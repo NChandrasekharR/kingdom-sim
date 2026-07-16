@@ -27,7 +27,7 @@ export function createState(seed = (Math.random() * 1e9) | 0) {
     villagers: [],       // discrete agents — see villagers.js
     guilds: [],          // crafts ever mastered here (knowledge floor)
     morale: 55, raidShock: 0,
-    starving: false, growthAcc: 0, starveAcc: 0, expandAcc: 0,
+    starving: false, spoiling: false, growthAcc: 0, starveAcc: 0, expandAcc: 0,
     ateBread: false,
     soldiers: [],
     crowns: { dominion: false, plenty: false, people: false },
@@ -42,7 +42,7 @@ export function createState(seed = (Math.random() * 1e9) | 0) {
       buildingsSacked: 0, wallsBreached: 0, keepFalls: 0,
       villagersBorn: 0, villagersStarved: 0,
       soldiersRecruited: 0, soldiersFallen: 0, veteransFallen: 0,
-      mastersLost: 0,
+      mastersLost: 0, foodSpoiled: 0,
     },
     // render dirty flags
     territoryDirty: true, buildingsDirty: true,
@@ -224,7 +224,7 @@ export function loadGame() {
       buildingsSacked: 0, wallsBreached: 0, keepFalls: 0,
       villagersBorn: 0, villagersStarved: 0,
       soldiersRecruited: 0, soldiersFallen: 0, veteransFallen: 0,
-      mastersLost: 0,
+      mastersLost: 0, foodSpoiled: 0,
     };
     recomputeInfluence(s);
     return s;
