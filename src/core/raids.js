@@ -1,8 +1,9 @@
-import { MAP, T, TERRAIN_INFO, BUILDINGS, RAIDER, RAID, SOLDIER, ROAD_SPEED_MULT, KEEP, COMBAT, SKILL, MERCENARY, HUNT, TRIBUTE } from '../config.js';
+import { MAP, T, TERRAIN_INFO, BUILDINGS, RAIDER, RAID, SOLDIER, ROAD_SPEED_MULT, KEEP, COMBAT, SKILL, MERCENARY, HUNT, TRIBUTE, CAMP } from '../config.js';
 import { idx } from './state.js';
 import { prosperity } from './economy.js';
 import { logEvent, emit } from './events.js';
 import { killVillager, isMaster, ejectVillager, isSheltered, bestSkill } from './villagers.js';
+import { ensureCamp, warlordAvailable, warlordFell, warlordReturned, addPlunder, addTributeGold } from './camp.js';
 
 // ── A* over the tile grid ──────────────────────────────────────────
 function wallSet(state) {
@@ -102,12 +103,21 @@ export function raidTick(state, rand) {
       raid.phase = 'warning';
       raid.timer = RAID.warningTicks;
       // is the coming wave a warlord? He sends a rider ahead of his host:
-      // pay the tribute, or he marches (the Danegeld choice — see TRIBUTE)
-      raid.incomingWarlord = RAID.warlordEveryWaves > 0 && state.pop >= RAID.warlordMinPop &&
+      // pay the tribute, or he marches (the Danegeld choice — see TRIBUTE).
+      // The first time he shows himself, his camp appears in the far wilds —
+      // an address, a hoard, an opponent to build toward.
+      let wantWarlord = RAID.warlordEveryWaves > 0 && state.pop >= RAID.warlordMinPop &&
         (raid.wave + 1) % RAID.warlordEveryWaves === 0;
-      if (raid.incomingWarlord && TRIBUTE.enabled) {
-        const rid = state.nextId++;
-        const name = `Warlord ${RAIDER_FIRST[rid % RAIDER_FIRST.length]} ${RAIDER_EPITHET[(rid * 11) % RAIDER_EPITHET.length]}`;
+      if (wantWarlord) {
+        ensureCamp(state, rand);
+        if (!warlordAvailable(state)) wantWarlord = false;   // camp broken/leaderless/ashes
+      }
+      raid.incomingWarlord = wantWarlord;
+      if (wantWarlord && state.camp?.avenger) {
+        // the avenger cannot be bought — no rider, no demand, only the horn
+        logEvent(state, `${state.camp.warlord.name} marches. No rider comes. He wants no gold.`, 'raid');
+      } else if (wantWarlord && TRIBUTE.enabled) {
+        const name = state.camp.warlord.name;
         const gold = Math.max(TRIBUTE.demandMin, Math.round(
           state.res.gold * TRIBUTE.demandFrac *
           Math.pow(TRIBUTE.appetiteMult, state.tributeAppetite || 0)));
@@ -209,20 +219,31 @@ function spawnRaid(state, rand) {
   if (isWarlord) {
     state.tributeAppetite = 0;
     sizeF *= RAID.warlordSizeMult;
+    if (state.camp?.avenger) sizeF *= CAMP.avengerSizeMult;   // grief marches with him
   }
   const size = Math.min(RAID.sizeCap, Math.max(1, Math.round(sizeF)));
   raid.sackedThisRaid = 0;
-  raid.armyAtStart = state.soldiers.length;   // for the rout check
+  raid.armyAtStart = state.soldiers.filter((s) => !s.exp).length;   // for the rout check
   raid.routed = false;
 
-  // pick a land tile on the map edge
+  // a straggling warlord still walking home when the next wave forms simply
+  // arrives (his body would be wiped with the old raider list)
+  if (raid.raiders.some((rd) => rd.warlord)) warlordReturned(state);
+
+  // spawn point: a warlord's host marches FROM HIS CAMP — you can watch the
+  // road. Common brigands still slip in from a random map edge.
+  const fromCamp = isWarlord && state.camp && warlordAvailable(state);
   let sx = 0, sy = 0, tries = 0;
-  do {
-    const side = Math.floor(rand() * 4);
-    const t = Math.floor(rand() * N);
-    sx = side === 0 ? 0 : side === 1 ? N - 1 : t;
-    sy = side === 2 ? 0 : side === 3 ? N - 1 : t;
-  } while (state.terrain[sy * N + sx] === T.WATER && tries++ < 100);
+  if (fromCamp) {
+    sx = state.camp.x; sy = state.camp.y;
+  } else {
+    do {
+      const side = Math.floor(rand() * 4);
+      const t = Math.floor(rand() * N);
+      sx = side === 0 ? 0 : side === 1 ? N - 1 : t;
+      sy = side === 2 ? 0 : side === 3 ? N - 1 : t;
+    } while (state.terrain[sy * N + sx] === T.WATER && tries++ < 100);
+  }
 
   raid.raiders = [];
   for (let i = 0; i < size; i++) {
@@ -240,13 +261,29 @@ function spawnRaid(state, rand) {
       spawn: { x: sx, y: sy },
     });
   }
+  // the warlord rides at the head of his own host — a boss on the field.
+  // Kill him here and his line breaks; his camp waits leaderless for a successor.
+  if (fromCamp) {
+    const keepB = state.buildings.find((b) => b.type === 'keep');
+    const wPath = keepB ? findPath(state, sx, sy, keepB.x, keepB.y) : null;
+    if (wPath && keepB) {
+      state.camp.warlord.home = false;
+      raid.raiders.push({
+        x: sx, y: sy, px: sx, py: sy,
+        hp: CAMP.warlordHp, loot: 0, warlord: true,
+        name: state.camp.warlord.name,
+        path: wPath, pathI: 0, mode: 'march', targetId: keepB.id,
+        spawn: { x: sx, y: sy },
+      });
+    }
+  }
   if (!raid.raiders.length) { endRaid(state, rand); return; }
   raid.phase = 'active';
   state.stats.raids++;
   if (isWarlord) state.stats.warlords++;
   state.stats.raidSizes.push(raid.raiders.length);
   logEvent(state, isWarlord
-    ? `A WARLORD marches on ${state.name} with ${raid.raiders.length} raiders!`
+    ? `${fromCamp ? state.camp.warlord.name.toUpperCase() : 'A WARLORD'} marches on ${state.name} with ${raid.raiders.length} raiders!`
     : `${raid.raiders.length} raiders storm in from the wilds!`, 'raid');
 }
 
@@ -294,7 +331,8 @@ function updateRaiders(state, rand) {
       const wall = state.buildings.find(
         (b) => b.x === nx && b.y === ny && b.hp > 0 && b.type === 'wall' && !b.breached);
       if (wall && rd.mode === 'march') {
-        wall.hp -= RAIDER.dmg;
+        // the warlord brings a ram — walls fall faster before him
+        wall.hp -= RAIDER.dmg * (rd.warlord ? CAMP.warlordBatterMult : 1);
         state.buildingsDirty = true;
         if (wall.hp <= 0) {
           // walls breach, they don't vanish: left as rubble at 1 HP, repairable
@@ -363,6 +401,25 @@ function updateRaiders(state, rand) {
         continue;
       }
       if (rd.loot >= RAIDER.lootCap) startFlee(state, rd);
+    }
+  }
+  cullRaiders(state);
+}
+
+// Remove the dead and the departed — and settle the warlord's fate. A fled
+// raider's loot lands in the camp's hoard (every brigand pays the warlord
+// fealty); a fallen warlord breaks his own host on the spot.
+function cullRaiders(state) {
+  const raid = state.raid;
+  for (const rd of raid.raiders) {
+    if (rd.warlord && rd.hp <= 0) {
+      warlordFell(state);
+      for (const o of raid.raiders) {
+        if (o.hp > 0 && o.mode !== 'flee' && o.mode !== 'gone') startFlee(state, o);
+      }
+    } else if (rd.mode === 'gone') {
+      if (rd.loot > 0) addPlunder(state, rd.loot);
+      if (rd.warlord) warlordReturned(state);
     }
   }
   raid.raiders = raid.raiders.filter((rd) => rd.hp > 0 && rd.mode !== 'gone');
@@ -484,12 +541,12 @@ function resolveHunt(state, rand) {
       }
     }
   }
-  state.raid.raiders = state.raid.raiders.filter((rd) => rd.hp > 0);
+  cullRaiders(state);
 }
 
 // combat skill of a fighter: a mercenary carries its own; a subject-soldier's
 // comes from their villager record.
-function soldierSkill(state, s) {
+export function soldierSkill(state, s) {
   if (s.merc) return s.skill || 0;
   const v = state.villagers.find((vl) => vl.id === s.villagerId);
   return v?.skills.soldier || 0;
@@ -541,10 +598,12 @@ function updateSoldiers(state, rand) {
   if (rallying) {
     engageable = engageable.filter((rd) => Math.hypot(rd.x - keep.x, rd.y - keep.y) < 6);
   }
-  // force-ratio: outnumber the raiders → your soldiers take far less (Finding 8.1)
-  const forceRatio = Math.min(1, liveRaiders.length / Math.max(1, state.soldiers.length));
+  // force-ratio: outnumber the raiders → your soldiers take far less (Finding 8.1).
+  // Only the HOME army counts — soldiers marching on the camp defend nothing here.
+  const homeArmy = state.soldiers.filter((so) => !so.exp);
+  const forceRatio = Math.min(1, liveRaiders.length / Math.max(1, homeArmy.length));
   // a living veteran on the field lets rookies season under fire
-  const hasVeteran = state.soldiers.some((so) => soldierSkill(state, so) >= COMBAT.veteranSkill);
+  const hasVeteran = homeArmy.some((so) => soldierSkill(state, so) >= COMBAT.veteranSkill);
 
   // the army fights as a LINE: each soldier takes the nearest raider FEW ALLIES
   // ALREADY COVER (coverage-penalized distance), instead of everyone dogpiling
@@ -554,6 +613,7 @@ function updateSoldiers(state, rand) {
   const order = [...state.soldiers].sort((a, b) => (b.merc ? 1 : 0) - (a.merc ? 1 : 0));
 
   for (const s of order) {
+    if (s.exp) continue;   // afield with the expedition — beyond the horn's reach
     s.px = s.x; s.py = s.y;
     const onRoad = roads.has(idx(Math.round(s.x), Math.round(s.y)));
     const speed = SOLDIER.speed * (onRoad ? ROAD_SPEED_MULT : 1);
@@ -625,6 +685,8 @@ function updateSoldiers(state, rand) {
             let killChance = COMBAT.killChanceGood +
               (COMBAT.killChanceBad - COMBAT.killChanceGood) * forceRatio;
             killChance *= (1 - COMBAT.veteranKillResist * skill);
+            // a man marked by the burning is harder to finish — nothing frightens him now
+            if (vet?.marked) killChance *= (1 - CAMP.markedKillResist);
             if (s.hp <= 0 || rand() < killChance) s.hp = 0;   // dies (culled below)
           }
         }
@@ -811,9 +873,21 @@ export function dismissSoldier(state) {
   // dismiss a subject-soldier first (mercs are dismissed via their own control).
   // They keep their arms and their craft: standing down makes MILITIA, not
   // civilians — re-mustering them later costs nothing (the iron was paid once),
-  // and they eat like a citizen until called again.
-  const s = [...state.soldiers].reverse().find((so) => !so.merc) || state.soldiers[state.soldiers.length - 1];
+  // and they eat like a citizen until called again. Soldiers afield with the
+  // expedition can't be reached — and a man marked by the burning REFUSES.
+  const home = [...state.soldiers].reverse().filter((so) => !so.exp);
+  const s = home.find((so) => {
+    if (so.merc) return false;
+    const v = state.villagers.find((vl) => vl.id === so.villagerId);
+    return !v?.marked;
+  }) || home[home.length - 1];
   if (!s) return { ok: false, reason: 'No soldiers to dismiss' };
+  if (!s.merc) {
+    const mv = state.villagers.find((vl) => vl.id === s.villagerId);
+    if (mv?.marked) {
+      return { ok: false, reason: `${mv.name} will not stand down — not since the burning.` };
+    }
+  }
   const i = state.soldiers.indexOf(s);
   const vet = state.villagers.find((v) => v.id === s.villagerId);
   if (vet) { vet.job = 'idle'; vet.armed = true; }
@@ -833,6 +907,7 @@ export function payTribute(state) {
   if (state.res.gold < d.gold) return { ok: false, reason: 'Not enough gold' };
   state.res.gold -= d.gold;
   state.delta.gold -= d.gold;
+  addTributeGold(state, d.gold);   // the Danegeld lands in the camp's hoard
   state.tributeAppetite = (state.tributeAppetite || 0) + 1;
   state.stats.tributeGold = (state.stats.tributeGold || 0) + d.gold;
   state.stats.tributesPaid = (state.stats.tributesPaid || 0) + 1;

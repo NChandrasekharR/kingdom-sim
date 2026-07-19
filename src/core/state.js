@@ -35,6 +35,8 @@ export function createState(seed = (Math.random() * 1e9) | 0) {
     crowns: { dominion: false, plenty: false, people: false },
     won: false,
     raid: { phase: 'quiet', timer: 300, raiders: [], wave: 0 },
+    camp: null,          // the warlord's camp — founded when he first shows himself
+    expedition: null,    // the counter-raid, while the host is afield
     merchant: { status: 'away', timer: 160, prices: {}, visits: 0 },
     log: [],
     // lifetime run stats — for the end-of-run summary (dumpStats)
@@ -47,7 +49,7 @@ export function createState(seed = (Math.random() * 1e9) | 0) {
       mastersLost: 0, foodSpoiled: 0, tributeGold: 0, tributesPaid: 0,
     },
     // render dirty flags
-    territoryDirty: true, buildingsDirty: true,
+    territoryDirty: true, buildingsDirty: true, campDirty: true,
   };
 
   for (let i = 0; i < state.pop; i++) state.villagers.push(makeVillager(state));
@@ -182,7 +184,7 @@ export function saveGame(state) {
     // worker crews are live villager references, recomputed every tick
     buildings: state.buildings.map((b) => ({ ...b, workers: undefined })),
     influence: undefined, delta: undefined,
-    territoryDirty: undefined, buildingsDirty: undefined,
+    territoryDirty: undefined, buildingsDirty: undefined, campDirty: undefined,
   };
   try {
     localStorage.setItem(SAVE_KEY, JSON.stringify(s));
@@ -219,6 +221,10 @@ export function loadGame() {
       }
     }
     s.guilds ||= [];
+    // saves from before the warlord's camp
+    s.camp ||= null;
+    s.expedition ||= null;
+    s.campDirty = true;
     // saves from before run-stats: start tracking from now
     s.stats ||= {
       peakPop: s.pop || 6, peakTerritory: 0,

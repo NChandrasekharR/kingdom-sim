@@ -210,6 +210,35 @@ export const BUILDING_ART = {
     '.SSSSSSSSSS.',
     '............',
   ],
+  // ── the warlord's camp (not player-buildable; rendered from state.camp) ──
+  tent: [
+    '............',
+    '............',
+    '............',
+    '.....W......',
+    '....dWd.....',
+    '...ddWdd....',
+    '..dddWddd...',
+    '.ddddWkddd..',
+    '.dDddkkdDd..',
+    '.DDDDDDDDD..',
+    '............',
+    '............',
+  ],
+  hall: [
+    '....x.......',
+    '....xx......',
+    '....k.......',
+    '....dWd.....',
+    '...ddWdd....',
+    '..dddWddd...',
+    '.ddddWddddd.',
+    '.dDddWdkkdd.',
+    '.dddddkkkdd.',
+    '.dDdddkkddd.',
+    '.DDDDDDDDDD.',
+    '............',
+  ],
   barracks: [
     '............',
     '....x.......',
@@ -232,6 +261,22 @@ export const UNIT_ART = {
     '.xx.k',
     'xxxx.',
     '.xx..',
+    '.k.k.',
+  ],
+  // the warlord himself: a crowned brute in deep red — a boss on the field
+  warlord: [
+    'g.g.g',
+    '.XXX.',
+    'XxxxX',
+    'xXXXx',
+    '.X.X.',
+  ],
+  // a soul of the warlord's camp: homespun browns, no blade
+  folk: [
+    '.dd..',
+    '.cc.d',
+    'dddd.',
+    '.dd..',
     '.k.k.',
   ],
   soldier: [
@@ -278,6 +323,8 @@ export const RES_ICON_ART = {
   crown: ['........', '.g.gg.g.', '.g.gg.g.', '.gggggg.', '.gggggg.', '.gTggTg.', '.gggggg.', '........'],
   // a hooded brigand for the unit inspector (raiders)
   raider: ['..XX....', '..XX....', '.xRRx...', '.xRRx...', '..RR....', '..XX....', '.X..X...', '........'],
+  warlord: ['.g.g.g..', '..XX....', '.XxxX...', '.XxxX...', '..xx....', '..XX....', '.X..X...', '........'],
+  folk: ['..dd....', '..cc....', '.dddd...', '.dddd...', '..dd....', '..dd....', '.d..d...', '........'],
   soldier: ['..ii....', '..cc....', '.uSSu...', '.uSSu...', '..SS....', '..ii....', '.i..i...', '........'],
   merc: ['..PP....', '..cc....', '.pPPp...', '.pPPp...', '..PP....', '..PP....', '.P..P...', '........'],
   villager: ['..tt....', '..cc....', '.wwww...', '.wwww...', '..ww....', '..ww....', '.w..w...', '........'],

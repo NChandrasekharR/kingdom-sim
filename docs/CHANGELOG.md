@@ -9,6 +9,61 @@ deploy is manual and still runs the pre-Session-3 build — redeploy pending.
 
 ---
 
+## Session 5 — The warlord's camp & the counter-raid (2026-07-16→19)
+
+One feature, whole session: the warlord gets an ADDRESS. Design session first
+(see `design/ENDGAME.md` — reframe: the late-game problem is no PULL, not no
+sink; Chandra rejected symmetric rival kingdoms as "a worse Age of Empires" and
+asked for counter-raids: "warlord sends raids, I send raids back"), then the
+build. Verified headless (all three resolution paths scripted end-to-end) +
+in-browser (march, battle, choice modal, on-screen massacre hunt, marked-man
+refusal); baseline seed-42 numbers unchanged; production build clean.
+
+**The camp** (`src/core/camp.js`, `CAMP` config block)
+- Founded in the far wilds corner the first time a warlord shows himself:
+  hall + tents, ~9 named camp folk (shepherds, weavers — not fighters), a
+  garrison that grows with the hoard, and the warlord himself at his hall.
+- His **ledger**: every fled raider's loot and every tribute payment lands in
+  the camp hoard — the counter-raid's prize is *what he took from you*.
+- Warlord dread waves now **march from the camp** (visible telegraphing, watch
+  the road); he rides at their head as a boss body (170 HP, 3× wall batter,
+  crowned sprite). Kill him at your walls → his host breaks and scatters; the
+  camp waits leaderless until a successor claims it (~5 yr).
+- Common brigand raids still slip in from random map edges.
+
+**The march**
+- "March on the camp" (Kingdom tab) sends EVERY soldier — the home-guard
+  decision is how many you muster first (militia is the dial). Provisions cost
+  food + gold. The host walks there on the real map (pale dots on the minimap);
+  home genuinely thinner while they're gone.
+- The fight is on HIS ground: no home-ground, no tower cover, garrison gang
+  pressure, warlord counts double in the melee — expeditions are bloody by
+  construction. Lose half the host → rout, survivors limp home, he smells
+  weakness (next raid sooner).
+
+**The choice** (at the moment of victory, game paused, standing in his camp)
+- **Take back what is ours** — reclaim the hoard, burn the war-tents (camp
+  broken ~4 yr), spare the folk. Mercy pays: spared folk drift to your gates
+  as settlers over the years, sometimes with a craft.
+- **Leave nothing standing** — the camp folk scatter and your soldiers run
+  them down ON SCREEN (eject-and-hunt pointed the other way), each named in
+  the Chronicle. One survivor ALWAYS slips through the reeds. The camp is
+  ashes forever — and ~3 yr later the survivor returns as the AVENGER: sooner,
+  harder waves (×1.35), and he sends no rider — tribute is dead against him.
+  The men who did it come home MARKED: kill-resistant, and they refuse to
+  ever stand down ("not since the burning").
+- Emergent (observed in test, no dedicated code): the warlord can be mid-raid
+  while you burn his home — two armies crossing on one map. He returns to
+  ashes, and his grief halves the avenger's timer.
+
+Files: `camp.js` (new), `config.js` (`CAMP`), `raids.js` (camp-origin waves,
+warlord body, ledger hooks, marked/exp-aware muster), `sim.js`/`state.js`
+(wiring + save migration), `sprites.js`/`scene.js` (tents, crowned warlord,
+folk, hit-tests), `ui.js`/`style.css` (camp status box, march button, choice
+modal — reload-safe), stats + `kingdom.summary()` camp block.
+
+---
+
 ## Session 4 — Merge, the two ports, and the 21-idea run (2026-07-16)
 
 Seven commits on `main`, from the fast-forward merge of `phase1-defense-and-keep`

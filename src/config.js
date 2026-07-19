@@ -283,6 +283,37 @@ export const TRIBUTE = {
   decideTicks: 90,           // how long the rider waits for an answer
 };
 
+// ── The warlord's camp & the counter-raid (Session 5) ─────────────
+// The warlord gets an ADDRESS: a camp in the far wilds — a stat block with
+// tents and people, never a rival economy. His raids march FROM it (visible
+// telegraphing); tribute and carried-off loot pile up in its ledger; and you
+// can MARCH on it. Victory poses the moral choice: take back what's yours
+// (punish — quiet years, spared folk may drift to your gates), or leave
+// nothing standing (massacre — his line ends, but one survivor always
+// escapes and returns as an avenger who cannot be bought, and the men who
+// did it come home marked).
+export const CAMP = {
+  folk: 9,                     // souls who live in the camp (not fighters)
+  garrisonBase: 6,             // swords guarding the camp at its founding
+  garrisonPerPlunder: 0.015,   // wealth attracts swords: +1 per ~67 plunder
+  garrisonMax: 20,
+  warlordHp: 170,              // the warlord himself — worth ~6 raiders
+  warlordBatterMult: 3,        // he brings a ram: walls fall faster before him
+  battleRadius: 7,             // the host engages inside this ring of the camp
+  alertRadius: 9,              // garrison rushes out when the host gets this close
+  provisionFood: 6,            // food-eq per soldier to provision the march
+  provisionGold: 15,           // carts, boots, bribes for guides
+  routFrac: 0.5,               // lose half the host afield → survivors turn home
+  brokenTicks: 1900,           // punitive burning buys ~4 years of quiet
+  successorTicks: 2400,        // warlord slain in open battle → a successor rises
+  avengerTicks: 1400,          // massacre → the survivor returns SOONER (~3 yrs)
+  avengerSizeMult: 1.35,       // and his dread waves hit harder
+  markedKillResist: 0.5,       // marked men are harder to finish (nothing frightens them now)
+  settlerMax: 4,               // spared camp folk who drift to your gates, over years
+  settlerGapTicks: 320,
+  settlerSkillChance: 0.35,    // sometimes a craftsman is among them
+};
+
 // ── The Keep as the kingdom's heart ────────────────────────────────
 // The keep defends itself (see BUILDINGS.keep range/arrowDmg — no garrison).
 // If raiders sack it anyway, a "dark age" falls: a one-time catastrophe you

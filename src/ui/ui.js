@@ -5,6 +5,7 @@ import { currentSeason, currentYear, makeSim } from '../core/sim.js';
 import { territorySize } from '../core/territory.js';
 import { demolish, clearSave, saveGame, createState } from '../core/state.js';
 import { recruitSoldier, dismissSoldier, hireMercenaries, dismissMercenaries, mercCount, mercUpkeepRate, rallyToKeep, payTribute, armedReserve } from '../core/raids.js';
+import { marchOnCamp, resolveCampChoice } from '../core/camp.js';
 import { countMasters } from '../core/villagers.js';
 import { outputMult } from '../core/economy.js';
 import { sell, buy, sellPrice, buyPrice } from '../core/trade.js';
@@ -227,6 +228,28 @@ export function buildUI(root, ctx) {
   };
   panels.Kingdom.appendChild(rallyBtn);
 
+  // ── The warlord's camp (the opponent you build toward) ───────────
+  const campBox = el('div', 'camp-box hidden');
+  const campInfo = el('div', 'camp-info');
+  const campBtns = el('div', 'camp-btns');
+  const marchBtn = el('button', 'action march', '⚔ March on the camp');
+  marchBtn.title = 'Send EVERY soldier you have against the warlord’s camp. Provisions cost food and gold; the kingdom stands thinner while they’re gone. The home-guard decision is how many you muster before you march.';
+  marchBtn.onclick = () => {
+    const host = state.soldiers.filter((s) => s.hp > 0).length;
+    const name = state.camp?.name || 'the camp';
+    if (!confirm(`March on ${name} with ${host} swords? The kingdom will stand thinner while they are gone.`)) return;
+    const r = marchOnCamp(state);
+    if (!r.ok) showToast(r.reason);
+    render();
+  };
+  const viewCampBtn = el('button', 'action', '👁 View');
+  viewCampBtn.onclick = () => {
+    if (state.camp) emit('goto', { x: state.camp.x, y: state.camp.y });
+  };
+  campBtns.append(marchBtn, viewCampBtn);
+  campBox.append(campInfo, campBtns);
+  panels.Kingdom.appendChild(campBox);
+
   // ── Trade tab ────────────────────────────────────────────────────
   const merchStatus = el('div', 'merch-status');
   const tradeTable = el('div', 'trade-table');
@@ -321,9 +344,9 @@ export function buildUI(root, ctx) {
       selPanel.innerHTML = `
         <img class="bicon" src="${iconDataURL('soldier')}" alt="">
         <div class="sel-info">
-          <div class="sel-name">${v.name} <span class="good">— soldier</span></div>
-          <div class="sel-hp">HP ${Math.ceil(unit.hp)}/${SOLDIER.hp} (${hpPct}%) · skills: ${skills}</div>
-          <div class="sel-desc">A subject of ${state.name} under arms.</div>
+          <div class="sel-name">${v.name} <span class="good">— soldier</span>${v.marked ? ' <span class="bad">· marked</span>' : ''}</div>
+          <div class="sel-hp">HP ${Math.ceil(unit.hp)}/${SOLDIER.hp} (${hpPct}%) · skills: ${skills}${unit.exp ? ' · <b>afield with the host</b>' : ''}</div>
+          <div class="sel-desc">${v.marked ? 'Marked by the burning. Nothing frightens them now — and they will never lay down the sword.' : `A subject of ${state.name} under arms.`}</div>
         </div>`;
     } else if (kind === 'merc') {
       const gone = unit.hp <= 0 || !state.soldiers.includes(unit);
@@ -353,6 +376,38 @@ export function buildUI(root, ctx) {
           <div class="sel-name">${unit.name}</div>
           <div class="sel-hp">${doing} · skills: ${skills}</div>
           <div class="sel-desc">A subject of ${state.name}. Caught in the open in a raid, they may not come home.</div>
+        </div>`;
+    } else if (kind === 'warlord') {
+      const c = state.camp;
+      const inRaid = state.raid.raiders.includes(unit);
+      const atHome = c && unit === c.warlord && c.warlord.home && !c.leaderless && !c.gone;
+      if (unit.hp <= 0 || (!inRaid && !atHome)) { selUnit = null; selPanel.classList.add('hidden'); return; }
+      selPanel.innerHTML = `
+        <img class="bicon" src="${iconDataURL('warlord')}" alt="">
+        <div class="sel-info">
+          <div class="sel-name"><span class="bad">${unit.name}</span></div>
+          <div class="sel-hp">HP ${Math.ceil(unit.hp)} · ${inRaid ? 'AT THE HEAD OF HIS HOST' : `at his hall in ${c.name}`}</div>
+          <div class="sel-desc">${c?.avenger ? 'The avenger. He remembers the burning. He will take no gold.' : 'The warlord himself. Kill him and his line breaks — for a while.'}</div>
+        </div>`;
+    } else if (kind === 'garrison') {
+      const c = state.camp;
+      if (!c || unit.hp <= 0 || !c.garrison.includes(unit)) { selUnit = null; selPanel.classList.add('hidden'); return; }
+      selPanel.innerHTML = `
+        <img class="bicon" src="${iconDataURL('raider')}" alt="">
+        <div class="sel-info">
+          <div class="sel-name"><span class="bad">${unit.name}</span></div>
+          <div class="sel-hp">HP ${Math.ceil(unit.hp)} · guarding the camp</div>
+          <div class="sel-desc">A sword sworn to ${c.warlord.name}. He stands between you and the hoard.</div>
+        </div>`;
+    } else if (kind === 'folk') {
+      const c = state.camp;
+      if (!c || unit.dead || unit.escaped) { selUnit = null; selPanel.classList.add('hidden'); return; }
+      selPanel.innerHTML = `
+        <img class="bicon" src="${iconDataURL('folk')}" alt="">
+        <div class="sel-info">
+          <div class="sel-name">${unit.name}</div>
+          <div class="sel-hp">a soul of ${c.name}</div>
+          <div class="sel-desc">Not a fighter. They live in the warlord's shadow — what becomes of them is your choice, if you come.</div>
         </div>`;
     } else {
       const gone = unit.hp <= 0 || !state.raid.raiders.includes(unit);
@@ -401,6 +456,62 @@ export function buildUI(root, ctx) {
     btns.append(cont, anew);
     victory.querySelector('.victory-scroll').appendChild(btns);
     victory.classList.remove('hidden');
+  });
+
+  // ── The camp taken: the choice ───────────────────────────────────
+  // At the moment of victory, standing in his camp, the game pauses and asks
+  // who you are. Punish, or erase. This is the moral heart of the counter-raid.
+  const choiceOverlay = el('div', 'victory choice hidden');
+  mapWrap.appendChild(choiceOverlay);
+  function showChoiceModal(info) {
+    state.speed = 0;
+    refreshSpeed();
+    emit('goto', { x: info.camp.x, y: info.camp.y });
+    choiceOverlay.innerHTML = `
+      <div class="victory-scroll choice-scroll">
+        <h2>${info.camp.name} is taken</h2>
+        <p>The garrison is slain.${info.warlordSlain ? ` <b>${info.camp.warlord.name} fell at his own hall.</b>` : info.leaderless ? ' The camp stood leaderless — its chief already dead at your walls.' : info.wasHome === false ? ' The warlord was away — he will return to what you leave behind.' : ''}</p>
+        <p>His people cower among the tents — <b>${info.folk}</b> souls, none of them fighters.</p>
+        <p>The hoard: <b>${info.gold} gold</b> and <b>${info.plunder} goods</b> in plunder, much of it yours already.</p>
+        <p class="choice-ask">What is your word, sovereign?</p>
+      </div>`;
+    const btns = el('div', 'victory-btns choice-btns');
+    const punish = el('button', 'action', 'Take back what is ours');
+    punish.title = 'Reclaim the hoard, burn the war-tents, spare the folk. Years of quiet — and the spared may drift to your gates.';
+    const raze = el('button', 'action raze', 'Leave nothing standing');
+    raze.title = 'No camp. No people. No one left to avenge it — save the one who always escapes.';
+    const decide = (choice) => {
+      const r = resolveCampChoice(state, choice);
+      if (!r.ok) { showToast(r.reason); return; }
+      choiceOverlay.classList.add('hidden');
+      state.speed = 1;
+      refreshSpeed();
+    };
+    punish.onclick = () => decide('punish');
+    raze.onclick = () => decide('massacre');
+    btns.append(punish, raze);
+    choiceOverlay.querySelector('.choice-scroll').appendChild(btns);
+    choiceOverlay.classList.remove('hidden');
+  }
+  on('camp-victory', showChoiceModal);
+  // a reload mid-choice must not strand the host: rebuild the modal from state
+  if (state.expedition?.phase === 'choice' && state.camp) {
+    showChoiceModal({
+      camp: state.camp,
+      warlordSlain: state.expedition.warlordSlain,
+      wasHome: state.expedition.warlordWasHome,
+      leaderless: state.camp.leaderless,
+      folk: state.camp.folk.filter((f) => !f.dead).length,
+      gold: Math.round(state.camp.ledger.gold),
+      plunder: Math.round(state.camp.ledger.plunder),
+    });
+  }
+  on('expedition-battle', ({ camp: c }) => {
+    showToast(`⚔ The host falls upon ${c.name}!`);
+    emit('goto', { x: c.x, y: c.y });
+  });
+  on('avenger-come', (c) => {
+    showToast(`☠ ${c.warlord.name} has come. He will take no gold.`);
   });
 
   // ── Raid horn ────────────────────────────────────────────────────
@@ -457,6 +568,16 @@ export function buildUI(root, ctx) {
         if (!state.claimed[y * N + x]) miniCtx.fillRect(x, y, 1, 1);
     miniCtx.fillStyle = '#e9dfc8';
     for (const b of state.buildings) miniCtx.fillRect(b.x, b.y, 1, 1);
+    // the warlord's camp: a dark-red blot in the corner of your world
+    if (state.camp && !state.camp.gone) {
+      miniCtx.fillStyle = state.camp.broken ? '#5a4636' : '#7e1f14';
+      for (const t of state.camp.tents) miniCtx.fillRect(t.x - 1, t.y - 1, 3, 3);
+    }
+    // the host afield: pale dots tracking the march
+    miniCtx.fillStyle = '#c8ccd4';
+    for (const s of state.soldiers) {
+      if (s.exp) miniCtx.fillRect(Math.round(s.x), Math.round(s.y), 2, 2);
+    }
     miniCtx.fillStyle = '#ff3020';
     for (const r of state.raid.raiders) miniCtx.fillRect(Math.round(r.x), Math.round(r.y), 2, 2);
   }
@@ -519,6 +640,32 @@ export function buildUI(root, ctx) {
       <div class="stat"><b>${territorySize(state)}</b> tiles of territory${sacked ? ` · <span class="bad">${sacked} sacked building${sacked > 1 ? 's' : ''}</span>` : ''}</div>
       <div class="stat">Morale <b>${Math.round(state.morale)}</b>${state.starving ? ' · <span class="bad">STARVING</span>' : ''}</div>
       <div class="stat">${state.raid.phase === 'quiet' ? `Next raid threat in ~${Math.ceil(state.raid.timer * TICK_MS / 1000)}s` : state.raid.phase === 'warning' ? '<span class="bad">Raiders approach!</span>' : '<span class="bad">RAID IN PROGRESS</span>'}</div>`;
+
+    // the warlord's camp — the opponent you build toward
+    const c = state.camp;
+    campBox.classList.toggle('hidden', !c);
+    if (c) {
+      const exp = state.expedition;
+      const hoard = Math.round(c.ledger.gold + c.ledger.plunder);
+      let line;
+      if (exp) {
+        line = exp.phase === 'march' ? `<b class="bad">The host marches on ${c.name}…</b>`
+          : exp.phase === 'battle' ? `<b class="bad">BATTLE IS JOINED at ${c.name}!</b>`
+          : exp.phase === 'choice' ? `<b class="bad">${c.name} is taken. They await your word.</b>`
+          : exp.phase === 'massacre' ? `<b class="bad">No quarter at ${c.name}.</b>`
+          : 'The host is coming home.';
+      } else if (c.gone) {
+        line = `${c.name} lies in ashes. The wilds are quiet. <span class="bad">Too quiet.</span>`;
+      } else if (c.broken) {
+        line = `${c.name} lies broken — the war-tents burned. The folk there remember your mercy.`;
+      } else if (c.leaderless) {
+        line = `${c.name} is leaderless — ${'a successor will rise.'}`;
+      } else {
+        line = `<b>${c.name}</b> festers in the wilds — ${c.warlord.name}${c.avenger ? ' <span class="bad">(the avenger — he takes no gold)</span>' : ''}, ~${c.garrison.length} swords, hoard ~<b>${hoard}</b>.`;
+      }
+      campInfo.innerHTML = line;
+      marchBtn.classList.toggle('disabled', !!exp || c.gone || c.broken);
+    }
 
     // trade
     const m = state.merchant;

@@ -23,6 +23,7 @@ export class KingdomScene extends Phaser.Scene {
     this.ctx = ctx;          // { state, sim, placement, selected }
     this.acc = 0;
     this.buildingSprites = new Map();
+    this.campSprites = [];
     this.unitPool = [];
     this.arrows = [];
   }
@@ -58,6 +59,8 @@ export class KingdomScene extends Phaser.Scene {
       this.paintTerrain();
       for (const [, img] of this.buildingSprites) img.destroy();
       this.buildingSprites.clear();
+      for (const img of this.campSprites) img.destroy();
+      this.campSprites.length = 0;
       this.arrows.length = 0;
       const nkeep = this.ctx.state.buildings.find((b) => b.type === 'keep');
       if (nkeep) cam.centerOn(nkeep.x * TILE, nkeep.y * TILE);
@@ -173,6 +176,25 @@ export class KingdomScene extends Phaser.Scene {
     state.buildingsDirty = false;
   }
 
+  // the warlord's camp: tents synced like buildings, tinted dark while broken
+  syncCamp() {
+    const { state } = this.ctx;
+    for (const img of this.campSprites) img.destroy();
+    this.campSprites.length = 0;
+    const c = state.camp;
+    if (c && !c.gone) {
+      for (const t of c.tents) {
+        const img = this.add.image(
+          t.x * TILE + TILE / 2, t.y * TILE + TILE / 2 - 2,
+          t.kind === 'hall' ? 'b-hall' : 'b-tent').setDepth(600 + t.y);
+        img.setDisplaySize(t.kind === 'hall' ? 14 : 11, t.kind === 'hall' ? 14 : 11);
+        if (c.broken) img.setTint(0x5a4636);   // charred — the war-tents burned
+        this.campSprites.push(img);
+      }
+    }
+    state.campDirty = false;
+  }
+
   drawUnits(alpha) {
     const { state } = this.ctx;
     const units = [];
@@ -181,8 +203,22 @@ export class KingdomScene extends Phaser.Scene {
       if (v.job === 'soldier' || v.x == null) continue;
       units.push({ u: v, key: 'u-villager', size: 5, tint: v.fleeing ? 0xffb36b : 0xffffff });
     }
+    // the camp's people and swords (and the man himself, when he's home)
+    const camp = state.camp;
+    if (camp && !camp.gone) {
+      for (const f of camp.folk) {
+        if (f.dead || f.escaped) continue;
+        units.push({ u: f, key: 'u-folk', size: 5 });
+      }
+      for (const g of camp.garrison) if (g.hp > 0) units.push({ u: g, key: 'u-raider' });
+      if (camp.warlord.home && !camp.leaderless && camp.warlord.hp > 0) {
+        units.push({ u: camp.warlord, key: 'u-warlord', size: 8 });
+      }
+    }
     for (const s of state.soldiers) units.push({ u: s, key: s.merc ? 'u-merc' : 'u-soldier' });
-    for (const r of state.raid.raiders) units.push({ u: r, key: 'u-raider' });
+    for (const r of state.raid.raiders) {
+      units.push(r.warlord ? { u: r, key: 'u-warlord', size: 8 } : { u: r, key: 'u-raider' });
+    }
 
     while (this.unitPool.length < units.length) {
       const img = this.add.image(0, 0, 'u-raider').setDepth(910);
@@ -261,7 +297,24 @@ export class KingdomScene extends Phaser.Scene {
         }
         for (const r of st.raid.raiders) {
           const d = Math.hypot(r.x + 0.5 - wx, r.y + 0.5 - wy);
-          if (d < ud) { ud = d; unit = r; kind = 'raider'; }
+          if (d < ud) { ud = d; unit = r; kind = r.warlord ? 'warlord' : 'raider'; }
+        }
+        if (st.camp && !st.camp.gone) {
+          const c = st.camp;
+          if (c.warlord.home && !c.leaderless) {
+            const d = Math.hypot(c.warlord.x + 0.5 - wx, c.warlord.y + 0.5 - wy);
+            if (d < ud) { ud = d; unit = c.warlord; kind = 'warlord'; }
+          }
+          for (const g of c.garrison) {
+            if (g.hp <= 0) continue;
+            const d = Math.hypot(g.x + 0.5 - wx, g.y + 0.5 - wy);
+            if (d < ud) { ud = d; unit = g; kind = 'garrison'; }
+          }
+          for (const f of c.folk) {
+            if (f.dead || f.escaped) continue;
+            const d = Math.hypot(f.x + 0.5 - wx, f.y + 0.5 - wy);
+            if (d < ud) { ud = d; unit = f; kind = 'folk'; }
+          }
         }
         for (const v of st.villagers) {
           if (v.job === 'soldier' || v.x == null) continue;
@@ -314,6 +367,7 @@ export class KingdomScene extends Phaser.Scene {
 
     if (state.territoryDirty) this.redrawOverlay();
     if (state.buildingsDirty) this.syncBuildings();
+    if (state.campDirty) this.syncCamp();
 
     const alpha = Math.min(1, this.acc / TICK_MS);
     this.drawUnits(state.speed > 0 ? alpha : 1);

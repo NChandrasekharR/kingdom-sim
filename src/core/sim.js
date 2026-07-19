@@ -4,6 +4,7 @@ import { economyTick, maintenanceTick } from './economy.js';
 import { populationTick } from './population.js';
 import { tradeTick } from './trade.js';
 import { raidTick, mercenaryUpkeepTick } from './raids.js';
+import { campTick } from './camp.js';
 import { claimTick, recedeTick, territorySize } from './territory.js';
 import { winTick } from './win.js';
 import { saveGame } from './state.js';
@@ -38,6 +39,7 @@ export function makeSim(state) {
       villagersMoveTick(state);   // bodies walk (and panic) before the raid resolves
       tradeTick(state, rand);
       raidTick(state, rand);
+      campTick(state, rand);      // camp life + the expedition, after the raid resolves
       mercenaryUpkeepTick(state);
 
       if (state.tick % 2 === 0) {
@@ -88,7 +90,16 @@ export function dumpStats(state) {
       avgRaidSize: +avgRaid, biggestRaid: maxRaid,
       raidersKilled: s.raidersKilled,
       buildingsSacked: s.buildingsSacked, wallsBreached: s.wallsBreached, keepFalls: s.keepFalls,
+      expeditions: s.expeditions || 0, campsBroken: s.campsBroken || 0,
+      massacres: s.massacres || 0, campFolkSlain: s.folkSlain || 0,
     },
+    camp: state.camp ? {
+      name: state.camp.name, warlord: state.camp.warlord.name,
+      garrison: state.camp.garrison.length,
+      hoard: Math.round(state.camp.ledger.gold + state.camp.ledger.plunder),
+      state: state.camp.gone ? 'ashes' : state.camp.broken ? 'broken'
+        : state.camp.leaderless ? 'leaderless' : state.camp.avenger ? 'AVENGER' : 'festering',
+    } : null,
     army: {
       soldiersNow: state.soldiers.length,
       recruited: s.soldiersRecruited, fallen: s.soldiersFallen, veteransFallen: s.veteransFallen,

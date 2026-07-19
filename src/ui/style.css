@@ -420,3 +420,39 @@ button {
 .panel::-webkit-scrollbar { width: 8px; }
 .panel::-webkit-scrollbar-thumb { background: var(--ink-soft); border-radius: 4px; }
 .panel::-webkit-scrollbar-track { background: rgba(0,0,0,0.08); }
+
+/* ── The warlord's camp & the counter-raid ───────────────────────── */
+.camp-box {
+  margin-top: 12px;
+  padding: 8px 10px;
+  border: 1px solid var(--bad);
+  border-radius: 3px;
+  background: rgba(126, 31, 20, 0.08);
+}
+.camp-info { font-size: 13px; line-height: 1.45; }
+.camp-btns { display: flex; gap: 8px; }
+.camp-btns .action { margin-top: 8px; }
+.camp-btns .march {
+  flex: 1;
+  background: linear-gradient(180deg, var(--crimson-2), var(--crimson));
+  border-color: #5e150c;
+}
+.camp-btns .action:not(.march) { flex: 0 0 auto; width: auto; padding: 7px 10px; }
+.camp-btns .march.disabled { opacity: 0.45; }
+
+/* the choice, standing in his camp */
+.choice-scroll { max-width: 460px; }
+.choice-ask {
+  font-family: 'Pirata One', serif;
+  font-size: 19px;
+  margin-top: 12px;
+  letter-spacing: 1px;
+}
+.choice-btns { flex-direction: column; gap: 8px; }
+.choice-btns .action { width: 100%; }
+.choice-btns .raze {
+  background: linear-gradient(180deg, #7e1205, #4a0a02);
+  border-color: #2e0500;
+  color: #ffd9c8;
+}
+.choice-btns .raze:hover { filter: brightness(1.35); }
