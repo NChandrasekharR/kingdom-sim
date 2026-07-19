@@ -34,6 +34,9 @@ export function economyTick(state) {
   for (const type of WORK_PRIORITY) {
     for (const b of state.buildings) {
       if (b.type !== type || !active(b)) continue;
+      // a tower battered to rubble has no post to man — nobody stands in the
+      // wreckage; repair it past half and the watch resumes
+      if (type === 'tower' && b.sacked) continue;
       const need = BUILDINGS[type].workers;
       for (let i = 0; i < need && pool.length; i++) {
         let bestI = 0, bestSk = -1;

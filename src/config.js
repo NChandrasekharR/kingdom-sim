@@ -233,6 +233,7 @@ export const VILLAGER = {
   panicRadius: 3,              // a raider this close sends a civilian fleeing for the keep
   keepShelterRadius: 2.5,      // huddled this close to the keep, you're under its guard
   houseShelterRadius: 1.0,     // this close to an intact house, you duck inside
+  towerInsideRadius: 1.3,      // a watchman this close to his tower is INSIDE it (flag up, body hidden)
 };
 
 // ── The hunt: how civilians die in a raid (sim2-validated, Campaign 6) ──

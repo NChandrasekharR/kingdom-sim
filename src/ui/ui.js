@@ -301,9 +301,13 @@ export function buildUI(root, ctx) {
     const crew = selected.workers || [];
     const avgSkill = crew.length
       ? crew.reduce((s, v) => s + (v.skills[selected.type] || 0), 0) / crew.length : 0;
-    const crewLine = def.workers
+    let crewLine = def.workers
       ? ` · crew ${selected.assigned}/${def.workers}${avgSkill > 0.05 ? ` (skill ${Math.round(avgSkill * 100)}%)` : ''}`
       : '';
+    if (selected.type === 'tower') {
+      crewLine += selected.sacked ? ' · <span class="bad">SILENT — battered to rubble</span>'
+        : selected.assigned > 0 ? ` · ${crew[0]?.name || 'a watchman'} at the post` : ' · unmanned';
+    }
     selPanel.innerHTML = `
       <img class="bicon" src="${buildingIconURL(selected.type)}" alt="">
       <div class="sel-info">

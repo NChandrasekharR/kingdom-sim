@@ -61,8 +61,9 @@ export function villagersMoveTick(state) {
     }
     v.px = v.x; v.py = v.y;
 
-    // panic: a raider bearing down sends a civilian running for the keep
-    if (raidActive && !v.fleeing) {
+    // panic: a raider bearing down sends a civilian running for the keep —
+    // but a watchman inside his tower holds: stone between him and the blades
+    if (raidActive && !v.fleeing && !isInsideTower(state, v)) {
       for (const rd of raiders) {
         if (Math.hypot(rd.x - v.x, rd.y - v.y) < VILLAGER.panicRadius) {
           v.fleeing = true;
@@ -102,10 +103,21 @@ export function ejectVillager(v) {
   v.job = 'idle'; v.workplaceId = null; v.workType = null;
 }
 
-// Is this villager under shelter right now? (near the keep's guard, or close
-// enough to an intact house to duck inside)
+// A watchman AT HIS POST is inside the tower — behind stone, off the streets.
+// He doesn't panic and can't be hunted; he comes out only when the tower is
+// battered down (the sack ejects him into the open like anyone else).
+export function isInsideTower(state, v) {
+  if (v.job !== 'producer' || v.workType !== 'tower' || v.x == null) return false;
+  const t = state.buildings.find((b) => b.id === v.workplaceId);
+  return !!t && t.hp > 0 && !t.sacked &&
+    Math.hypot(t.x - v.x, t.y - v.y) <= VILLAGER.towerInsideRadius;
+}
+
+// Is this villager under shelter right now? (near the keep's guard, close
+// enough to an intact house to duck inside — or inside their watchtower)
 export function isSheltered(state, v) {
   if (v.x == null) return true;
+  if (isInsideTower(state, v)) return true;
   for (const b of state.buildings) {
     if (b.hp <= 0) continue;
     if (b.type === 'keep') {

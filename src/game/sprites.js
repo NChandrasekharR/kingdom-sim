@@ -300,6 +300,14 @@ export const UNIT_ART = {
     'wwww.',
     '.k.k.',
   ],
+  // the watch-flag: hoisted over a tower while a watchman is at his post
+  flag: [
+    'kxx..',
+    'kxxx.',
+    'kxx..',
+    'k....',
+    'k....',
+  ],
   // a subject going about their day: sun-browned face, homespun tunic, a hoe
   villager: [
     '.tt..',

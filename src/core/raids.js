@@ -292,7 +292,10 @@ function pickTarget(state, rand) {
     if (b.type === 'market') return 6;
     if (b.type === 'keep') return 5;
     if (b.type === 'smelter' || b.type === 'bakery') return 4;
-    if (b.type === 'wall' || b.type === 'tower') return 0.2;
+    // silence the shield: a manned tower is worth attacking — batter it down
+    // and the arrows stop (an already-sacked one is just rubble, skip it)
+    if (b.type === 'tower') return b.sacked ? 0.2 : 2.5;
+    if (b.type === 'wall') return 0.2;
     if (b.type === 'road') return 0.05;
     return 1.5;
   };
@@ -389,7 +392,10 @@ function updateRaiders(state, rand) {
             state.stats.keepFalls++;
             keepDarkAge(state, rand);
           } else {
-            logEvent(state, `${BUILDINGS[target.type].name} has been sacked!`, 'raid');
+            const watchman = target.type === 'tower' ? target.workers?.[0] : null;
+            logEvent(state, watchman
+              ? `The watchtower is battered down! ${watchman.name} scrambles from the rubble — its arrows fall silent.`
+              : `${BUILDINGS[target.type].name} has been sacked!`, 'raid');
             state.raidShock = Math.min(40, state.raidShock + 8);
             // the unified death rule: nobody dies at their post. The sacked
             // building EJECTS its crew — they run for the keep, and the only
@@ -454,6 +460,9 @@ function updateTowers(state) {
     const def = BUILDINGS[b.type];
     if (!def.range || !def.arrowDmg) continue;
     if (def.workers > 0 && !(b.assigned > 0)) continue;   // no watchman, no arrows
+    // a tower battered to rubble is SILENT until rebuilt past half (the keep's
+    // guard still fights from its stones — the keep-as-heart rule stands)
+    if (b.type === 'tower' && b.sacked) continue;
     // a practiced eye shoots truer: the watchman's skill sharpens every arrow
     const watchSkill = b.workers?.length ? (b.workers[0].skills[b.type] || 0) : 0;
     let nearest = null, nd = def.range;

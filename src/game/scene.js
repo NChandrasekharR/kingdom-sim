@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { MAP, T, TICK_MS, BUILDINGS } from '../config.js';
+import { MAP, T, TICK_MS, BUILDINGS, VILLAGER } from '../config.js';
 import { canPlace, place, idx } from '../core/state.js';
 import { makeTextures } from './sprites.js';
 import { on, emit } from '../core/events.js';
@@ -166,8 +166,10 @@ export class KingdomScene extends Phaser.Scene {
         this.buildingSprites.set(b.id, img);
       }
       img.setPosition(b.x * TILE + TILE / 2, b.y * TILE + TILE / 2 - (b.type === 'road' ? 0 : 2));
-      // breached walls read as dark rubble; other damage tints red under half HP
-      img.setTint(b.breached ? 0x6b5a4a : b.hp < b.maxHp * 0.5 ? 0xff8877 : 0xffffff);
+      // breached walls and silenced towers read as dark rubble; other damage
+      // tints red under half HP
+      img.setTint(b.breached || (b.type === 'tower' && b.sacked) ? 0x6b5a4a
+        : b.hp < b.maxHp * 0.5 ? 0xff8877 : 0xffffff);
       img.setAlpha(state.claimed[idx(b.x, b.y)] ? 1 : 0.55);
     }
     for (const [id, img] of this.buildingSprites) {
@@ -198,9 +200,22 @@ export class KingdomScene extends Phaser.Scene {
   drawUnits(alpha) {
     const { state } = this.ctx;
     const units = [];
+    // manned watchtowers fly the watch-flag — and the watchman is INSIDE
+    // (his body vanishes into the tower; he reappears only when it falls)
+    const towers = state.buildings.filter((b) => b.type === 'tower');
+    for (const b of towers) {
+      if (b.hp > 0 && !b.sacked && b.assigned > 0) {
+        units.push({ u: { x: b.x + 0.35, y: b.y - 1.2, px: b.x + 0.35, py: b.y - 1.2 }, key: 'u-flag', size: 6 });
+      }
+    }
+    const insideTower = (v) => {
+      if (v.workType !== 'tower') return false;
+      const t = towers.find((b) => b.id === v.workplaceId);
+      return !!t && t.hp > 0 && !t.sacked && Math.hypot(t.x - v.x, t.y - v.y) <= VILLAGER.towerInsideRadius;
+    };
     // villagers first (drawn under the fighters); fleeing folk flash alarm-tinted
     for (const v of state.villagers) {
-      if (v.job === 'soldier' || v.x == null) continue;
+      if (v.job === 'soldier' || v.x == null || insideTower(v)) continue;
       units.push({ u: v, key: 'u-villager', size: 5, tint: v.fleeing ? 0xffb36b : 0xffffff });
     }
     // the camp's people and swords (and the man himself, when he's home)
@@ -318,6 +333,11 @@ export class KingdomScene extends Phaser.Scene {
         }
         for (const v of st.villagers) {
           if (v.job === 'soldier' || v.x == null) continue;
+          // a watchman inside his tower is invisible — clicks hit the tower
+          if (v.workType === 'tower') {
+            const t = st.buildings.find((b) => b.id === v.workplaceId);
+            if (t && t.hp > 0 && !t.sacked && Math.hypot(t.x - v.x, t.y - v.y) <= VILLAGER.towerInsideRadius) continue;
+          }
           const d = Math.hypot(v.x + 0.5 - wx, v.y + 0.5 - wy);
           if (d < ud) { ud = d; unit = v; kind = 'villager'; }
         }
