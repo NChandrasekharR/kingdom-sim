@@ -88,7 +88,10 @@ export function ensureCamp(state, rand, opts = {}) {
 
   const name = opts.campName ||
     CAMP_NAMES[Math.floor(rand() * CAMP_NAMES.length)];
-  const warlordName = opts.warlordName || mintWarlordName(state);
+  // an UNCLAIMED camp is a mere brigand nest — no warlord yet; one will claim
+  // it when the kingdom grows worth the march (claimCampByWarlord)
+  const unclaimed = !!opts.unclaimed;
+  const warlordName = unclaimed ? null : (opts.warlordName || mintWarlordName(state));
 
   // tents ring the hall
   const tents = [{ x: anchor.x, y: anchor.y, kind: 'hall' }];
@@ -101,13 +104,14 @@ export function ensureCamp(state, rand, opts = {}) {
   }
 
   const camp = {
-    x: anchor.x, y: anchor.y, name,
+    x: anchor.x, y: anchor.y, name, unclaimed,
     warlord: {
       name: warlordName, hp: CAMP.warlordHp, maxHp: CAMP.warlordHp,
-      home: true, x: anchor.x, y: anchor.y - 0.6, px: anchor.x, py: anchor.y - 0.6,
+      home: !unclaimed, x: anchor.x, y: anchor.y - 0.6, px: anchor.x, py: anchor.y - 0.6,
     },
     avenger: !!opts.avenger,      // an avenger sends no rider and takes no gold
     folk: [], garrison: [], tents,
+    massing: [],                  // bodies gathering before a wave (render-only)
     ledger: { gold: 0, plunder: 0 },
     broken: false, brokenUntil: 0,
     leaderless: false, successorAt: 0,
@@ -123,14 +127,34 @@ export function ensureCamp(state, rand, opts = {}) {
       px: 0, py: 0, dead: false, survivor: false, escaped: false,
     });
   }
-  refillGarrison(state, camp, rand);
+  if (unclaimed) {
+    for (let i = 0; i < CAMP.nestGarrison; i++) addSword(state, camp, rand);
+  } else {
+    refillGarrison(state, camp, rand);
+  }
   state.camp = camp;
   state.campDirty = true;
   logEvent(state, opts.avenger
     ? `${warlordName} raises his banner at ${name}. He sends no riders. He wants no gold.`
-    : `Scouts bring word: a warlord has made camp in the wilds — ${name}, under ${warlordName}.`, 'raid');
+    : unclaimed
+      ? `The raiders have set up camp in the wilds — ${name}. For now, it is only a nest of brigands.`
+      : `Scouts bring word: a warlord has made camp in the wilds — ${name}, under ${warlordName}.`, 'raid');
   emit('camp-founded', camp);
   return camp;
+}
+
+// The kingdom has grown worth the march: a warlord rides in and claims the
+// nest. From here the rider, the Danegeld, and the dread waves are his.
+export function claimCampByWarlord(state) {
+  const c = state.camp;
+  if (!c || !c.unclaimed || c.gone) return;
+  c.unclaimed = false;
+  c.warlord = {
+    name: mintWarlordName(state), hp: CAMP.warlordHp, maxHp: CAMP.warlordHp,
+    home: true, x: c.x, y: c.y - 0.6, px: c.x, py: c.y - 0.6,
+  };
+  logEvent(state, `A warlord has claimed ${c.name}: ${c.warlord.name}. His banner rises over the tents.`, 'raid');
+  emit('warlord-claimed', c);
 }
 
 function garrisonTarget(camp) {
@@ -160,6 +184,7 @@ export function warlordAvailable(state) {
   const c = state.camp;
   if (!c) return true;               // not founded yet — founding happens now
   if (c.gone) return false;          // ashes; the avenger is not yet come
+  if (c.unclaimed) return false;     // a nest of brigands — no warlord to march
   return !c.broken && !c.leaderless && c.warlord.home;
 }
 
@@ -270,6 +295,12 @@ function campLife(state, c, rand) {
     if (d > 3.2) { f.x += (c.x - f.x) * 0.05; f.y += (c.y - f.y) * 0.05; }
   }
   for (const g of c.garrison) { g.px = g.x; g.py = g.y; }
+  // massing raiders mill restlessly by the tents — the storm you can see coming
+  for (const m of c.massing || []) {
+    m.px = m.x; m.py = m.y;
+    m.x += (rand() - 0.5) * 0.12;
+    m.y += (rand() - 0.5) * 0.12;
+  }
   const w = c.warlord;
   if (w.home && !c.leaderless) {
     w.px = w.x; w.py = w.y;
@@ -414,7 +445,7 @@ function battleTick(state, rand) {
     logEvent(state, `${c.name} is TAKEN. The garrison is slain. His people cower among the tents.`, 'good');
     emit('camp-victory', {
       camp: c, warlordSlain: exp.warlordSlain, wasHome: exp.warlordWasHome,
-      leaderless: c.leaderless,
+      leaderless: c.leaderless, unclaimed: c.unclaimed,
       folk: c.folk.filter((f) => !f.dead).length,
       gold: Math.round(c.ledger.gold), plunder: Math.round(c.ledger.plunder),
     });

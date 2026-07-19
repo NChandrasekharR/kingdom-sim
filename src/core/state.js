@@ -224,6 +224,7 @@ export function loadGame() {
     // saves from before the warlord's camp
     s.camp ||= null;
     s.expedition ||= null;
+    if (s.camp) { s.camp.massing ||= []; s.camp.unclaimed ||= false; }
     s.campDirty = true;
     // saves from before run-stats: start tracking from now
     s.stats ||= {

@@ -3,7 +3,7 @@ import { idx } from './state.js';
 import { prosperity } from './economy.js';
 import { logEvent, emit } from './events.js';
 import { killVillager, isMaster, ejectVillager, isSheltered, bestSkill } from './villagers.js';
-import { ensureCamp, warlordAvailable, warlordFell, warlordReturned, addPlunder, addTributeGold } from './camp.js';
+import { ensureCamp, claimCampByWarlord, warlordAvailable, warlordFell, warlordReturned, addPlunder, addTributeGold } from './camp.js';
 
 // ── A* over the tile grid ──────────────────────────────────────────
 function wallSet(state) {
@@ -99,17 +99,47 @@ export function raidTick(state, rand) {
 
   if (raid.phase === 'quiet') {
     raid.timer--;
+    // the staged march: once the camp stands, you can WATCH a wave build —
+    // "raiders are massing" (bodies gather at the tents) → "they may march
+    // soon" → the horn. Opportunist bands from the map edges give no notice.
+    const c = state.camp;
+    if (c && !c.gone && !c.broken) {
+      if (raid.stage == null && raid.timer <= CAMP.massingAtTicks) {
+        raid.stage = 1;
+        const willBeWarlord = RAID.warlordEveryWaves > 0 && state.pop >= RAID.warlordMinPop &&
+          (raid.wave + 1) % RAID.warlordEveryWaves === 0 && !c.unclaimed;
+        raid.nextFromCamp = willBeWarlord || rand() < CAMP.raidFromCampChance;
+        if (raid.nextFromCamp) {
+          let predicted = RAID.sizeBase + prosperity(state) / RAID.prosperityDivisor
+            + state.soldiers.length * RAID.militaryPressure;
+          if (willBeWarlord) predicted *= RAID.warlordSizeMult;
+          predicted = Math.min(RAID.sizeCap, Math.max(1, Math.round(predicted)));
+          c.massing = Array.from({ length: Math.min(predicted, 18) }, (_, i) => {
+            const mx = c.x + (((i * 7) % 9) - 4) * 0.55;
+            const my = c.y + 1.6 + ((i * 5) % 3) * 0.6;
+            return { x: mx, y: my, px: mx, py: my };
+          });
+          logEvent(state, `Raiders are massing at ${c.name}.`, 'raid');
+        }
+      } else if (raid.stage === 1 && raid.nextFromCamp && raid.timer <= CAMP.stirAtTicks) {
+        raid.stage = 2;
+        logEvent(state, `The war-camp stirs — ${c.name} may march soon.`, 'raid');
+      }
+    }
     if (raid.timer <= 0) {
       raid.phase = 'warning';
       raid.timer = RAID.warningTicks;
+      // the FIRST raid founds the nest: raiders make camp in the far wilds,
+      // and from then on most waves march from it (an opponent to build toward)
+      if (!state.camp) ensureCamp(state, rand, { unclaimed: true });
       // is the coming wave a warlord? He sends a rider ahead of his host:
       // pay the tribute, or he marches (the Danegeld choice — see TRIBUTE).
-      // The first time he shows himself, his camp appears in the far wilds —
-      // an address, a hoard, an opponent to build toward.
+      // The first time the kingdom is worth the march, a warlord CLAIMS the nest.
       let wantWarlord = RAID.warlordEveryWaves > 0 && state.pop >= RAID.warlordMinPop &&
         (raid.wave + 1) % RAID.warlordEveryWaves === 0;
       if (wantWarlord) {
         ensureCamp(state, rand);
+        if (state.camp?.unclaimed) claimCampByWarlord(state);
         if (!warlordAvailable(state)) wantWarlord = false;   // camp broken/leaderless/ashes
       }
       raid.incomingWarlord = wantWarlord;
@@ -230,9 +260,12 @@ function spawnRaid(state, rand) {
   // arrives (his body would be wiped with the old raider list)
   if (raid.raiders.some((rd) => rd.warlord)) warlordReturned(state);
 
-  // spawn point: a warlord's host marches FROM HIS CAMP — you can watch the
-  // road. Common brigands still slip in from a random map edge.
-  const fromCamp = isWarlord && state.camp && warlordAvailable(state);
+  // spawn point: waves the camp was massing (and every warlord host) march
+  // FROM THE CAMP — you can watch the road. The rest slip in from a random
+  // map edge, so no single flank is ever perfectly safe.
+  const campLive = state.camp && !state.camp.gone && !state.camp.broken;
+  const fromCamp = campLive && (isWarlord ? warlordAvailable(state) : raid.nextFromCamp === true);
+  if (state.camp) state.camp.massing = [];   // the gathering becomes the wave
   let sx = 0, sy = 0, tries = 0;
   if (fromCamp) {
     sx = state.camp.x; sy = state.camp.y;
@@ -284,7 +317,9 @@ function spawnRaid(state, rand) {
   state.stats.raidSizes.push(raid.raiders.length);
   logEvent(state, isWarlord
     ? `${fromCamp ? state.camp.warlord.name.toUpperCase() : 'A WARLORD'} marches on ${state.name} with ${raid.raiders.length} raiders!`
-    : `${raid.raiders.length} raiders storm in from the wilds!`, 'raid');
+    : fromCamp
+      ? `${raid.raiders.length} raiders march out from ${state.camp.name}!`
+      : `${raid.raiders.length} raiders storm in from the wilds!`, 'raid');
 }
 
 function pickTarget(state, rand) {
@@ -795,6 +830,9 @@ function endRaid(state, rand, fled = false) {
   const raid = state.raid;
   raid.phase = 'quiet';
   raid.keepBesieged = false;
+  raid.stage = null;               // the staged countdown starts anew
+  raid.nextFromCamp = undefined;
+  if (state.camp) state.camp.massing = [];
   // the danger passed: the fled come out of hiding and go back to work
   for (const v of state.villagers) v.fleeing = false;
   raid.lastSacked = raid.sackedThisRaid || 0;
@@ -924,6 +962,9 @@ export function payTribute(state) {
   raid.incomingWarlord = false;
   raid.phase = 'quiet';
   raid.timer = RAID.minGapTicks;   // bought peace — but not a long one
+  raid.stage = null;               // the bought-off horde disperses
+  raid.nextFromCamp = undefined;
+  if (state.camp) state.camp.massing = [];
   logEvent(state, `You pay ${d.gold} gold. ${d.name} turns away — for now. Word spreads of easy coin.`, 'info');
   emit('tribute-paid');
   return { ok: true };

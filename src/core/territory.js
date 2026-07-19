@@ -1,4 +1,4 @@
-import { MAP, T, TERRAIN_INFO } from '../config.js';
+import { MAP, T, TERRAIN_INFO, CAMP } from '../config.js';
 import { idx, inBounds } from './state.js';
 
 const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
@@ -13,6 +13,11 @@ export function claimTick(state, rand) {
   if (toClaim <= 0) return;
   state.expandAcc -= toClaim;
 
+  // the warlord's shadow: while his camp stands, no settler dares claim the
+  // ground around it — you cannot creep your border (or your towers) up to
+  // his tents. The shadow lifts only when the camp is ashes.
+  const camp = state.camp && !state.camp.gone ? state.camp : null;
+
   // gather frontier: unclaimed land adjacent to claimed, with influence
   const frontier = [];
   const weights = [];
@@ -21,6 +26,7 @@ export function claimTick(state, rand) {
     for (let x = 0; x < N; x++) {
       const i = y * N + x;
       if (state.claimed[i]) continue;
+      if (camp && Math.hypot(x - camp.x, y - camp.y) <= CAMP.shadowRadius) continue;
       const ease = TERRAIN_INFO[state.terrain[i]].claim;
       if (ease <= 0) continue;
       const inf = state.influence[i];

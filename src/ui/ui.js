@@ -481,7 +481,7 @@ export function buildUI(root, ctx) {
     choiceOverlay.innerHTML = `
       <div class="victory-scroll choice-scroll">
         <h2>${info.camp.name} is taken</h2>
-        <p>The garrison is slain.${info.warlordSlain ? ` <b>${info.camp.warlord.name} fell at his own hall.</b>` : info.leaderless ? ' The camp stood leaderless — its chief already dead at your walls.' : info.wasHome === false ? ' The warlord was away — he will return to what you leave behind.' : ''}</p>
+        <p>The garrison is slain.${info.warlordSlain ? ` <b>${info.camp.warlord.name} fell at his own hall.</b>` : info.unclaimed ? ' No warlord had yet claimed this nest — now none ever will.' : info.leaderless ? ' The camp stood leaderless — its chief already dead at your walls.' : info.wasHome === false ? ' The warlord was away — he will return to what you leave behind.' : ''}</p>
         <p>His people cower among the tents — <b>${info.folk}</b> souls, none of them fighters.</p>
         <p>The hoard: <b>${info.gold} gold</b> and <b>${info.plunder} goods</b> in plunder, much of it yours already.</p>
         <p class="choice-ask">What is your word, sovereign?</p>
@@ -650,7 +650,14 @@ export function buildUI(root, ctx) {
       <div class="stat"><b>${masters}</b> master craftsfolk${masters > 0 ? ' (their skill dies with them)' : ''}</div>
       <div class="stat"><b>${territorySize(state)}</b> tiles of territory${sacked ? ` · <span class="bad">${sacked} sacked building${sacked > 1 ? 's' : ''}</span>` : ''}</div>
       <div class="stat">Morale <b>${Math.round(state.morale)}</b>${state.starving ? ' · <span class="bad">STARVING</span>' : ''}</div>
-      <div class="stat">${state.raid.phase === 'quiet' ? `Next raid threat in ~${Math.ceil(state.raid.timer * TICK_MS / 1000)}s` : state.raid.phase === 'warning' ? '<span class="bad">Raiders approach!</span>' : '<span class="bad">RAID IN PROGRESS</span>'}</div>`;
+      <div class="stat">${(() => {
+        const r = state.raid;
+        if (r.phase === 'warning') return '<span class="bad">Raiders approach!</span>';
+        if (r.phase === 'active') return '<span class="bad">RAID IN PROGRESS</span>';
+        if (r.stage === 2 && r.nextFromCamp && state.camp) return `<span class="bad">The war-camp stirs — ${state.camp.name} may march soon</span>`;
+        if (r.stage === 1 && r.nextFromCamp && state.camp) return `<span class="bad">Raiders are massing at ${state.camp.name}</span>`;
+        return `Next raid threat in ~${Math.ceil(r.timer * TICK_MS / 1000)}s`;
+      })()}</div>`;
 
     // the warlord's camp — the opponent you build toward
     const c = state.camp;
@@ -671,6 +678,8 @@ export function buildUI(root, ctx) {
         line = `${c.name} lies broken — the war-tents burned. The folk there remember your mercy.`;
       } else if (c.leaderless) {
         line = `${c.name} is leaderless — ${'a successor will rise.'}`;
+      } else if (c.unclaimed) {
+        line = `<b>${c.name}</b> — a nest of brigands in the wilds, no warlord yet. ~${c.garrison.length} swords, hoard ~<b>${hoard}</b>. Break it before one claims it.`;
       } else {
         line = `<b>${c.name}</b> festers in the wilds — ${c.warlord.name}${c.avenger ? ' <span class="bad">(the avenger — he takes no gold)</span>' : ''}, ~${c.garrison.length} swords, hoard ~<b>${hoard}</b>.`;
       }

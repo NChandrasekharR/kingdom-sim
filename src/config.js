@@ -313,6 +313,14 @@ export const CAMP = {
   settlerMax: 4,               // spared camp folk who drift to your gates, over years
   settlerGapTicks: 320,
   settlerSkillChance: 0.35,    // sometimes a craftsman is among them
+  // the camp as the SOURCE of raids (Session 5b): the nest is founded at the
+  // first raid, a warlord claims it later, and most raids march from it —
+  // opportunist bands still slip in from the map edges to keep you honest
+  nestGarrison: 3,             // swords at the freshly-founded brigand nest
+  raidFromCampChance: 0.7,     // share of common raids that march from the camp
+  massingAtTicks: 150,         // timer threshold: "raiders are massing" (bodies gather)
+  stirAtTicks: 60,             // timer threshold: "they may march soon"
+  shadowRadius: 9,             // the warlord's shadow: no claim takes root this close
 };
 
 // ── The Keep as the kingdom's heart ────────────────────────────────
