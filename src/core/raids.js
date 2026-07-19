@@ -929,6 +929,19 @@ export function payTribute(state) {
   return { ok: true };
 }
 
+// Send the rider back empty-handed: the demand dies and the warlord marches
+// NOW — no waiting out the rider's window. Defiance is a choice with a cost.
+export function refuseTribute(state) {
+  const raid = state.raid;
+  const d = raid.demand;
+  if (!d || raid.phase !== 'warning') return { ok: false, reason: 'No demand stands' };
+  raid.demand = null;
+  raid.timer = Math.min(raid.timer, 10);   // he was already saddled
+  logEvent(state, `You send the rider back with empty hands. ${d.name} marches.`, 'raid');
+  emit('tribute-refused');
+  return { ok: true };
+}
+
 export function mercCount(state) { return state.soldiers.filter((s) => s.merc).length; }
 
 // The market's price for the swords you hold: every extra company under

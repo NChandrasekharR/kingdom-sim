@@ -71,7 +71,20 @@ export function ensureCamp(state, rand, opts = {}) {
       }
     }
   }
-  if (!anchor) anchor = { x: best[0], y: best[1] };   // grim fallback; mapgen is kind
+  if (!anchor) {
+    // that corner is sea or cut off — take the farthest REACHABLE plains tile
+    // anywhere (never plant the camp somewhere no road can reach)
+    let fd = -1;
+    for (let y = 3; y < N - 3; y += 4) {
+      for (let x = 3; x < N - 3; x += 4) {
+        const t = state.terrain[idx(x, y)];
+        if (t !== T.PLAINS && t !== T.FOREST) continue;
+        const d = Math.hypot(x - keep.x, y - keep.y);
+        if (d > fd && findPath(state, keep.x, keep.y, x, y)) { fd = d; anchor = { x, y }; }
+      }
+    }
+    if (!anchor) anchor = { x: keep.x, y: keep.y - 8 };   // absolute last resort
+  }
 
   const name = opts.campName ||
     CAMP_NAMES[Math.floor(rand() * CAMP_NAMES.length)];

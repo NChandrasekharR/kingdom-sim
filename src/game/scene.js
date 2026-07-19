@@ -245,10 +245,24 @@ export class KingdomScene extends Phaser.Scene {
       const img = this.unitPool[i];
       if (i >= units.length) { img.setVisible(false); continue; }
       const { u, key, size, tint } = units[i];
+      // a single NaN transform corrupts the whole WebGL batch and blanks the
+      // map — never let a bad unit through, and say who it was (once) so the
+      // root cause can be found instead of a black screen
+      const px = Number.isFinite(u.px) ? u.px : u.x;
+      const py = Number.isFinite(u.py) ? u.py : u.y;
+      const x = (px + (u.x - px) * alpha) * TILE + TILE / 2;
+      const y = (py + (u.y - py) * alpha) * TILE + TILE / 2;
+      if (!Number.isFinite(x) || !Number.isFinite(y)) {
+        img.setVisible(false);
+        if (!this._badUnitWarned) {
+          this._badUnitWarned = true;
+          // eslint-disable-next-line no-console
+          console.warn('kingdom-sim: unit with non-finite position skipped', key, u);
+        }
+        continue;
+      }
       if (img.texture.key !== key) img.setTexture(key);
       img.setVisible(true);
-      const x = (u.px + (u.x - u.px) * alpha) * TILE + TILE / 2;
-      const y = (u.py + (u.y - u.py) * alpha) * TILE + TILE / 2;
       img.setPosition(x, y);
       img.setDisplaySize(size || 6, size || 6);
       img.setTint(tint || 0xffffff);

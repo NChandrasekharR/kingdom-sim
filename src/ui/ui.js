@@ -4,7 +4,7 @@ import { on, emit } from '../core/events.js';
 import { currentSeason, currentYear, makeSim } from '../core/sim.js';
 import { territorySize } from '../core/territory.js';
 import { demolish, clearSave, saveGame, createState } from '../core/state.js';
-import { recruitSoldier, dismissSoldier, hireMercenaries, dismissMercenaries, mercCount, mercUpkeepRate, rallyToKeep, payTribute, armedReserve } from '../core/raids.js';
+import { recruitSoldier, dismissSoldier, hireMercenaries, dismissMercenaries, mercCount, mercUpkeepRate, rallyToKeep, payTribute, refuseTribute, armedReserve } from '../core/raids.js';
 import { marchOnCamp, resolveCampChoice } from '../core/camp.js';
 import { countMasters } from '../core/villagers.js';
 import { outputMult } from '../core/economy.js';
@@ -93,9 +93,16 @@ export function buildUI(root, ctx) {
   const tributeBanner = el('div', 'tribute-banner hidden');
   const tributeText = el('span', 'tribute-text');
   const tributePayBtn = el('button', 'pay-tribute', 'Pay the tribute');
-  tributeBanner.append(tributeText, tributePayBtn);
+  const tributeRefuseBtn = el('button', 'refuse-tribute', 'Refuse');
+  tributeRefuseBtn.title = 'Send the rider back empty-handed — the warlord marches at once.';
+  tributeBanner.append(tributeText, tributePayBtn, tributeRefuseBtn);
   tributePayBtn.onclick = () => {
     const r = payTribute(state);
+    if (!r.ok) showToast(r.reason);
+    render();
+  };
+  tributeRefuseBtn.onclick = () => {
+    const r = refuseTribute(state);
     if (!r.ok) showToast(r.reason);
     render();
   };

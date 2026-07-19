@@ -456,3 +456,15 @@ button {
   color: #ffd9c8;
 }
 .choice-btns .raze:hover { filter: brightness(1.35); }
+
+.refuse-tribute {
+  font-family: 'Alegreya', serif;
+  font-weight: 700;
+  font-size: 13px;
+  padding: 4px 12px;
+  background: linear-gradient(180deg, var(--crimson-2), var(--crimson));
+  color: #ffe9c8;
+  border: 1px solid #5e150c;
+  border-radius: 3px;
+}
+.refuse-tribute:hover { filter: brightness(1.2); }
