@@ -84,6 +84,17 @@ export const BUILDING_ART = {
     'ddDdwddd',
     'dddDddDd',
   ],
+  // planks over the water: lashed timbers with posts at the rails
+  bridge: [
+    'WwwwwwwW',
+    'wwWwwWww',
+    'DwwwwwwD',
+    'wwwWwwww',
+    'wwwwwwww',
+    'DwWwwwwD',
+    'wwwwwWww',
+    'WwwwwwwW',
+  ],
   lumber: [
     '............',
     '............',

@@ -170,12 +170,13 @@ export class KingdomScene extends Phaser.Scene {
       let img = this.buildingSprites.get(b.id);
       if (!img) {
         // roads lie flat under everything else; buildings stand proud of their tile
-        img = this.add.image(0, 0, `b-${b.type}`).setDepth(b.type === 'road' ? 550 : 600 + b.y);
-        const size = b.type === 'keep' ? 16 : b.type === 'road' ? TILE : 12;
+        const flat = b.type === 'road' || b.type === 'bridge';
+        img = this.add.image(0, 0, `b-${b.type}`).setDepth(flat ? 550 : 600 + b.y);
+        const size = b.type === 'keep' ? 16 : flat ? TILE : 12;
         img.setDisplaySize(size, size);
         this.buildingSprites.set(b.id, img);
       }
-      img.setPosition(b.x * TILE + TILE / 2, b.y * TILE + TILE / 2 - (b.type === 'road' ? 0 : 2));
+      img.setPosition(b.x * TILE + TILE / 2, b.y * TILE + TILE / 2 - (b.type === 'road' || b.type === 'bridge' ? 0 : 2));
       // breached walls and silenced towers read as dark rubble; other damage
       // tints red under half HP
       img.setTint(b.breached || (b.type === 'tower' && b.sacked) ? 0x6b5a4a
@@ -452,11 +453,12 @@ export class KingdomScene extends Phaser.Scene {
     const alpha = Math.min(1, this.acc / TICK_MS);
     this.drawUnits(state.speed > 0 ? alpha : 1);
 
-    // placement ghost
+    // placement ghost (the road tool shows a bridge over water)
     if (this.ctx.placement && this.hoverTile) {
       const { x, y } = this.hoverTile;
       const isRoad = this.ctx.placement === 'road';
-      this.ghost.setTexture(`b-${this.ctx.placement}`);
+      const overWater = isRoad && state.terrain[idx(x, y)] === T.WATER;
+      this.ghost.setTexture(overWater ? 'b-bridge' : `b-${this.ctx.placement}`);
       this.ghost.setDisplaySize(isRoad ? TILE : 12, isRoad ? TILE : 12);
       this.ghost.setVisible(true);
       this.ghost.setPosition(x * TILE + TILE / 2, y * TILE + TILE / 2 - (isRoad ? 0 : 2));

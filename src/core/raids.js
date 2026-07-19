@@ -49,7 +49,13 @@ class MinHeap {
 export function findPath(state, fx, fy, tx, ty) {
   const N = MAP.size;
   const walls = wallSet(state);
+  // bridges make water WALKABLE — for your soldiers, and for raiders
+  const bridges = new Set();
+  for (const b of state.buildings) {
+    if (b.type === 'bridge' && b.hp > 0) bridges.add(idx(b.x, b.y));
+  }
   const moveCost = (i) => {
+    if (bridges.has(i)) return 1;
     const base = TERRAIN_INFO[state.terrain[i]].move;
     if (!isFinite(base)) return Infinity;
     return walls.has(i) ? base + 30 : base; // batter through if no way around
@@ -334,7 +340,7 @@ function pickTarget(state, rand) {
     // and the arrows stop (an already-sacked one is just rubble, skip it)
     if (b.type === 'tower') return b.sacked ? 0.2 : 2.5;
     if (b.type === 'wall') return 0.2;
-    if (b.type === 'road') return 0.05;
+    if (b.type === 'road' || b.type === 'bridge') return 0.05;
     return 1.5;
   };
   // an already-gutted building isn't worth sacking again
@@ -604,7 +610,7 @@ function updateSoldiers(state, rand) {
   const roads = new Set();
   const defenders = [];   // buildings that give covering fire (towers + keep)
   for (const b of state.buildings) {
-    if (b.type === 'road' && b.hp > 0) roads.add(idx(b.x, b.y));
+    if ((b.type === 'road' || b.type === 'bridge') && b.hp > 0) roads.add(idx(b.x, b.y));
     const def = BUILDINGS[b.type];
     if (b.hp > 0 && def.range && def.arrowDmg) defenders.push(b);
   }

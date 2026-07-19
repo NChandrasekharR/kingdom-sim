@@ -91,8 +91,12 @@ export const BUILDINGS = {
     cost: { stone: 4 }, hp: 120, workers: 0,
   },
   road: {
-    name: 'Road', desc: 'Soldiers march faster, the merchant visits more often — and the border follows the road.',
+    name: 'Road', desc: 'Soldiers march faster, the merchant visits more often — and the border follows the road. Laid over water it becomes a bridge (wood + stone).',
     cost: { stone: 2 }, hp: 40, workers: 0, influence: 2,
+  },
+  bridge: {
+    name: 'Bridge', desc: 'Planks over the water. The border and the roads cross with it — and so can raiders.',
+    cost: { wood: 6, stone: 4 }, hp: 60, workers: 0, influence: 2, unbuildable: true,
   },
   barracks: {
     name: 'Barracks', desc: 'Trains soldiers (4 per barracks).',

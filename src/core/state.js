@@ -94,6 +94,24 @@ export function buildingAt(state, x, y) {
 }
 
 export function canPlace(state, type, x, y) {
+  // the road tool lays BRIDGES over water: buildable on unclaimed water if it
+  // extends from claimed ground or from another bridge (chain across the river)
+  if (type === 'road' && inBounds(x, y) && state.terrain[idx(x, y)] === T.WATER) {
+    if (buildingAt(state, x, y)) return { ok: false, reason: 'Tile occupied' };
+    let touches = false;
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const px = x + dx, py = y + dy;
+      if (!inBounds(px, py)) continue;
+      if (state.claimed[idx(px, py)]) { touches = true; break; }
+      const nb = buildingAt(state, px, py);
+      if (nb && nb.type === 'bridge') { touches = true; break; }
+    }
+    if (!touches) return { ok: false, reason: 'A bridge must extend from your shore' };
+    for (const [r, amt] of Object.entries(BUILDINGS.bridge.cost)) {
+      if (state.res[r] < amt) return { ok: false, reason: `Not enough ${r}` };
+    }
+    return { ok: true, bridge: true };
+  }
   const def = BUILDINGS[type];
   if (!def || def.unbuildable) return { ok: false, reason: 'Cannot build that' };
   if (!inBounds(x, y)) return { ok: false, reason: 'Out of bounds' };
@@ -127,9 +145,16 @@ export function canPlace(state, type, x, y) {
 export function place(state, type, x, y) {
   const check = canPlace(state, type, x, y);
   if (!check.ok) return check;
+  if (check.bridge) type = 'bridge';   // the road tool crossed the water
   const def = BUILDINGS[type];
   for (const [r, amt] of Object.entries(def.cost)) state.res[r] -= amt;
   addBuilding(state, type, x, y);
+  // a bridge carries the realm with it: the tile beneath is claimed, so the
+  // border can march across the water and take the far shore
+  if (type === 'bridge') {
+    state.claimed[idx(x, y)] = 1;
+    state.territoryDirty = true;
+  }
   logEvent(state, `${def.name} raised at (${x}, ${y}).`);
   return { ok: true };
 }

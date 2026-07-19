@@ -23,7 +23,7 @@ export function tradeTick(state, rand) {
     if (state.buildings.some((b) => b.type === 'market' && b.hp > 0)) {
       m.timer = Math.floor(m.timer * 0.7);
     }
-    const roads = state.buildings.filter((b) => b.type === 'road' && b.hp > 0).length;
+    const roads = state.buildings.filter((b) => (b.type === 'road' || b.type === 'bridge') && b.hp > 0).length;
     m.timer = Math.floor(m.timer * Math.max(0.6, 1 - roads * ROAD_MERCHANT_FACTOR));
     logEvent(state, 'The merchant caravan departs.', 'trade');
   }
