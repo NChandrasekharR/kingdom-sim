@@ -36,46 +36,46 @@ export const BUILDINGS = {
   },
   house: {
     name: 'House', desc: 'Shelter for 5 more subjects.',
-    cost: { wood: 20 }, hp: 60, workers: 0, popCap: 5,
+    cost: { wood: 20 }, hp: 60, workers: 0, popCap: 5, influence: 3,
   },
   farm: {
     name: 'Farm', desc: 'Grows food on plains. Slows in winter.',
-    cost: { wood: 15 }, hp: 50, workers: 2, place: { on: T.PLAINS },
+    cost: { wood: 15 }, hp: 50, workers: 2, place: { on: T.PLAINS }, influence: 2,
     prod: { food: 0.5 },
   },
   dock: {
     name: 'Fishing Dock', desc: 'Nets fish from the shallows. Fishes through winter.',
-    cost: { wood: 25 }, hp: 50, workers: 2, place: { near: T.WATER },
+    cost: { wood: 25 }, hp: 50, workers: 2, place: { near: T.WATER }, influence: 2,
     prod: { food: 0.4 },
   },
   lumber: {
-    name: 'Lumber Camp', desc: 'Fells timber. Must border a forest.',
-    cost: { wood: 10 }, hp: 50, workers: 2, place: { near: T.FOREST },
+    name: 'Lumber Camp', desc: 'Fells timber from nearby forest — until the wood is spent and the land lies open for farming.',
+    cost: { wood: 10 }, hp: 50, workers: 2, place: { near: T.FOREST }, influence: 3,
     prod: { wood: 0.35 },
   },
   quarry: {
     name: 'Quarry', desc: 'Cuts stone. Must border hills.',
-    cost: { wood: 20 }, hp: 60, workers: 3, place: { near: T.HILLS },
+    cost: { wood: 20 }, hp: 60, workers: 3, place: { near: T.HILLS }, influence: 2,
     prod: { stone: 0.3 },
   },
   mine: {
     name: 'Mine', desc: 'Digs ore. Must sit on an ore vein.',
-    cost: { wood: 25, stone: 10 }, hp: 60, workers: 3, place: { on: T.ORE },
+    cost: { wood: 25, stone: 10 }, hp: 60, workers: 3, place: { on: T.ORE }, influence: 2,
     prod: { ore: 0.25 },
   },
   smelter: {
     name: 'Smelter', desc: 'Burns ore and wood into iron.',
-    cost: { stone: 25, wood: 10 }, hp: 70, workers: 2,
+    cost: { stone: 25, wood: 10 }, hp: 70, workers: 2, influence: 2,
     conv: { in: { ore: 0.3, wood: 0.15 }, out: { iron: 0.15 } },
   },
   bakery: {
     name: 'Bakery', desc: 'Bakes bread — each loaf feeds two, and bread never spoils.',
-    cost: { wood: 20, stone: 10 }, hp: 50, workers: 2,
+    cost: { wood: 20, stone: 10 }, hp: 50, workers: 2, influence: 2,
     conv: { in: { food: 0.4 }, out: { bread: 0.4 } }, // reworked 0.25→0.4: a real "feed more per worker" upgrade
   },
   market: {
     name: 'Market', desc: 'Collects taxes and draws the merchant caravan.',
-    cost: { wood: 30, stone: 15 }, hp: 60, workers: 1, unique: true,
+    cost: { wood: 30, stone: 15 }, hp: 60, workers: 1, unique: true, influence: 4,
   },
   church: {
     name: 'Church', desc: 'Lifts morale and spreads influence.',
@@ -91,12 +91,12 @@ export const BUILDINGS = {
     cost: { stone: 4 }, hp: 120, workers: 0,
   },
   road: {
-    name: 'Road', desc: 'Soldiers march faster; the merchant visits more often.',
-    cost: { stone: 2 }, hp: 40, workers: 0,
+    name: 'Road', desc: 'Soldiers march faster, the merchant visits more often — and the border follows the road.',
+    cost: { stone: 2 }, hp: 40, workers: 0, influence: 2,
   },
   barracks: {
     name: 'Barracks', desc: 'Trains soldiers (4 per barracks).',
-    cost: { wood: 30, stone: 20, iron: 8 }, hp: 90, workers: 0,
+    cost: { wood: 30, stone: 20, iron: 8 }, hp: 90, workers: 0, influence: 3,
   },
 };
 
@@ -112,6 +112,17 @@ export const WIN = {
 };
 export const ROAD_SPEED_MULT = 1.7;
 export const ROAD_MERCHANT_FACTOR = 0.004; // per road tile, capped at 40% faster returns
+
+// ── The forest is finite (Session 5c) ──────────────────────────────
+// Every forest tile holds a stock of wood. Lumber camps cut the nearest
+// standing timber; a spent tile becomes PLAINS — farmable, buildable, open.
+// The economy EATS the map: the wood-line recedes, camps go quiet (~4-6
+// years per site), and the kingdom must push outward or buy its timber.
+export const FOREST = {
+  woodBase: 90,                // typical wood in a fresh forest tile
+  woodVar: 50,                 // ± mapgen richness (old growth vs scrub)
+  harvestRadius: 2.2,          // a camp cuts standing timber this far out
+};
 
 // ── Population & morale ────────────────────────────────────────────
 export const EAT_PER_POP = 0.04;        // food-equivalents per tick per person

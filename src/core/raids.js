@@ -265,6 +265,9 @@ function spawnRaid(state, rand) {
   // map edge, so no single flank is ever perfectly safe.
   const campLive = state.camp && !state.camp.gone && !state.camp.broken;
   const fromCamp = campLive && (isWarlord ? warlordAvailable(state) : raid.nextFromCamp === true);
+  // the man himself rides ONLY at the head of his own dread waves — common
+  // camp-origin bands march without him
+  const warlordRides = fromCamp && isWarlord && warlordAvailable(state);
   if (state.camp) state.camp.massing = [];   // the gathering becomes the wave
   let sx = 0, sy = 0, tries = 0;
   if (fromCamp) {
@@ -296,7 +299,7 @@ function spawnRaid(state, rand) {
   }
   // the warlord rides at the head of his own host — a boss on the field.
   // Kill him here and his line breaks; his camp waits leaderless for a successor.
-  if (fromCamp) {
+  if (warlordRides) {
     const keepB = state.buildings.find((b) => b.type === 'keep');
     const wPath = keepB ? findPath(state, sx, sy, keepB.x, keepB.y) : null;
     if (wPath && keepB) {

@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { MAP, T, TICK_MS, BUILDINGS, VILLAGER } from '../config.js';
+import { MAP, T, TICK_MS, BUILDINGS, VILLAGER, FOREST } from '../config.js';
 import { canPlace, place, idx } from '../core/state.js';
 import { makeTextures } from './sprites.js';
 import { on, emit } from '../core/events.js';
@@ -52,6 +52,9 @@ export class KingdomScene extends Phaser.Scene {
 
     this.setupInput();
     on('arrow', (a) => this.arrows.push({ ...a, ttl: 200 }));
+    // the map changes under the axes: batch dirty tiles, repaint once per frame
+    this.dirtyTiles = [];
+    on('terrain-changed', (t) => this.dirtyTiles.push(t));
 
     // New Kingdom: the state object was reset in place to a fresh realm — repaint
     // the new terrain, drop stale building sprites, recenter on the new keep.
@@ -72,8 +75,48 @@ export class KingdomScene extends Phaser.Scene {
     this.textures.get('overlay').setFilter(Phaser.Textures.FilterMode.NEAREST);
   }
 
-  paintTerrain() {
+  // paint one tile onto the terrain canvas. Forest density follows the
+  // remaining wood stock — the wood-line visibly thins as the axes work.
+  paintTile(c, x, y) {
     const { state } = this.ctx;
+    const N = MAP.size;
+    const t = state.terrain[y * N + x];
+    const [base, shades] = TERRAIN_STYLE[t];
+    c.fillStyle = base;
+    c.fillRect(x * TILE, y * TILE, TILE, TILE);
+    // deterministic-ish speckle from coords
+    let h = (x * 7349 + y * 9151) >>> 0;
+    const rnd = () => ((h = (h * 1103515245 + 12345) >>> 0) / 4294967296);
+    const n = t === T.FOREST ? 9 : 6;
+    for (let s = 0; s < n; s++) {
+      c.fillStyle = shades[Math.floor(rnd() * shades.length)];
+      c.fillRect(x * TILE + Math.floor(rnd() * TILE), y * TILE + Math.floor(rnd() * TILE), 1, 1);
+    }
+    if (t === T.FOREST) {
+      // tree blobs by remaining stock: old growth 2, thinning 1, scrub 0
+      const stock = state.forestWood ? state.forestWood[y * N + x] : 90;
+      const trees = stock >= 60 ? 2 : stock >= 30 ? 1 : 0;
+      for (let tr = 0; tr < trees; tr++) {
+        const tx = x * TILE + 1 + Math.floor(rnd() * (TILE - 3));
+        const ty = y * TILE + 1 + Math.floor(rnd() * (TILE - 4));
+        c.fillStyle = '#2f5223';
+        c.fillRect(tx, ty, 2, 2);
+        c.fillStyle = '#3f6b2e';
+        c.fillRect(tx, ty, 1, 1);
+      }
+    }
+    if (t === T.MOUNTAIN && rnd() > 0.5) {
+      c.fillStyle = '#cfcabd';
+      c.fillRect(x * TILE + 3, y * TILE + 2, 2, 1);
+    }
+    if (t === T.ORE) {
+      c.fillStyle = '#e0b04c';
+      c.fillRect(x * TILE + 2, y * TILE + 3, 1, 1);
+      c.fillRect(x * TILE + 5, y * TILE + 5, 1, 1);
+    }
+  }
+
+  paintTerrain() {
     const N = MAP.size;
     // reuse the canvas texture if it exists (repaint on New Kingdom), else make it
     const tex = this.textures.exists('terrain')
@@ -81,40 +124,7 @@ export class KingdomScene extends Phaser.Scene {
       : this.textures.createCanvas('terrain', WORLD, WORLD);
     const c = tex.getContext();
     for (let y = 0; y < N; y++) {
-      for (let x = 0; x < N; x++) {
-        const t = state.terrain[y * N + x];
-        const [base, shades] = TERRAIN_STYLE[t];
-        c.fillStyle = base;
-        c.fillRect(x * TILE, y * TILE, TILE, TILE);
-        // deterministic-ish speckle from coords
-        let h = (x * 7349 + y * 9151) >>> 0;
-        const rnd = () => ((h = (h * 1103515245 + 12345) >>> 0) / 4294967296);
-        const n = t === T.FOREST ? 9 : 6;
-        for (let s = 0; s < n; s++) {
-          c.fillStyle = shades[Math.floor(rnd() * shades.length)];
-          c.fillRect(x * TILE + Math.floor(rnd() * TILE), y * TILE + Math.floor(rnd() * TILE), 1, 1);
-        }
-        if (t === T.FOREST) {
-          // two chunky tree blobs
-          for (let tr = 0; tr < 2; tr++) {
-            const tx = x * TILE + 1 + Math.floor(rnd() * (TILE - 3));
-            const ty = y * TILE + 1 + Math.floor(rnd() * (TILE - 4));
-            c.fillStyle = '#2f5223';
-            c.fillRect(tx, ty, 2, 2);
-            c.fillStyle = '#3f6b2e';
-            c.fillRect(tx, ty, 1, 1);
-          }
-        }
-        if (t === T.MOUNTAIN && rnd() > 0.5) {
-          c.fillStyle = '#cfcabd';
-          c.fillRect(x * TILE + 3, y * TILE + 2, 2, 1);
-        }
-        if (t === T.ORE) {
-          c.fillStyle = '#e0b04c';
-          c.fillRect(x * TILE + 2, y * TILE + 3, 1, 1);
-          c.fillRect(x * TILE + 5, y * TILE + 5, 1, 1);
-        }
-      }
+      for (let x = 0; x < N; x++) this.paintTile(c, x, y);
     }
     tex.refresh();
     this.add.image(0, 0, 'terrain').setOrigin(0).setDepth(0);
@@ -287,10 +297,37 @@ export class KingdomScene extends Phaser.Scene {
 
     this.input.on('pointerdown', (p) => {
       dragging = true; moved = 0; lastX = p.x; lastY = p.y;
+      // start a paint-stroke on the pressed tile (roads/walls lay under the drag)
+      this.lastPaint = null;
+      const painting = this.ctx.placement === 'road' || this.ctx.placement === 'wall';
+      if (painting && !p.rightButtonDown()) {
+        const wp = cam.getWorldPoint(p.x, p.y);
+        const tx = Math.floor(wp.x / TILE), ty = Math.floor(wp.y / TILE);
+        place(this.ctx.state, this.ctx.placement, tx, ty);
+        this.lastPaint = { x: tx, y: ty };
+      }
     });
     this.input.on('pointermove', (p) => {
       const wp = cam.getWorldPoint(p.x, p.y);
       this.hoverTile = { x: Math.floor(wp.x / TILE), y: Math.floor(wp.y / TILE) };
+      // laying roads or walls: LEFT-DRAG PAINTS a line of them (no more
+      // click-click-click); the camera pans only outside placement mode
+      const painting = this.ctx.placement === 'road' || this.ctx.placement === 'wall';
+      if (dragging && p.isDown && painting && !p.rightButtonDown()) {
+        const { x: tx, y: ty } = this.hoverTile;
+        const last = this.lastPaint || { x: tx, y: ty };
+        // walk the line so a fast drag doesn't skip tiles
+        const steps = Math.max(Math.abs(tx - last.x), Math.abs(ty - last.y), 1);
+        for (let s = 1; s <= steps; s++) {
+          const px = Math.round(last.x + (tx - last.x) * (s / steps));
+          const py = Math.round(last.y + (ty - last.y) * (s / steps));
+          place(this.ctx.state, this.ctx.placement, px, py);   // failures are silent while painting
+        }
+        this.lastPaint = { x: tx, y: ty };
+        moved += 10;   // a paint-drag is never a click
+        emit('tick', this.ctx.state);
+        return;
+      }
       if (dragging && p.isDown) {
         const dx = p.x - lastX, dy = p.y - lastY;
         moved += Math.abs(dx) + Math.abs(dy);
@@ -401,6 +438,13 @@ export class KingdomScene extends Phaser.Scene {
     for (const a of this.arrows) a.ttl -= delta;
     this.arrows = this.arrows.filter((a) => a.ttl > 0);
 
+    if (this.dirtyTiles.length) {
+      const tex = this.textures.get('terrain');
+      const c = tex.getContext();
+      for (const { x, y } of this.dirtyTiles) this.paintTile(c, x, y);
+      this.dirtyTiles.length = 0;
+      tex.refresh();
+    }
     if (state.territoryDirty) this.redrawOverlay();
     if (state.buildingsDirty) this.syncBuildings();
     if (state.campDirty) this.syncCamp();
@@ -424,6 +468,19 @@ export class KingdomScene extends Phaser.Scene {
 
     // selection box
     this.selGfx.clear();
+    // placement reach rings: how far the axes cut, how far the arrows fly
+    if (this.ctx.placement && this.hoverTile) {
+      const { x, y } = this.hoverTile;
+      const cx = x * TILE + TILE / 2, cy = y * TILE + TILE / 2;
+      const def = BUILDINGS[this.ctx.placement];
+      if (this.ctx.placement === 'lumber') {
+        this.selGfx.lineStyle(1, 0x9fd06a, 0.9);
+        this.selGfx.strokeCircle(cx, cy, FOREST.harvestRadius * TILE);
+      } else if (def?.range) {
+        this.selGfx.lineStyle(1, 0xe9dfc8, 0.7);
+        this.selGfx.strokeCircle(cx, cy, def.range * TILE);
+      }
+    }
     const sel = this.ctx.selected;
     if (sel && sel.hp > 0) {
       this.selGfx.lineStyle(1, 0xe0b04c, 1);

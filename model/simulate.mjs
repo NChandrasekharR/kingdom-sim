@@ -57,8 +57,11 @@ function playerPolicy() {
   if (state.pop >= state.popCap - 1 && foodEq() > pop * 2) {
     if (tryBuild('house')) return;
   }
-  // 3. raw production chains
-  if (count('lumber') < 3 && tryBuild('lumber')) return;
+  // 3. raw production chains — depleted lumber camps don't count: the bot
+  // pushes new camps toward standing timber as the wood-line recedes
+  const liveLumber = state.buildings.filter(
+    (b) => b.type === 'lumber' && b.hp > 0 && !b.depleted).length;
+  if (liveLumber < 3 && tryBuild('lumber')) return;
   if (count('quarry') < 2 && state.res.wood > 40 && tryBuild('quarry')) return;
   if (count('mine') < 2 && state.res.wood > 50 && tryBuild('mine')) return;
   if (count('smelter') < 1 && state.res.ore > 15 && tryBuild('smelter')) return;

@@ -1,4 +1,4 @@
-import { MAP, T, BUILDINGS, TERRAIN_INFO } from '../config.js';
+import { MAP, T, BUILDINGS, TERRAIN_INFO, FOREST } from '../config.js';
 import { generateMap } from './mapgen.js';
 import { logEvent } from './events.js';
 import { makeVillager } from './villagers.js';
@@ -10,6 +10,21 @@ const KINGDOM_NAMES = [
 
 const SAVE_KEY = 'kingdom-sim-save-v1';
 
+// Every forest tile holds a finite stock of wood, seeded deterministically
+// from its coordinates (old growth vs scrub). Cut it all and the tile opens
+// into farmable plains — the economy eats the map.
+export function seedForestWood(terrain) {
+  const N = MAP.size;
+  const stock = new Float32Array(N * N);
+  for (let i = 0; i < N * N; i++) {
+    if (terrain[i] !== T.FOREST) continue;
+    const x = i % N, y = (i / N) | 0;
+    const h = ((x * 7349 + y * 9151) * 2654435761 >>> 0) / 4294967296;
+    stock[i] = Math.max(20, FOREST.woodBase + (h * 2 - 1) * FOREST.woodVar);
+  }
+  return stock;
+}
+
 export function createState(seed = (Math.random() * 1e9) | 0) {
   const { terrain, start } = generateMap(seed);
   const N = MAP.size;
@@ -17,6 +32,7 @@ export function createState(seed = (Math.random() * 1e9) | 0) {
     seed, tick: 0, speed: 1,
     name: KINGDOM_NAMES[seed % KINGDOM_NAMES.length],
     terrain,
+    forestWood: seedForestWood(terrain),
     claimed: new Uint8Array(N * N),
     influence: new Float32Array(N * N),
     buildings: [],
@@ -135,12 +151,15 @@ export function demolish(state, id) {
   const b = state.buildings[i];
   if (b.type === 'keep') return;
   state.buildings.splice(i, 1);
-  // refund half the wood/stone
+  // materials come back in proportion to the building's condition — a sound
+  // building relocates nearly free (depletion makes moving camps routine),
+  // a battered one returns what's left of it
   const def = BUILDINGS[b.type];
+  const frac = Math.max(0, Math.min(1, b.hp / b.maxHp));
   for (const [r, amt] of Object.entries(def.cost)) {
-    if (r === 'wood' || r === 'stone') state.res[r] += Math.floor(amt / 2);
+    state.res[r] += Math.floor(amt * frac);
   }
-  logEvent(state, `${def.name} torn down.`);
+  logEvent(state, `${def.name} torn down — the materials are reclaimed.`);
   recomputeInfluence(state);
   state.buildingsDirty = true;
   state.territoryDirty = true;
@@ -180,6 +199,7 @@ export function saveGame(state) {
   const s = {
     ...state,
     terrain: Array.from(state.terrain),
+    forestWood: Array.from(state.forestWood, (v) => Math.round(v)),
     claimed: Array.from(state.claimed),
     // worker crews are live villager references, recomputed every tick
     buildings: state.buildings.map((b) => ({ ...b, workers: undefined })),
@@ -200,6 +220,8 @@ export function loadGame() {
     const N = MAP.size;
     s.terrain = Uint8Array.from(s.terrain);
     s.claimed = Uint8Array.from(s.claimed);
+    // saves from before finite forests: seed stock fresh for standing timber
+    s.forestWood = s.forestWood ? Float32Array.from(s.forestWood) : seedForestWood(s.terrain);
     s.influence = new Float32Array(N * N);
     s.delta = { food: 0, wood: 0, stone: 0, ore: 0, iron: 0, bread: 0, gold: 0 };
     s.territoryDirty = true;

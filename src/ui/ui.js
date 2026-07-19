@@ -159,7 +159,7 @@ export function buildUI(root, ctx) {
     buildGrid.appendChild(card);
   }
   panels.Build.appendChild(buildGrid);
-  panels.Build.appendChild(el('p', 'hint', 'Click a building, then click the map. Right-click or Esc to cancel. Walls stay in placing mode.'));
+  panels.Build.appendChild(el('p', 'hint', 'Click a building, then click the map. Right-click or Esc to cancel. Roads and walls PAINT under a drag — sweep the line you want.'));
 
   on('placement', (type) => {
     for (const [t, c] of Object.entries(buildCards)) c.classList.toggle('placing', t === type);
@@ -314,6 +314,23 @@ export function buildUI(root, ctx) {
     if (selected.type === 'tower') {
       crewLine += selected.sacked ? ' · <span class="bad">SILENT — battered to rubble</span>'
         : selected.assigned > 0 ? ` · ${crew[0]?.name || 'a watchman'} at the post` : ' · unmanned';
+    }
+    if (selected.type === 'lumber') {
+      if (selected.depleted) {
+        crewLine += ' · <span class="bad">the wood nearby is spent</span>';
+      } else if (state.forestWood) {
+        let near = 0;
+        const R = 3;
+        for (let dy = -R; dy <= R; dy++) {
+          for (let dx = -R; dx <= R; dx++) {
+            const x = selected.x + dx, y = selected.y + dy;
+            if (x < 0 || y < 0 || x >= MAP.size || y >= MAP.size) continue;
+            if (Math.hypot(dx, dy) > 2.2) continue;
+            if (state.terrain[y * MAP.size + x] === T.FOREST) near += state.forestWood[y * MAP.size + x];
+          }
+        }
+        crewLine += ` · timber in reach ~${Math.round(near)}`;
+      }
     }
     selPanel.innerHTML = `
       <img class="bicon" src="${buildingIconURL(selected.type)}" alt="">
@@ -554,16 +571,20 @@ export function buildUI(root, ctx) {
   // ── Minimap ──────────────────────────────────────────────────────
   const miniCtx = mini.getContext('2d');
   const terrainImg = miniCtx.createImageData(MAP.size, MAP.size);
-  {
+  function miniPixel(i) {
     const d = terrainImg.data;
-    for (let i = 0; i < state.terrain.length; i++) {
-      const hex = MINI_COLORS[state.terrain[i]];
-      d[i * 4] = parseInt(hex.slice(1, 3), 16);
-      d[i * 4 + 1] = parseInt(hex.slice(3, 5), 16);
-      d[i * 4 + 2] = parseInt(hex.slice(5, 7), 16);
-      d[i * 4 + 3] = 255;
-    }
+    const hex = MINI_COLORS[state.terrain[i]];
+    d[i * 4] = parseInt(hex.slice(1, 3), 16);
+    d[i * 4 + 1] = parseInt(hex.slice(3, 5), 16);
+    d[i * 4 + 2] = parseInt(hex.slice(5, 7), 16);
+    d[i * 4 + 3] = 255;
   }
+  function rebuildTerrainImg() {
+    for (let i = 0; i < state.terrain.length; i++) miniPixel(i);
+  }
+  rebuildTerrainImg();
+  on('new-game', rebuildTerrainImg);   // a fresh realm gets a fresh minimap
+  on('terrain-changed', ({ x, y }) => miniPixel(y * MAP.size + x));
   mini.onclick = (ev) => {
     const rect = mini.getBoundingClientRect();
     const x = Math.floor(((ev.clientX - rect.left) / rect.width) * MAP.size);

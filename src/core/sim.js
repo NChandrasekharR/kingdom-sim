@@ -5,7 +5,7 @@ import { populationTick } from './population.js';
 import { tradeTick } from './trade.js';
 import { raidTick, mercenaryUpkeepTick } from './raids.js';
 import { campTick } from './camp.js';
-import { claimTick, recedeTick, territorySize } from './territory.js';
+import { claimTick, recedeTick, claimEnclaves, territorySize } from './territory.js';
 import { winTick } from './win.js';
 import { saveGame } from './state.js';
 import { logEvent, emit } from './events.js';
@@ -46,6 +46,8 @@ export function makeSim(state) {
         if (state.starving) recedeTick(state);
         else claimTick(state, rand);
       }
+      // pockets of wilds fully surrounded by the realm fold in on their own
+      if (state.tick % 32 === 0 && !state.starving) claimEnclaves(state);
 
       winTick(state);
 
@@ -111,6 +113,7 @@ export function dumpStats(state) {
       mastersNow: countMasters(state), mastersLost: s.mastersLost,
     },
     foodSpoiled: Math.round(s.foodSpoiled || 0),
+    forestCleared: s.forestCleared || 0,
     tribute: { paid: s.tributesPaid || 0, gold: Math.round(s.tributeGold || 0), appetite: state.tributeAppetite || 0 },
   };
   // eslint-disable-next-line no-console

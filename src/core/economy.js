@@ -1,6 +1,70 @@
-import { BUILDINGS, WORK_PRIORITY, WINTER_FARM_MULT, HP, SKILL } from '../config.js';
+import { BUILDINGS, WORK_PRIORITY, WINTER_FARM_MULT, HP, SKILL, FOREST, T, MAP } from '../config.js';
 import { idx } from './state.js';
 import { currentSeason } from './sim.js';
+import { logEvent, emit } from './events.js';
+
+// ── The forest is finite ───────────────────────────────────────────
+// A lumber camp cuts the nearest standing timber within reach. Each cut
+// draws down that tile's stock; a spent tile opens into PLAINS (farmable).
+// When nothing in reach still stands, the camp goes quiet for good.
+
+// the tile this camp is currently cutting (cached; rescan when it's spent)
+function findTimber(state, b) {
+  const N = MAP.size;
+  const R = Math.ceil(FOREST.harvestRadius);
+  let best = -1, bd = Infinity;
+  for (let dy = -R; dy <= R; dy++) {
+    for (let dx = -R; dx <= R; dx++) {
+      const x = b.x + dx, y = b.y + dy;
+      if (x < 0 || y < 0 || x >= N || y >= N) continue;
+      const d = Math.hypot(dx, dy);
+      if (d > FOREST.harvestRadius) continue;
+      const i = y * N + x;
+      if (state.terrain[i] !== T.FOREST || state.forestWood[i] <= 0) continue;
+      if (d < bd) { bd = d; best = i; }
+    }
+  }
+  return best;
+}
+
+// harvest `amt` wood for camp b; returns what was actually cut
+function cutTimber(state, b, amt) {
+  let cut = 0;
+  while (cut < amt - 0.0001) {
+    if (b.timberI == null || state.forestWood[b.timberI] <= 0 ||
+        state.terrain[b.timberI] !== T.FOREST) {
+      b.timberI = findTimber(state, b);
+      if (b.timberI < 0) {
+        // the wood within reach is spent — the camp falls quiet for good
+        b.timberI = null;
+        if (!b.depleted) {
+          b.depleted = true;
+          logEvent(state, 'The axes fall silent at a lumber camp — the wood nearby is spent. The cleared land lies open.', 'info');
+        }
+        break;
+      }
+    }
+    const i = b.timberI;
+    const take = Math.min(amt - cut, state.forestWood[i]);
+    const before = state.forestWood[i];
+    state.forestWood[i] -= take;
+    cut += take;
+    // the forest visibly THINS as it's cut (repaint on density-band crossings)
+    if (state.forestWood[i] > 0 &&
+        Math.floor(before / 30) !== Math.floor(state.forestWood[i] / 30)) {
+      emit('terrain-changed', { x: i % MAP.size, y: (i / MAP.size) | 0 });
+    }
+    if (state.forestWood[i] <= 0) {
+      // clear-cut: the forest gives way to open field
+      state.terrain[i] = T.PLAINS;
+      state.forestWood[i] = 0;
+      b.timberI = null;
+      state.stats.forestCleared = (state.stats.forestCleared || 0) + 1;
+      emit('terrain-changed', { x: i % MAP.size, y: (i / MAP.size) | 0 });
+    }
+  }
+  return cut;
+}
 
 // The redesign core: a building's output scales with its HP. Raiders grind HP
 // down, decay nibbles it, and builders restore it — competing for the same
@@ -37,6 +101,8 @@ export function economyTick(state) {
       // a tower battered to rubble has no post to man — nobody stands in the
       // wreckage; repair it past half and the watch resumes
       if (type === 'tower' && b.sacked) continue;
+      // a lumber camp with no standing timber in reach employs no one
+      if (type === 'lumber' && b.depleted) continue;
       const need = BUILDINGS[type].workers;
       for (let i = 0; i < need && pool.length; i++) {
         let bestI = 0, bestSk = -1;
@@ -72,6 +138,8 @@ export function economyTick(state) {
       for (const [r, rate] of Object.entries(def.prod)) {
         let amt = rate * staffing * hpMult * skillMult;
         if (b.type === 'farm' && winter) amt *= WINTER_FARM_MULT;
+        // wood is CUT from real tiles, not conjured — the forest draws down
+        if (b.type === 'lumber' && r === 'wood') amt = cutTimber(state, b, amt);
         state.res[r] += amt;
         state.delta[r] += amt;
       }

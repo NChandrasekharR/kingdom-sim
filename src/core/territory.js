@@ -62,6 +62,44 @@ export function claimTick(state, rand) {
   }
 }
 
+// A pocket of wilds completely surrounded by the realm is the realm's:
+// flood from the map edges through unclaimed ground; whatever the flood
+// can't reach is enclosed, and its land folds into the kingdom.
+export function claimEnclaves(state) {
+  const N = MAP.size;
+  const camp = state.camp && !state.camp.gone ? state.camp : null;
+  const reach = new Uint8Array(N * N);
+  const queue = [];
+  for (let t = 0; t < N; t++) {
+    for (const i of [t, (N - 1) * N + t, t * N, t * N + N - 1]) {
+      if (!state.claimed[i] && !reach[i]) { reach[i] = 1; queue.push(i); }
+    }
+  }
+  while (queue.length) {
+    const i = queue.pop();
+    const x = i % N;
+    for (const d of [1, -1, N, -N]) {
+      const n = i + d;
+      if (n < 0 || n >= N * N) continue;
+      if ((d === 1 && x === N - 1) || (d === -1 && x === 0)) continue;
+      if (reach[n] || state.claimed[n]) continue;
+      reach[n] = 1;
+      queue.push(n);
+    }
+  }
+  let folded = 0;
+  for (let i = 0; i < N * N; i++) {
+    if (state.claimed[i] || reach[i]) continue;
+    if (TERRAIN_INFO[state.terrain[i]].claim <= 0) continue;   // lakes stay lakes
+    const x = i % N, y = (i / N) | 0;
+    if (camp && Math.hypot(x - camp.x, y - camp.y) <= CAMP.shadowRadius) continue;
+    state.claimed[i] = 1;
+    folded++;
+  }
+  if (folded > 0) state.territoryDirty = true;
+  return folded;
+}
+
 // Starvation makes the border recede from its weakest edges.
 export function recedeTick(state) {
   const N = MAP.size;

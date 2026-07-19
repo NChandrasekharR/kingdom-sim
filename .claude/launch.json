@@ -4,9 +4,25 @@
     {
       "name": "kingdom-sim",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
       "port": 5173,
       "autoPort": true,
+      "cwd": "/Users/chandraramanujan/Documents/claude-code/kingdom-sim"
+    },
+    {
+      "name": "kingdom-sim-stable",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "vite",
+        "preview",
+        "--port",
+        "4173",
+        "--strictPort"
+      ],
+      "port": 4173,
       "cwd": "/Users/chandraramanujan/Documents/claude-code/kingdom-sim"
     }
   ]

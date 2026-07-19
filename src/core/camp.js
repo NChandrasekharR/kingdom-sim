@@ -206,7 +206,7 @@ export function addTributeGold(state, amount) {
 // death: his host breaks, and one day a successor claims the camp.
 export function warlordFell(state) {
   const c = state.camp;
-  if (!c || c.gone || c.leaderless) return;
+  if (!c || c.gone || c.leaderless || c.unclaimed || !c.warlord?.name) return;
   c.leaderless = true;
   c.successorAt = state.tick + CAMP.successorTicks;
   logEvent(state, `${c.warlord.name.toUpperCase()} IS SLAIN! His host breaks and scatters.`, 'good');
