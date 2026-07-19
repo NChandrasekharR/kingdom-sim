@@ -9,9 +9,18 @@ deploy is manual and still runs the pre-Session-3 build — redeploy pending.
 
 ---
 
-## Session 5 — The warlord's camp & the counter-raid (2026-07-16→19)
+## Session 5 — The endgame design, the counter-raid, and the living map (2026-07-16→19)
 
-One feature, whole session: the warlord gets an ADDRESS. Design session first
+Six commits, `e639935`→`e4293c2`. Arc: the late-game WANT design session
+(`design/ENDGAME.md`) → the counter-raid built ON-MAP with the moral choice →
+Chandra's LIVE playtest loop (his Chrome on the dev server, asks arriving as
+he played) → watchtower rework, raids-from-camp with staged massing, finite
+forests, territory-from-works, bridges, and a QoL batch. A stable build
+server (`vite preview :4173`) now separates playtesting from development.
+
+### `e639935` — The warlord gets an address (the counter-raid)
+
+One feature, whole first build: the warlord gets an ADDRESS. Design session first
 (see `design/ENDGAME.md` — reframe: the late-game problem is no PULL, not no
 sink; Chandra rejected symmetric rival kingdoms as "a worse Age of Empires" and
 asked for counter-raids: "warlord sends raids, I send raids back"), then the
@@ -61,6 +70,82 @@ warlord body, ledger hooks, marked/exp-aware muster), `sim.js`/`state.js`
 (wiring + save migration), `sprites.js`/`scene.js` (tents, crowned warlord,
 folk, hit-tests), `ui.js`/`style.css` (camp status box, march button, choice
 modal — reload-safe), stats + `kingdom.summary()` camp block.
+
+### `018f928` — Watchtowers: real targets, watchman inside, silent when battered
+
+- Raiders target manned towers (pickTarget value 0.2→2.5 — silence the shield;
+  an already-sacked tower is rubble, back to 0.2).
+- The watchman goes INSIDE: body hidden within `VILLAGER.towerInsideRadius`,
+  the red watch-FLAG flies over a manned tower, he neither panics nor can be
+  hunted, and clicks pass through to the tower.
+- Battered to its floor → dark rubble tint, arrows SILENT, nobody mans the
+  wreckage; the watchman scrambles out (ejected, huntable) with a named
+  chronicle line. Repair past half → the watch resumes, flag up. Sack-not-raze
+  stands; the keep's guard still fires from its stones.
+
+### `24bf86d` — Refuse the Danegeld + blank-map guard + reachable camps
+
+- Tribute banner gains a crimson **Refuse**: send the rider back empty-handed
+  and the warlord marches AT ONCE (defiance spends the waiting window).
+- Renderer skips (and names in the console, once) any unit with a non-finite
+  position — one NaN transform silently blanked the whole WebGL batch.
+  (Root cause of Chandra's blackouts turned out to be dev-server HMR 404s —
+  see the stable server below — but the guard stays as armor.)
+- Camp founding falls back to the farthest REACHABLE plains tile when its
+  corner is sea or cut off.
+
+### `0a1687f` — Raids march from the camp: nest, staged massing, the shadow
+
+- The FIRST raid founds an UNCLAIMED brigand nest (`CAMP.nestGarrison=3`, no
+  warlord); a warlord CLAIMS it when the kingdom is worth the march
+  (`claimCampByWarlord`). Break the nest early — before anyone claims it.
+- ~70% of common raids (`CAMP.raidFromCampChance`) and ALL warlord hosts
+  march from the camp; the rest slip in from random edges (load-bearing:
+  a single origin would let one walled corridor kill the pressure system).
+- STAGED telegraphing for camp waves: "Raiders are massing" at timer≤150 with
+  bodies visibly gathering at the tents (count ≈ predicted wave size), "the
+  war-camp stirs" at ≤60, stage-aware Kingdom-tab status, origin-aware spawn
+  lines. Dispersed on tribute payment or wave end.
+- THE WARLORD'S SHADOW: no claim takes root within `CAMP.shadowRadius=9` of a
+  living camp — kills the claim-to-his-tents / towers-at-spawn cheese; forward
+  forts outside the shadow are legitimate and risky. Lifts when camp is ashes.
+- Fix: phantom nameless warlord body riding with common camp-origin waves
+  (null-name crash in `warlordFell`) — the man rides only with his own host.
+
+### `0512f23` — Finite forests + territory from works + QoL batch
+
+- **The economy eats the map** (`FOREST` block): every forest tile holds ~90
+  wood (±50 by mapgen richness); lumber camps cut the nearest standing timber
+  (`cutTimber`, cached target, radius 2.2). ~2 tiles cleared/year; a camp site
+  lasts 4–6 years. The forest THINS visibly (tree density by remaining stock,
+  band-crossing repaints), and a spent tile converts to farmable PLAINS
+  (`terrain-changed` event → scene + minimap repaint). A camp with nothing in
+  reach goes quiet for good (workers reassigned, chronicle line, inspector
+  shows "timber in reach ~N"). Old saves seed stock fresh.
+- **Territory follows the works of the realm**: houses (3), lumber (3),
+  farms/docks/quarries/mines/smelters/bakeries (2), market (4), barracks (3),
+  and ROADS (2) all project influence — push a road into the wilds and the
+  border ribbons after it (and claims the ground the next lumber camp needs).
+- **Enclave auto-fold** (`claimEnclaves`, every 32 ticks): pockets of wilds
+  fully surrounded by the realm join it (lakes stay lakes; the shadow resists).
+- **QoL**: roads/walls PAINT under a left-drag (line-walked, no skipped
+  tiles); lumber placement shows its harvest ring, ranged buildings their
+  arrow ring; demolish refunds ALL cost components scaled by HP condition
+  (sound building ≈ full refund — relocation is routine under depletion);
+  stale minimap after New Kingdom fixed; headless bot relocates camps.
+- **Stable playtest server**: `kingdom-sim-stable` launch config
+  (`vite preview :4173`) serving `dist/` — Chandra's blackouts were his tab
+  fetching stale modules from the LIVE dev server during edits (HMR 404s).
+  Play on 4173; 5173 is the workbench.
+
+### `e4293c2` — Bridges: the road tool crosses water
+
+- Drag a road over water → BRIDGE segments (6 wood + 4 stone each), chainable
+  from shore or from another bridge. The ghost shows planks over water.
+- A bridge CLAIMS the tile beneath it (the border marches across the water and
+  can take the far shore); soldiers and the merchant count it as road; the
+  pathfinder makes the water tile walkable — for raiders too. A bridge is a
+  chokepoint worth a watchtower.
 
 ---
 

@@ -5,7 +5,7 @@ in one place. Grouped by area. Status key:
 **OPEN** (needs a decision) · **EXPERIMENT** (answerable by running the sim) ·
 **DEFERRED** (parked for later) · **RESOLVED** (settled — moved to `DECISIONS.md`).
 
-Last updated: 2026-07-16 (Session 4 — see the pickup section at the bottom).
+Last updated: 2026-07-19 (Session 5 — see the pickup section at the bottom).
 
 ---
 
@@ -118,3 +118,50 @@ the rich player's gold pool is really the want-problem below).
 
 **Deploy:** the live Vercel build predates ALL of Sessions 3-4 — redeploy
 (`npx vercel --prod`) once Chandra has playtested the current main.
+
+---
+
+## Session 5 (2026-07-16→19) — what shipped and what's open now
+
+*(Pickup point for the next chat. Six commits on `main`,
+`e639935`→`e4293c2`. Full record: `CHANGELOG.md` Session 5, `CHATLOG.md`
+Turns 17–20 + Fable's assessment, `DECISIONS.md` Session 5,
+`design/ENDGAME.md`. Playtests run on the STABLE server —
+`npx vite preview --port 4173` or the `kingdom-sim-stable` launch config —
+never the live dev server.)*
+
+**SHIPPED:** the endgame design session (`design/ENDGAME.md`); the
+counter-raid built ON-MAP — the warlord's camp with named folk, his ledger
+hoard, the march, and the punish/massacre moral choice (survivor → avenger,
+marked men, mercy-settlers); watchtower rework (real targets, watchman
+inside under a flag, silent rubble when battered); Refuse-the-Danegeld;
+raids-from-camp (nest at first raid, warlord claims later, 70/30 origin
+split, staged massing with visible bodies, the warlord's shadow); finite
+forests (thinning render, forest→plains, 4–6 yr camp sites); territory from
+buildings + roads + enclave auto-fold; drag-painted roads/walls; placement
+rings; condition-scaled demolish refunds; bridges over water.
+
+**OPEN — the big three, in order:**
+1. **THE LONG PLAYTEST.** No human has played Sessions 3–5 end-to-end, the
+   massacre has never been chosen by a person, and six commits of tuning
+   are provisional: raid pacing with long camp marches, tower target value
+   (2.5), depletion rates (~90/tile, radius 2.2), influence values, bridge
+   cost. Play a full reign on :4173, log against the reckoning telemetry.
+   Gates the Vercel redeploy (now FIVE sessions stale).
+2. **The summit design session: Great Works ladder + Crown of Ages + the
+   Last Muster (army-as-victory) + rally banner.** The pull and the climax
+   designed as ONE endgame. `design/ENDGAME.md` §4 + `DECISIONS.md`
+   Session 5 (army deferral) hold the agreed starting shapes.
+3. **Depletion follow-through:** the promised sim2 campaign (repair
+   treadmill vs finite wood; do seeds 8/37 get rescued by trade or killed?),
+   ore depletion (later), and whether trade can bear structural imports
+   (D4 buy-cap resurfaces here).
+
+**WATCH in the playtest (may not be problems):**
+- Camp waves arrive later in the alarm cycle (long marches) — dreadful or
+  draggy? Knobs: `CAMP.massingAtTicks`/`stirAtTicks`, `RAID.minGapTicks`.
+- Raiders now hunt towers — does the frontier feel defensible, or does the
+  banner-post need building?
+- Does depletion read as story (receding wood-line) or chore (replopping)?
+- Does the border-follows-roads change make Dominion too easy? (Territory
+  ~314–393 in headless vs ~301 before — mild so far.)

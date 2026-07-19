@@ -5,6 +5,75 @@ first within each section. For still-open questions see `OPEN-QUESTIONS.md`.
 
 ---
 
+## Session 5 — the endgame, the counter-raid, and the living map (2026-07-16→19)
+
+- **The late-game problem is PULL, not sinks (ratified reframe).** Duncastle
+  proved working sinks (tribute, merc upkeep) never touch a strong player.
+  Every want in the game was a survival want; the endgame needs ambitions the
+  player authors. Do not propose more sinks aimed at the rich.
+- **NO symmetric rival kingdom — the warlord is asymmetric (Chandra).** "Then
+  we have made a worse Age of Empires." The warlord never gets an economy,
+  buildings, or tech. He gets an ADDRESS: a camp that is a stat block with
+  people. The player's aggression is the counter-raid, not conquest.
+- **The counter-raid resolves as a MORAL CHOICE (Chandra), at the moment of
+  victory, game paused:** punish (reclaim the ledger, burn the war-tents,
+  ~4 quiet years, spared folk drift in as settlers — mercy pays in people) or
+  massacre (camp erased forever; the on-screen hunt; one survivor ALWAYS
+  escapes and returns as an avenger who sends no rider and takes no gold;
+  participating soldiers are MARKED — kill-resistant, never stand down).
+  Consequence package chosen from a menu: avenger+survivor, marked men,
+  mercy-pays-in-people. Ambient morale/merchant costs were offered and NOT
+  chosen — do not add them without a new decision.
+- **The warlord's hoard is a LEDGER, not a treasure table.** It holds what he
+  looted plus tribute paid — so raiding him reclaims your own losses and
+  farming him is structurally impossible. Keep this invariant.
+- **The camp is the SOURCE of raids — but never all of them (70/30).** The
+  first raid founds an unclaimed brigand NEST; a warlord claims it when the
+  kingdom is worth the march. ~70% of common waves mass at the camp with
+  staged, visible telegraphing; ~30% still strike from random edges. Rationale:
+  100% one-origin lets a single walled corridor kill the whole pressure
+  system. The 30% is load-bearing — don't remove it.
+- **The warlord's shadow (radius 9): no claim near a living camp.** Prevents
+  claiming up to his tents and parking towers that shred waves at spawn.
+  Forward forts OUTSIDE the shadow are legitimate strategy. Lifts at ashes.
+- **Fog-of-war REJECTED (Chandra asked, Fable argued, stands).** The god-view
+  minimap is the game's identity and the camp's telegraphing depends on
+  visibility. "Exploration" is expressed as claim-reach (roads, works), not
+  hidden map. If frontier tooling still itches: the claim-only BANNER POST is
+  the agreed next candidate, one session.
+- **Watchtowers are real targets; the watchman serves INSIDE (Chandra).**
+  Raiders value manned towers at 2.5 (was 0.2). A manned tower flies the
+  watch-flag, its watchman is sheltered inside (no panic, no hunt); battered
+  to its floor it is SILENT rubble, unmanned, until repaired past half.
+  Sack-not-raze stands; the keep's guard still fires from its stones.
+- **Refusing the Danegeld is explicit and immediate.** The Refuse button sends
+  the rider back and the warlord marches AT ONCE — defiance spends the wait.
+  Ignoring the banner remains the passive middle path.
+- **The forest is FINITE; the map has a metabolism (Chandra's idea, forest-only
+  v1).** ~90 wood/tile ±50; camps cut ~2 tiles/yr; a site lasts 4–6 years;
+  spent forest becomes farmable PLAINS (assarting — clearing is colonizing).
+  Ore depletion deferred (couples into war balance); stone stays bottomless.
+  Pacing law: depletion is punctuation in YEARS, never a treadmill (A3).
+- **Territory follows the works of the realm.** Houses, production buildings,
+  and ROADS project modest influence (2–4); the border ribbons along roads —
+  the road is the claim tool that reaches the next forest. Keep/church/tower
+  (11/8/7) remain the dedicated influence leaders. Enclosed pockets of wilds
+  auto-fold into the realm.
+- **Bridges: the road tool over water (Chandra).** 6 wood + 4 stone per
+  segment, chainable; a bridge CLAIMS its tile (the border crosses rivers),
+  counts as road for speed/merchant — and is passable to raiders. A bridge is
+  deliberately a chokepoint/vulnerability, not a free crossing.
+- **Demolish refunds ALL materials scaled by condition.** A sound building
+  returns full cost. Rationale: depletion makes relocation routine; moving
+  camps must not be taxed. (Supersedes the half-wood/stone refund.)
+- **Playtests run on the STABLE build server (:4173, `vite preview`), never
+  the live dev server.** Chandra's mid-raid blackouts were HMR 404s from
+  playing on :5173 while it was being edited. Process rule going forward.
+- **Army-as-victory DEFERRED to a design session (with Great Works).** Agreed
+  shape to bring: a great-host threshold PROVOKES the climax (the Last
+  Muster); a plantable RALLY BANNER is the one army-control primitive
+  (split/patrol/fort) that respects A3. Not to be patched in piecemeal.
+
 ## Session 4 — merge, ports, and the 21-idea run (2026-07-16)
 
 - **Eat RAW FOOD first; bread is the RESERVE (shipped, game + sim2).** Reverses

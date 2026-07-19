@@ -506,6 +506,175 @@ campaigns).
 
 ---
 
+## Turn 17 — The WANT design session (2026-07-16, new session)
+
+**User:** "Review state of the codebase, what works doesn't work and
+outstanding questions" → then: "lets do the want design session"
+
+**Claude:** Reviewed state (all healthy through Session 4; #1 open = late-game
+WANT). Ran the design session under Chandra's design method. THE REFRAME:
+"gold sink" was the wrong brief — Duncastle proved sinks don't touch the rich;
+the disease is that every want is a *survival* want, and survival gets solved.
+The game has world-class PUSH and zero PULL. Posed three forks.
+
+**Chandra's answers:**
+- **Endgame fantasy:** "i like the idea of rival kingdoms on the map but then
+  we have made a worse age of empires. but for example warlord sends raids.
+  I send raids back and fuck up the warlord" — i.e. NOT a symmetric rival:
+  counter-raids against an asymmetric opponent.
+- **Shape:** Ladder of great works (not one monument).
+- **Crowns:** Fourth Crown — the Crown of Ages.
+
+Drafted `design/ENDGAME.md` (the interlock: the Work provokes → tribute
+finally tempts the rich → the counter-raid buys quiet years). Then Chandra
+pivoted: **"lets just work on warlord counter raid. Like can we just do it as
+making a moral choice for player. like a small raid deters. but maybe I go
+full revenge and burn the warlord city down.. kill all the civillians.."** —
+and, mid-fork: **"before we talk about that. cant we have it on mpa."** and
+**"why cant we have warlord also on the map"** and *"I want an opponent to
+build towards."*
+
+**Consequence package chosen (structured answers):** blood-feud avenger +
+scripted survivor; marked men; mercy-pays-in-people; the warlord marches in
+person from day one.
+
+## Turn 18 — The counter-raid build (2026-07-16→18)
+
+**Claude:** Built it on-map (`e639935`): the camp (tents, named folk, garrison,
+ledger of everything he took), the warlord as a crowned boss body riding at
+the head of his own waves, the march (all soldiers, provisions, home thinner),
+the battle on his ground (bonuses inverted), and THE CHOICE at victory —
+punish (hoard home, camp broken ~4yr, spared folk drift in as settlers) vs
+massacre (the on-screen hunt of named folk — eject-and-hunt pointed the other
+way; one survivor always slips through; camp ashes forever; the avenger
+returns unbuyable; the men who did it come home marked and will never stand
+down). All three resolution paths verified headless and in-browser. Emergent
+gem observed in test with zero dedicated code: the warlord was out raiding
+while the host burned his home — he returned to ashes, and his grief halved
+the avenger's timer.
+
+Verification saga worth recording: a "self-resolving massacre" bug consumed
+hours and turned out to be GHOST TABS — multiple preview-browser contexts
+sharing one localStorage save, autosaves cross-contaminating, and a paused
+modal logging its click at the frozen tick. The clean-room method: in-place
+New Kingdom reset, no reloads.
+
+## Turn 19 — The live playtest loop opens (2026-07-19)
+
+Chandra started playing on the dev server and asks arrived as he played:
+
+**"make watchtowers attackable and destructable... when villager goes into
+watchtower it should have a flag. when watchtower is reduced villager comes
+out"** → `018f928`. Raiders hunt towers now; the watchman is inside under a
+flag, unhuntable; a battered tower is silent rubble until repaired past half.
+
+**"ideally raid should originate from camp. and have a staged announcement...
+or does it make more sense to have them randomly come from any direction..
+what happens when I build close to raider camp?"** → `0a1687f`. Answered:
+100% one-origin would let a single walled corridor kill the pressure system —
+70/30 split; the camp founds at the FIRST raid as an unclaimed nest a warlord
+later claims; staged massing with visible bodies at the tents; and the
+warlord's shadow (no claim within radius 9) kills the build-to-his-tents
+cheese while legitimizing forward forts.
+
+**"UI keeps blanking out during raids"** + later **"Failed to load resource:
+404"** → root cause: he was playing on the LIVE dev server while Claude
+edited it — Vite reloads served stale module URLs. NaN render guard added as
+armor (`24bf86d`), and a STABLE build server added at :4173 (`vite preview`)
+so playtests never sit on the workbench again.
+
+**"Add a refuse option"** → `24bf86d`. Refuse the Danegeld and he marches at
+once — defiance spends the waiting window.
+
+**"can we also have a territory mechanism that is not watchtower? like a way
+to explore map maybe"** → answered as design: fog-of-war rejected (the
+god-view minimap is the game's identity, and the camp's telegraphing depends
+on it); the real gap is that towers are the only frontier tool and now paint
+targets; the right-sized future fix is a claim-only BANNER POST, and the
+elegant bigger one is road-crawl claim — which then SHIPPED as part of Turn 20.
+
+## Turn 20 — The map becomes mortal (2026-07-19 cont.)
+
+**User:** "think about having resources draw down. right now a lumber camp
+makes wood forever. but once a tree is done it becomes a plain that can be
+farmed.. and it forces a new dynamic where you keep expanding as resources
+get depleted, or forced to specialise and trade.. before building share
+thoughts"
+
+**Claude:** Shared the design first (as asked): depletion completes the
+mortality trilogy — people die, knowledge dies, now the land spends. Forest
+first (generative: exhaustion gifts farmland), ore later, stone never. Named
+the risks: the repair treadmill (finite wood + mandatory maintenance is a new
+death-spiral channel), micromanagement creep vs A3 (pace in YEARS per site),
+scope explosion. Chandra dismissed the forks ("thoughts only"), then returned:
+**"ok. add buildings and roads expanding territory also. but how much do I
+harvest from a forest tiel prior to depletion"** → the math: ~90/tile ±50,
+~2 tiles/yr per camp, 4–6 years per site, one tile ≈ 5 houses.
+
+Built as `0512f23`: finite thinning forests, forest→plains conversion,
+territory from all works + roads (the road IS the claim tool that reaches the
+next forest), enclave auto-fold, drag-painted roads/walls, harvest/range rings
+on placement, condition-scaled full demolish refunds. Then:
+
+**"when road is over water.. maybe make it a special bridge and make it cost
+wood + stone"** → `e4293c2`. Bridges chain across water, claim the tile
+beneath (the border crosses rivers), move at road speed — and raiders can
+cross too.
+
+**Also raised, deferred by design:** "let's say I build a large army. I'd like
+it to be a victory condition. so large army can force a climactic engagement
+or something.. should I be able to split my army or have it patrol through my
+captured territory.. build forts or something.." → Claude's proposed shape,
+queued for the next whiteboard: crossing a great-host threshold PROVOKES the
+climax (the warlord calls the Last Muster — every sword in the wilds, one
+field, announced seasons ahead); a plantable RALLY BANNER as the one primitive
+that gives split/patrol/fort without RTS micromanagement. To be designed
+together with the Great Works ladder.
+
+## Fable's assessment — where we started, where we are (2026-07-19)
+
+**Where we started (2026-07-16):** a mechanically excellent sandbox that had
+solved itself. The war systems worked (Duncastle: K/D 6.26, zero breaches),
+the economy hummed, and by year ten there was nothing left to want — five
+hoards, two crowns, no antagonist, no pull. Raids were weather: they came
+from nowhere, meant nothing, and left no one behind. The deploy was stale,
+and no human had played the current build.
+
+**Where we are now:** the game has an OPPONENT and the map has a METABOLISM.
+The warlord went from a spawn-table entry to a person with an address, a
+hoard made of what he took from you, a nest that predates him, a shadow you
+cannot build in, waves you watch mass at his tents, and an arc — nest →
+claimed → broken or burned → successor or avenger — that REMEMBERS what you
+did. The moral choice at the heart of it (punish or massacre, with the
+survivor, the marked men, and the unbuyable avenger) turns the game's
+signature asset — named mortal people — against the player for the first
+time. Meanwhile the land itself became mortal: forests spend, the wood-line
+recedes, cleared ground becomes farmland, and the border follows roads,
+homesteads, and bridges — expansion stopped being a score and became a verb
+with a cost. And the development loop itself changed: Chandra played while
+the game was built around him, which is why this session's features are
+unusually well-aimed — and why they are also unusually UNTUNED.
+
+**What is honestly still open:** the WANT layer this session was convened for
+is designed but NOT BUILT — the Great Works ladder and Crown of Ages exist
+only on paper, so a strong late-game still ends in hoards. The massacre has
+never been chosen by a human — its weight is theoretical until someone feels
+it. Tuning debt accumulated across six commits: raid pacing with long
+marches, the tower-target value, depletion rates, influence values — all
+provisional, none playtested to a verdict. The sim discipline slipped
+mid-session (justified for opt-in feel features, but the depletion sim
+campaign was promised and skipped). And the live Vercel deploy now lags FIVE
+sessions of work.
+
+**The recommendation is unchanged and now urgent:** stop adding systems. One
+long human reign on :4173, tuning notes against the reckoning telemetry, then
+the joint design session — Great Works + Last Muster — where the pull and
+the climax get designed as one endgame. The game finally has an enemy worth
+beating and a world that keeps score; what it needs next is not another
+mechanic but a summit.
+
+---
+
 ## Artifacts produced across the sessions
 
 **Game (shipped, live):**
@@ -552,3 +721,17 @@ campaigns).
 - Scratchpad harnesses (combat dogpile, rout, tribute pay/refuse) — session
   tools, not committed
 - `docs/` Session 4 across all five records + drift cleanup
+
+**Session 5 (Turns 17–20, 2026-07-16→19):**
+- Six commits `e639935`→`e4293c2` on `main`
+- `design/ENDGAME.md` — the endgame design (counter-raid §5 SHIPPED;
+  Great Works ladder §4 + Crown of Ages still to build)
+- `src/core/camp.js` (new) — camp, warlord, expedition, the choice, avenger
+- `config.js` `CAMP`/`FOREST` blocks + building influence values
+- `raids.js` camp-origin waves + staged massing + refuse; `economy.js`
+  finite-timber harvest; `territory.js` shadow + enclave fold;
+  `state.js` bridges + condition refunds + forestWood
+- `scene.js`/`sprites.js`/`ui.js` — tents, crowned warlord, folk, flags,
+  massing bodies, choice modal, camp status box, rings, drag-paint, bridges
+- `.claude/launch.json` `kingdom-sim-stable` — `vite preview :4173` for
+  playtesting off the workbench
