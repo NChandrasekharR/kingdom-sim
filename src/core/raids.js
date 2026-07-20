@@ -245,7 +245,7 @@ function spawnRaid(state, rand) {
   raid.lootStartTick = 0;
   raid.keepBesieged = false;
   // per-raid ledger, reported when the raid ends (and dumped to the console)
-  raid.tally = { killed: 0, soldiersLost: 0, mercsLost: 0, hunted: 0, loot: 0, walls: 0 };
+  raid.tally = { killed: 0, soldiersLost: 0, mercsLost: 0, hunted: 0, loot: 0, recovered: 0, walls: 0 };
 
   // wave size rides prosperity and your army; a raid that hurt last time
   // eases this one (rubber-band mercy), a fat unscathed kingdom gets none
@@ -310,7 +310,7 @@ function spawnRaid(state, rand) {
     raid.raiders.push({
       x: sx + (rand() - 0.5), y: sy + (rand() - 0.5), px: sx, py: sy,
       hp: (RAIDER.hp + raid.wave * 2) * (isWarlord ? RAID.warlordHpMult : 1),
-      loot: 0,
+      loot: 0, lootBag: {},
       name: `${RAIDER_FIRST[rid % RAIDER_FIRST.length]} ${RAIDER_EPITHET[(rid * 11) % RAIDER_EPITHET.length]}`,
       path, pathI: 0, mode: 'march', targetId: target.id,
       spawn: { x: sx, y: sy },
@@ -325,7 +325,7 @@ function spawnRaid(state, rand) {
       state.camp.warlord.home = false;
       raid.raiders.push({
         x: sx, y: sy, px: sx, py: sy,
-        hp: CAMP.warlordHp, loot: 0, warlord: true,
+        hp: CAMP.warlordHp, loot: 0, lootBag: {}, warlord: true,
         name: state.camp.warlord.name,
         path: wPath, pathI: 0, mode: 'march', targetId: keepB.id,
         spawn: { x: sx, y: sy },
@@ -428,6 +428,9 @@ function updateRaiders(state, rand) {
         const take = Math.min(2, state.res[best]);
         state.res[best] -= take;
         rd.loot += take;
+        // remember WHAT was taken, not just how much — so a slain raider
+        // drops back the very grain and gold he was carrying
+        rd.lootBag[best] = (rd.lootBag[best] || 0) + take;
         if (raid.tally) raid.tally.loot += take;
       }
       // the keep is the kingdom's heart — raiders reaching it sound the alarm
@@ -481,6 +484,11 @@ function updateRaiders(state, rand) {
 function cullRaiders(state) {
   const raid = state.raid;
   for (const rd of raid.raiders) {
+    // a brigand cut down with his pack still on his back drops the plunder —
+    // the very goods he'd stolen roll back into the stockpile, typed. One who
+    // already slipped away ('gone') counts as escaped, even if an arrow found
+    // him at the treeline — his loot goes to the hoard, not back to us
+    if (rd.hp <= 0 && rd.loot > 0 && rd.mode !== 'gone') recoverLoot(state, rd);
     if (rd.warlord && rd.hp <= 0) {
       warlordFell(state);
       for (const o of raid.raiders) {
@@ -492,6 +500,21 @@ function cullRaiders(state) {
     }
   }
   raid.raiders = raid.raiders.filter((rd) => rd.hp > 0 && rd.mode !== 'gone');
+}
+
+// Empty a slain raider's pack back into the stockpile, resource by resource.
+// A migrated save may carry loot with no bag — refund it as food so nothing
+// stolen is ever silently destroyed.
+function recoverLoot(state, rd) {
+  const bag = rd.lootBag || {};
+  let back = 0;
+  for (const r in bag) {
+    const amt = bag[r];
+    if (amt > 0) { state.res[r] = (state.res[r] || 0) + amt; back += amt; }
+  }
+  if (back <= 0 && rd.loot > 0) { state.res.food += rd.loot; back = rd.loot; }
+  if (state.raid.tally) state.raid.tally.recovered += back;
+  state.stats.lootRecovered += back;
 }
 
 function startFlee(state, rd) {
@@ -885,6 +908,7 @@ function endRaid(state, rand, fled = false) {
   if (raid.lastSacked) parts.push(`${raid.lastSacked} building${raid.lastSacked > 1 ? 's' : ''} sacked`);
   if (t.walls) parts.push(`${t.walls} wall${t.walls > 1 ? 's' : ''} breached`);
   if (t.loot >= 1) parts.push(`${Math.round(t.loot)} goods carried off`);
+  if (t.recovered >= 1) parts.push(`${Math.round(t.recovered)} goods won back from the slain`);
   const head = fled ? 'The raiders break and flee!' : 'The raid is over.';
   logEvent(state, parts.length
     ? `${head} The reckoning: ${parts.join(' · ')}.`
