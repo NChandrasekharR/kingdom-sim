@@ -1,0 +1,18 @@
+{
+  "name": "kingdom-teaser",
+  "private": true,
+  "description": "Remotion teaser video for Kingdom — rendered from the game's own sprite code",
+  "scripts": {
+    "studio": "remotion studio src/index.js",
+    "render": "remotion render src/index.js teaser out/kingdom-teaser.mp4",
+    "still": "remotion still src/index.js teaser"
+  },
+  "dependencies": {
+    "@remotion/cli": "^4.0.494",
+    "@remotion/google-fonts": "^4.0.494",
+    "ffmpeg-static": "^5.3.0",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "remotion": "^4.0.494"
+  }
+}
