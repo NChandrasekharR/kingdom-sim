@@ -9,6 +9,45 @@ deploy is manual and still runs the pre-Session-3 build — redeploy pending.
 
 ---
 
+## Session 7 — The Steward's Counsel + launch assets (2026-07-20)
+
+The onboarding plan (`design/ONBOARDING.md`, drafted Session 6) built as
+specified, plus the launch thread's visual assets.
+
+**The Steward's Counsel** (`src/core/tutorial.js`, ~230 lines)
+- A minted advisor ("Steward Osric the Steady" style, seeded from the reign)
+  offers ONE counsel at a time in a parchment card above the sidebar tabs.
+  Eight-step ladder (house → farm → lumber → staffed tower → the first raid →
+  barracks+soldier → 8 roads → farewell), each completed by the real event via
+  pure state reads — no tutorial actions, no gating, no pausing.
+- Counsel + acknowledgments land in the Chronicle as a new `'counsel'` kind
+  (gold-tinted). Just-in-time one-shots cover first contact with spoilage,
+  tribute, the nest, the warlord, massing, depleted lumber, wall breach, and
+  march-readiness; the victory choice is deliberately silent.
+- Skips: "Dismiss the steward" link (polite, final, localStorage-flagged so no
+  reign ever shows it again); auto-skip on 4 unprompted building types; loaded
+  pre-tutorial saves retire the ladder and pre-mark in-play systems as seen.
+- §7b grace: +100 ticks before the first raid while the ladder is fresh.
+- Verified headless (scripted full-ladder walk, dismissal, auto-skip, JIT
+  one-shots, save/load roundtrip, pre-tutorial save migration — all pass) and
+  in-browser (card render, dismiss flow, New-Kingdom-never-restarts, grace
+  timer). Production build clean.
+
+**Launch assets** (`teaser/src/Stills.jsx`, rendered to `teaser/out/thread/`)
+- `public/og-card.png` (1200×630) + full `og:`/`twitter:` meta on both
+  `index.html` and `landing.html` — tweets/LinkedIn/Slack now unfurl a card.
+- One still per thread post: custom compositions for posts 3 (HP=output),
+  6 (~4,900 reigns), 7 (NaN warlord), 8 (eat order), 9 (masters), 10 (no
+  rival), plus teaser frame-grabs for 2, 4, 5, 11 and a bonus "Meet the
+  Steward" card. Asset map in `teaser/TWEET.md`.
+- Two extra cards for Chandra's personal-thread copy: `still-entropy`
+  ("tradeoffs under entropy" punchline) and `still-taste` (config sliders +
+  the tuning questions; "the sims find the numbers, taste finds the game").
+  Rendered files live in `teaser/out/thread/` (gitignored — re-render from
+  `src/Stills.jsx` with `npx remotion still`).
+
+---
+
 ## Session 5 — The endgame design, the counter-raid, and the living map (2026-07-16→19)
 
 Six commits, `e639935`→`e4293c2`. Arc: the late-game WANT design session

@@ -5,6 +5,28 @@ first within each section. For still-open questions see `OPEN-QUESTIONS.md`.
 
 ---
 
+## Session 7 — the Steward's Counsel ships (2026-07-20)
+
+- **ONBOARDING.md §9 calls, taken per the doc's own recommendations** (built
+  autonomously; revisit any of these only with playtest evidence):
+  ladder **never restarts** on New Kingdom after one completion or dismissal
+  (flag `kingdom-sim-tutorial-done-v1` in localStorage, beside the save, not
+  in state); **+100-tick first-raid grace** applied once at reign start while
+  the ladder is fresh (§7b — the rubber-band philosophy extended to green
+  keepers); steward is a **voice, not a body** (the killable-steward cruelty
+  stays a v2 idea). **Q4 remains open**: auto-drop to 1× at the first raid
+  warning — touches player controls, Chandra's call.
+- **Spoilage JIT counsel gates on real loss (>10 food rotted), not the bare
+  `spoiling` flag.** The starting 40-food stock already exceeds the six-soul
+  spoil-free buffer, so the flag is true at tick 1 and the one-shot lesson
+  would fire before the player had done anything. First-contact counsel means
+  first *felt* contact.
+- **JIT counsel survives dismissal.** "Dismiss the steward" kills the ladder
+  forever; the one-shot system glossary stays (it replaces silent-or-cryptic
+  first encounters, not hand-holding). Per-reign seen-flags, no toggle in v1.
+- **The steward is silent at the victory choice** — reaffirmed in code with a
+  deliberate non-entry. The moral choice must be the player's alone.
+
 ## Session 5 — the endgame, the counter-raid, and the living map (2026-07-16→19)
 
 - **The late-game problem is PULL, not sinks (ratified reframe).** Duncastle

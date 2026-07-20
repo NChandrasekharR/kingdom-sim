@@ -5,7 +5,7 @@ in one place. Grouped by area. Status key:
 **OPEN** (needs a decision) · **EXPERIMENT** (answerable by running the sim) ·
 **DEFERRED** (parked for later) · **RESOLVED** (settled — moved to `DECISIONS.md`).
 
-Last updated: 2026-07-19 (Session 5 — see the pickup section at the bottom).
+Last updated: 2026-07-20 (Session 7 — see the pickup section at the bottom).
 
 ---
 
@@ -165,3 +165,33 @@ rings; condition-scaled demolish refunds; bridges over water.
 - Does depletion read as story (receding wood-line) or chore (replopping)?
 - Does the border-follows-roads change make Dominion too easy? (Territory
   ~314–393 in headless vs ~301 before — mild so far.)
+
+---
+
+## Session 7 (2026-07-20) — what shipped and what's open now
+
+*(Pickup point. Sessions 6-7 are on `main` and DEPLOYED — the Vercel deploy
+now runs current main including the onboarding and the og-card. Full record:
+`CHANGELOG.md` Sessions 7, `CHATLOG.md` Turns 21-23, `DECISIONS.md` Session 7,
+`design/ONBOARDING.md` status block.)*
+
+**SHIPPED:** the Steward's Counsel (`src/core/tutorial.js` — 8-step diegetic
+ladder + JIT one-shot counsel, steward card, `'counsel'` chronicle kind,
++100-tick first-raid grace, dismiss/auto-skip/never-twice rules, pre-tutorial
+save migration); `public/og-card.png` + `og:`/`twitter:` meta on both pages
+(links unfurl); a Remotion still per launch-thread post plus the
+`still-entropy`/`still-taste` cards in Chandra's own thread voice
+(`teaser/src/Stills.jsx`, asset map in `teaser/TWEET.md`).
+
+**OPEN:**
+1. **The onboarding kill gate** (ONBOARDING.md): hand the game to one person
+   who has never seen it, ladder on. Survive the first raid + say aloud what
+   bread is for → it ships for real. Dismissed inside 60s → make it quieter.
+2. **Steward Q4**: drop speed to 1× when the first raid warning fires?
+   Touches player controls — Chandra's call, one line if yes.
+3. **The long playtest** still pending (unchanged from Session 5) — one full
+   human reign on `:4173`; massacre still never chosen by a human.
+4. **Great Works summit** (unchanged): ladder + Crown of Ages + Last Muster +
+   rally banner as one endgame design session.
+5. **Depletion sim follow-through** (unchanged): repair treadmill vs finite
+   wood, seeds 8/37, ore later.

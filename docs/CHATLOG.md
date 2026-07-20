@@ -735,3 +735,60 @@ mechanic but a summit.
   massing bodies, choice modal, camp status box, rings, drag-paint, bridges
 - `.claude/launch.json` `kingdom-sim-stable` — `vite preview :4173` for
   playtesting off the workbench
+
+---
+
+*(Session 6, 2026-07-20 — four commits `6a466b0`→`982cca0`: camp-respects-the-
+border, roads-carry-the-war pathfinding, the landing page + Remotion teaser +
+launch thread draft, the first current-main Vercel deploy, and the ONBOARDING.md
+plan. Its turns were not reconstructed here; the commit messages and
+`design/ONBOARDING.md` carry the record.)*
+
+## Turn 21 — The Steward's Counsel built + the launch cards (2026-07-20, Session 7)
+
+**User:**
+> Review codebase and design/onboarding.md doc. build the onboarding. then I
+> need a social media card for it so it has a preview in tweets, linkedin etc.
+> also need you to generate assets for all other tweets in this thread.
+
+**Claude:** Built the onboarding exactly to the ONBOARDING.md plan:
+`src/core/tutorial.js` (8-step ladder + just-in-time one-shots, pure state
+reads ticked after `winTick`), the steward card above the sidebar tabs, the
+gold `'counsel'` chronicle kind. Took the doc's own recommendations on its
+open questions (never-restart via localStorage, +100-tick first-raid grace,
+voice-only steward) and left Q4 (auto-drop to 1× at the first horn) for
+Chandra. One copy deviation: the spoilage counsel waits for >10 food actually
+rotted, since the starting stock trips the bare `spoiling` flag at tick 1.
+Verified with a headless scripted reign walking the whole ladder (plus
+dismissal, the 4-building veteran auto-skip, JIT once-only, save roundtrip,
+pre-tutorial-save migration) and in-browser (card, dismiss bow, New-Kingdom
+stays retired, no grace for veterans). Then the assets: `public/og-card.png`
++ full `og:`/`twitter:` meta on both pages, and `teaser/src/Stills.jsx` — a
+Remotion Still per thread post (custom cards for the data posts, frame-grabs
+where the teaser already had the scene, a bonus "Meet the Steward" card).
+
+## Turn 22 — Two cards in his own voice (2026-07-20 cont.)
+
+**User:** *(screenshot of his drafted thread, wording differing from TWEET.md)*
+> Make cards for the following: The core mechanic: a building's output IS its
+> hit points. […] The entire game is about making tradeoffs under entropy —
+> AND — It was a lot of work to build and test. I spent most of my time
+> running simulations and tweaking parameters […] I found myself leaning on
+> taste - what feels right, what makes the game challenging but enjoyable
+
+**Claude:** Two more compositions matched to the personal-thread copy:
+`still-entropy` (the HP-bar farm with his three entropy forces and "the
+entire game is making tradeoffs under entropy" as the closer) and
+`still-taste` (a parchment tuning panel — four real config values as sliders,
+each annotated with the question he actually asked, closing "the simulations
+find the numbers; taste finds the game"). Asset table in `teaser/TWEET.md`
+updated.
+
+## Turn 23 — Ship it (2026-07-20 cont.)
+
+**User:**
+> deploy. and then update logs etc
+
+**Claude:** Committed Session 7, deployed current main to Vercel (og-card now
+unfurls), and brought CHANGELOG / CHATLOG / DECISIONS / OPEN-QUESTIONS up to
+date — including this entry.
