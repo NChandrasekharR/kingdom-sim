@@ -91,7 +91,7 @@ export const BUILDINGS = {
     cost: { stone: 4 }, hp: 120, workers: 0,
   },
   road: {
-    name: 'Road', desc: 'Soldiers march faster, the merchant visits more often — and the border follows the road. Laid over water it becomes a bridge (wood + stone).',
+    name: 'Road', desc: 'Armies march the roads — yours, and theirs. Faster movement, more merchant visits, and the border follows the road. Laid over water it becomes a bridge (wood + stone).',
     cost: { stone: 2 }, hp: 40, workers: 0, influence: 2,
   },
   bridge: {

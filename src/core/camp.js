@@ -1,7 +1,7 @@
-import { MAP, T, TERRAIN_INFO, CAMP, COMBAT, SOLDIER, RAIDER, SKILL } from '../config.js';
-import { idx } from './state.js';
+import { MAP, T, TERRAIN_INFO, CAMP, COMBAT, SOLDIER, RAIDER, SKILL, ROAD_SPEED_MULT } from '../config.js';
+import { idx, inBounds } from './state.js';
 import { logEvent, emit } from './events.js';
-import { findPath, soldierSkill } from './raids.js';
+import { findPath, roadTiles, soldierSkill } from './raids.js';
 import { makeVillager, killVillager } from './villagers.js';
 
 // ── The warlord's camp ─────────────────────────────────────────────
@@ -36,64 +36,74 @@ function mintWarlordName(state) {
   return `Warlord ${WARLORD_FIRST[id % WARLORD_FIRST.length]} ${WARLORD_EPITHET[(id * 11) % WARLORD_EPITHET.length]}`;
 }
 
-// Found the camp in the wilds corner farthest from the keep. Called the first
-// time a warlord shows himself (and again when an avenger returns to ashes).
-export function ensureCamp(state, rand, opts = {}) {
-  // a massacred camp stays ashes — only the avenger timer (which nulls
-  // state.camp first) may found anew. No cadence shortcut past the grief.
-  if (state.camp) return state.camp;
-  const N = MAP.size;
-  const keep = state.buildings.find((b) => b.type === 'keep');
-  if (!keep) return null;
+// Is any claimed tile within r of (x, y)? Used to keep camp sites clear of
+// the realm's border, not just off claimed tiles themselves.
+function claimedNear(state, x, y, r) {
+  const R = Math.ceil(r);
+  for (let dy = -R; dy <= R; dy++) {
+    for (let dx = -R; dx <= R; dx++) {
+      if (dx * dx + dy * dy > r * r) continue;
+      const px = x + dx, py = y + dy;
+      if (!inBounds(px, py)) continue;
+      if (state.claimed[idx(px, py)]) return true;
+    }
+  }
+  return false;
+}
 
+// Pick a camp site: the wilds corner farthest from the keep, on buildable,
+// REACHABLE ground — and never on ground the realm has claimed. No warlord
+// pitches tents inside another man's fence. Strictness relaxes in tiers:
+// ideally far enough out that his shadow doesn't even lap the border, then
+// merely-unclaimed, and only a fully-claimed world lets him squat anywhere.
+function findCampSite(state, keep, avoid) {
+  const N = MAP.size;
   const corners = [[10, 10], [N - 11, 10], [10, N - 11], [N - 11, N - 11]];
   // farthest corner from the keep — the march should be a real journey.
   // An avenger founds his camp in a DIFFERENT corner than the burned one.
-  const avoid = opts.avoidXY;
   let best = corners[0], bd = -1;
   for (const [cx, cy] of corners) {
     if (avoid && Math.hypot(cx - avoid.x, cy - avoid.y) < 30) continue;
     const d = Math.hypot(cx - keep.x, cy - keep.y);
     if (d > bd) { bd = d; best = [cx, cy]; }
   }
-  // spiral out from the corner for buildable, REACHABLE ground
-  let anchor = null;
-  outer:
-  for (let r = 0; r < 34; r++) {
-    for (let dy = -r; dy <= r; dy++) {
-      for (let dx = -r; dx <= r; dx++) {
-        if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
-        const x = best[0] + dx, y = best[1] + dy;
-        if (x < 3 || y < 3 || x >= N - 3 || y >= N - 3) continue;
-        const t = state.terrain[idx(x, y)];
-        if (t !== T.PLAINS && t !== T.FOREST) continue;
-        if (findPath(state, keep.x, keep.y, x, y)) { anchor = { x, y }; break outer; }
+  for (const buffer of [CAMP.shadowRadius, 0, -1]) {
+    const siteOk = (x, y) => {
+      const t = state.terrain[idx(x, y)];
+      if (t !== T.PLAINS && t !== T.FOREST) return false;
+      if (buffer < 0) return true;
+      if (state.claimed[idx(x, y)]) return false;
+      return buffer === 0 || !claimedNear(state, x, y, buffer);
+    };
+    // spiral out from the corner
+    for (let r = 0; r < 34; r++) {
+      for (let dy = -r; dy <= r; dy++) {
+        for (let dx = -r; dx <= r; dx++) {
+          if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+          const x = best[0] + dx, y = best[1] + dy;
+          if (x < 3 || y < 3 || x >= N - 3 || y >= N - 3) continue;
+          if (!siteOk(x, y)) continue;
+          if (findPath(state, keep.x, keep.y, x, y)) return { x, y };
+        }
       }
     }
-  }
-  if (!anchor) {
-    // that corner is sea or cut off — take the farthest REACHABLE plains tile
-    // anywhere (never plant the camp somewhere no road can reach)
-    let fd = -1;
+    // that corner is sea, cut off, or claimed — the farthest valid tile anywhere
+    let anchor = null, fd = -1;
     for (let y = 3; y < N - 3; y += 4) {
       for (let x = 3; x < N - 3; x += 4) {
-        const t = state.terrain[idx(x, y)];
-        if (t !== T.PLAINS && t !== T.FOREST) continue;
+        if (!siteOk(x, y)) continue;
         const d = Math.hypot(x - keep.x, y - keep.y);
         if (d > fd && findPath(state, keep.x, keep.y, x, y)) { fd = d; anchor = { x, y }; }
       }
     }
-    if (!anchor) anchor = { x: keep.x, y: keep.y - 8 };   // absolute last resort
+    if (anchor) return anchor;
   }
+  return { x: keep.x, y: keep.y - 8 };   // absolute last resort
+}
 
-  const name = opts.campName ||
-    CAMP_NAMES[Math.floor(rand() * CAMP_NAMES.length)];
-  // an UNCLAIMED camp is a mere brigand nest — no warlord yet; one will claim
-  // it when the kingdom grows worth the march (claimCampByWarlord)
-  const unclaimed = !!opts.unclaimed;
-  const warlordName = unclaimed ? null : (opts.warlordName || mintWarlordName(state));
-
-  // tents ring the hall
+// tents ring the hall
+function buildTents(state, anchor) {
+  const N = MAP.size;
   const tents = [{ x: anchor.x, y: anchor.y, kind: 'hall' }];
   const ring = [[-2, -1], [2, -1], [-1, 1], [1, 1], [-3, 1], [3, 0]];
   for (const [dx, dy] of ring) {
@@ -102,6 +112,28 @@ export function ensureCamp(state, rand, opts = {}) {
     if (state.terrain[idx(x, y)] === T.WATER) continue;
     tents.push({ x, y, kind: 'tent' });
   }
+  return tents;
+}
+
+// Found the camp in the wilds corner farthest from the keep. Called the first
+// time a warlord shows himself (and again when an avenger returns to ashes).
+export function ensureCamp(state, rand, opts = {}) {
+  // a massacred camp stays ashes — only the avenger timer (which nulls
+  // state.camp first) may found anew. No cadence shortcut past the grief.
+  if (state.camp) return state.camp;
+  const keep = state.buildings.find((b) => b.type === 'keep');
+  if (!keep) return null;
+
+  const anchor = findCampSite(state, keep, opts.avoidXY);
+
+  const name = opts.campName ||
+    CAMP_NAMES[Math.floor(rand() * CAMP_NAMES.length)];
+  // an UNCLAIMED camp is a mere brigand nest — no warlord yet; one will claim
+  // it when the kingdom grows worth the march (claimCampByWarlord)
+  const unclaimed = !!opts.unclaimed;
+  const warlordName = unclaimed ? null : (opts.warlordName || mintWarlordName(state));
+
+  const tents = buildTents(state, anchor);
 
   const camp = {
     x: anchor.x, y: anchor.y, name, unclaimed,
@@ -309,6 +341,15 @@ function campLife(state, c, rand) {
 }
 
 function timers(state, c, rand) {
+  // a camp standing on ground the realm has claimed strikes its tents and
+  // moves deeper into the wilds (the site was claimed before the camp was
+  // founded, or the save predates the claim check). Never mid-expedition —
+  // the host is marching on the old address. Ashes stay where they burned.
+  if (!c.gone && !state.expedition && state.tick % 64 === 0 &&
+      state.tick >= (c.nextRelocateAt || 0) &&
+      state.claimed[idx(Math.round(c.x), Math.round(c.y))]) {
+    relocateCamp(state, c, rand);
+  }
   // wealth attracts swords: the garrison trickles up toward what the hoard commands
   if (!c.broken && !c.gone && state.tick % 200 === 0 &&
       c.garrison.length < garrisonTarget(c)) {
@@ -359,17 +400,63 @@ function timers(state, c, rand) {
   }
 }
 
+// The border swallowed the camp's ground: the warlord will not stay inside
+// another man's fence. The whole camp — tents, folk, swords, hoard — is
+// struck and raised again on open wilds, and his shadow moves with it.
+function relocateCamp(state, c, rand) {
+  const keep = state.buildings.find((b) => b.type === 'keep');
+  if (!keep) return;
+  const site = findCampSite(state, keep, { x: c.x, y: c.y });
+  if (!site || state.claimed[idx(site.x, site.y)]) {
+    // no open ground left anywhere — don't rescan the whole map every check
+    c.nextRelocateAt = state.tick + 2000;
+    return;
+  }
+  const from = c.name;
+  c.x = site.x; c.y = site.y;
+  c.tents = buildTents(state, site);
+  // everyone re-pitches among the new tents
+  for (let i = 0; i < c.folk.length; i++) {
+    const f = c.folk[i];
+    if (f.dead || f.escaped) continue;
+    const t = c.tents[1 + (i % Math.max(1, c.tents.length - 1))] || c.tents[0];
+    f.x = t.x + (rand() - 0.5); f.y = t.y + 0.8 + (rand() - 0.5) * 0.5;
+    f.px = f.x; f.py = f.y;
+  }
+  for (const g of c.garrison) {
+    const t = c.tents[g.id % c.tents.length] || c;
+    g.x = t.x + (rand() - 0.5) * 2; g.y = t.y + 1 + (rand() - 0.5);
+    g.px = g.x; g.py = g.y;
+  }
+  if (c.warlord.home) {
+    c.warlord.x = c.x; c.warlord.y = c.y - 0.6;
+    c.warlord.px = c.warlord.x; c.warlord.py = c.warlord.y;
+  }
+  c.massing = [];
+  state.campDirty = true;
+  logEvent(state,
+    c.unclaimed || !c.warlord.name
+      ? `Your border has swallowed the ground at ${from} — the brigands strike their tents and make camp deeper in the wilds.`
+      : `Your border has swallowed the ground at ${from} — ${c.warlord.name} strikes his tents and raises them again, deeper in the wilds.`,
+    'raid');
+  emit('camp-moved', c);
+}
+
 // ── The expedition ─────────────────────────────────────────────────
 function expSoldiers(state) {
   return state.soldiers.filter((s) => s.exp && s.hp > 0);
 }
 
-function followPath(state, u, path, speed) {
+// roads carry the host at road speed — and a bridge tile marches like road
+// (the terrain beneath is water, move ∞: reading it raw stalls the column)
+function followPath(state, u, path, speed, roads) {
   const N = MAP.size;
   if (u.expI >= path.length) return true;
   const next = path[u.expI];
   const nx = next % N, ny = (next / N) | 0;
-  const sp = speed / TERRAIN_INFO[state.terrain[next]].move;
+  const sp = roads && roads.has(next)
+    ? speed * ROAD_SPEED_MULT
+    : speed / TERRAIN_INFO[state.terrain[next]].move;
   const dx = nx - u.x, dy = ny - u.y;
   const d = Math.hypot(dx, dy);
   if (d <= sp) { u.x = nx; u.y = ny; u.expI++; }
@@ -392,10 +479,11 @@ function expeditionTick(state, rand) {
   }
 
   if (exp.phase === 'march') {
+    const roads = roadTiles(state);
     let anyNearCamp = false;
     for (const s of host) {
       s.px = s.x; s.py = s.y;
-      followPath(state, s, exp.path, SOLDIER.speed);
+      followPath(state, s, exp.path, SOLDIER.speed, roads);
       if (c && Math.hypot(s.x - c.x, s.y - c.y) < CAMP.battleRadius) anyNearCamp = true;
     }
     if (!c || c.gone) { startReturn(state, 'The camp was gone before the host arrived.'); return; }
@@ -412,9 +500,10 @@ function expeditionTick(state, rand) {
   } else if (exp.phase === 'massacre') {
     massacreTick(state, rand);
   } else if (exp.phase === 'return') {
+    const roads = roadTiles(state);
     for (const s of [...host]) {
       s.px = s.x; s.py = s.y;
-      if (followPath(state, s, exp.returnPath, SOLDIER.speed)) {
+      if (followPath(state, s, exp.returnPath, SOLDIER.speed, roads)) {
         s.exp = false; delete s.expI;   // home — back under the keep's command
       }
     }

@@ -46,16 +46,27 @@ class MinHeap {
   get size() { return this.a.length; }
 }
 
+// road and bridge tiles, for road-aware pathing and marching speed
+export function roadTiles(state) {
+  const s = new Set();
+  for (const b of state.buildings) {
+    if ((b.type === 'road' || b.type === 'bridge') && b.hp > 0) s.add(idx(b.x, b.y));
+  }
+  return s;
+}
+
 export function findPath(state, fx, fy, tx, ty) {
   const N = MAP.size;
   const walls = wallSet(state);
-  // bridges make water WALKABLE — for your soldiers, and for raiders
-  const bridges = new Set();
-  for (const b of state.buildings) {
-    if (b.type === 'bridge' && b.hp > 0) bridges.add(idx(b.x, b.y));
-  }
+  // roads are the arteries of the map: marching a road tile is CHEAPER than
+  // open ground, so the pathfinder bends every route onto the network — the
+  // expedition host, stragglers walking home, and the raiders too. Armies
+  // flow down roads, which makes a road both a lifeline and an approach.
+  // Bridges are road over water (walkable, same marching speed).
+  const roads = roadTiles(state);
+  const ROAD_COST = 1 / ROAD_SPEED_MULT;
   const moveCost = (i) => {
-    if (bridges.has(i)) return 1;
+    if (roads.has(i)) return ROAD_COST;
     const base = TERRAIN_INFO[state.terrain[i]].move;
     if (!isFinite(base)) return Infinity;
     return walls.has(i) ? base + 30 : base; // batter through if no way around
@@ -65,7 +76,9 @@ export function findPath(state, fx, fy, tx, ty) {
   const came = new Int32Array(N * N).fill(-1);
   const closed = new Uint8Array(N * N);
   g[start] = 0;
-  const h = (i) => Math.abs((i % N) - tx) + Math.abs(((i / N) | 0) - ty);
+  // heuristic scaled by the cheapest tile cost so it stays admissible now
+  // that roads undercut plains (else A* would skip the very detours we want)
+  const h = (i) => (Math.abs((i % N) - tx) + Math.abs(((i / N) | 0) - ty)) * ROAD_COST;
   const heap = new MinHeap();
   heap.push({ i: start, f: h(start) });
   const DIRS = [1, -1, N, -N];
@@ -359,6 +372,10 @@ function pickTarget(state, rand) {
 function updateRaiders(state, rand) {
   const raid = state.raid;
   const N = MAP.size;
+  // raiders march the roads like anyone else — faster on them, and a bridge
+  // tile moves at road speed (the terrain beneath is water, move ∞: reading
+  // it raw would stall every unit mid-river)
+  const roads = roadTiles(state);
   for (const rd of raid.raiders) {
     rd.px = rd.x; rd.py = rd.y;
     if (rd.hp <= 0) continue;
@@ -392,7 +409,9 @@ function updateRaiders(state, rand) {
         }
         continue;
       }
-      const speed = RAIDER.speed / TERRAIN_INFO[state.terrain[next]].move;
+      const speed = roads.has(next)
+        ? RAIDER.speed * ROAD_SPEED_MULT
+        : RAIDER.speed / TERRAIN_INFO[state.terrain[next]].move;
       const dx = nx - rd.x, dy = ny - rd.y;
       const d = Math.sqrt(dx * dx + dy * dy);
       if (d <= speed) { rd.x = nx; rd.y = ny; rd.pathI++; }
