@@ -98,6 +98,33 @@ Reigns autosave. The warlord is patient.
 
 ---
 
+## Attachments (rendered 2026-07-20 → `out/thread/`)
+
+Every post has an image. Re-render any of them with
+`npx remotion still src/index.js <id> out/thread/<name>.png` (compositions in
+`src/Stills.jsx`); the frame-grabs pass `--frame=N` against the `teaser` comp.
+
+| Post | File | What it shows |
+|---|---|---|
+| 1 | `out/kingdom-teaser.mp4` | the teaser video (unchanged) |
+| 2 | `post-02-souls.png` | named souls + two chronicle lines (teaser frame 270) |
+| 3 | `still-hp.png` | output IS hit points; sack-never-raze |
+| 4 | `post-04-enemy.png` | the host marching on the camp (teaser frame 1020) |
+| 5 | `post-05-choice.png` | the choice modal, raze glowing (teaser frame 1185) |
+| 6 | `still-sim.png` | ~4,900 reigns; raiderDmg 2.5 vs 4.5 bars |
+| 7 | `still-nan.png` | the NaN warlord; 98% → 50% |
+| 8 | `still-bread.png` | eat-order flip; 47,690 rotted / bread 0 |
+| 9 | `still-masters.png` | 201-of-245 crowns before/after + chronicle sting |
+| 10 | `still-norival.png` | crossed-out rival keep vs the warlord's tents |
+| 11 | `post-11-outro.png` | crowns + URL card (teaser frame 1295) |
+| — | `still-steward.png` | bonus: "Meet the Steward" — for the onboarding follow-up post |
+| — | `still-entropy.png` | personal-thread copy of the core mechanic: "tradeoffs under entropy" punchline |
+| — | `still-taste.png` | the process tweet: config sliders + margin questions; "sims find the numbers, taste finds the game" |
+
+The OG card (`og-card.png`, 1200×630) is deployed at `/og-card.png` and wired
+into `index.html` + `landing.html` meta — bare links to the game now unfurl
+with a card on X/LinkedIn/Slack. Needs the pending redeploy to go live.
+
 ## Notes before posting
 
 - **Deploy: DONE (2026-07-20).** The live site now runs current main —
