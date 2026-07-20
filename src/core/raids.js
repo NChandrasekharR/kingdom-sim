@@ -485,8 +485,10 @@ function cullRaiders(state) {
   const raid = state.raid;
   for (const rd of raid.raiders) {
     // a brigand cut down with his pack still on his back drops the plunder —
-    // the very goods he'd stolen roll back into the stockpile, typed
-    if (rd.hp <= 0 && rd.loot > 0) recoverLoot(state, rd);
+    // the very goods he'd stolen roll back into the stockpile, typed. One who
+    // already slipped away ('gone') counts as escaped, even if an arrow found
+    // him at the treeline — his loot goes to the hoard, not back to us
+    if (rd.hp <= 0 && rd.loot > 0 && rd.mode !== 'gone') recoverLoot(state, rd);
     if (rd.warlord && rd.hp <= 0) {
       warlordFell(state);
       for (const o of raid.raiders) {
