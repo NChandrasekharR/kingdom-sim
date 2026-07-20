@@ -10,6 +10,7 @@ import { countMasters } from '../core/villagers.js';
 import { outputMult } from '../core/economy.js';
 import { sell, buy, sellPrice, buyPrice } from '../core/trade.js';
 import { getProgress, CROWN_NAMES } from '../core/win.js';
+import { activeCounsel, dismissTutorial } from '../core/tutorial.js';
 
 const TRADABLE = ['food', 'wood', 'stone', 'ore', 'iron', 'bread'];
 const MINI_COLORS = {
@@ -117,6 +118,49 @@ export function buildUI(root, ctx) {
   const mini = el('canvas', 'minimap');
   mini.width = MAP.size; mini.height = MAP.size;
   sidebar.appendChild(mini);
+
+  // ── The Steward's Counsel: one parchment card above the tabs ─────
+  // Shows the current ladder counsel; flashes just-in-time lines briefly.
+  // Never gates anything — advice with a dismiss link, nothing more.
+  const stewardCard = el('div', 'steward-card hidden');
+  sidebar.appendChild(stewardCard);
+  let jitFlash = null, jitTimer = null;
+  on('counsel-jit', (line) => {
+    jitFlash = line;
+    clearTimeout(jitTimer);
+    jitTimer = setTimeout(() => { jitFlash = null; renderSteward(); }, 9000);
+    renderSteward();
+  });
+  on('counsel-changed', renderSteward);
+  on('new-game', () => { jitFlash = null; clearTimeout(jitTimer); renderSteward(); });
+  let stewardSig = null;   // rebuild the card only when its content changes
+  function renderSteward() {
+    const counsel = activeCounsel(state);
+    const sig = counsel ? `L${counsel.stepNo}` : jitFlash ? `J:${jitFlash}` : 'none';
+    if (sig === stewardSig) return;
+    stewardSig = sig;
+    if (counsel) {
+      stewardCard.classList.remove('hidden', 'jit');
+      stewardCard.innerHTML = `
+        <div class="steward-head">
+          <span class="steward-name">${counsel.steward}</span>
+          <span class="steward-step">counsel ${counsel.stepNo} of ${counsel.total}</span>
+        </div>
+        <div class="steward-text">“${counsel.text}”</div>
+        <button class="steward-dismiss">Dismiss the steward</button>`;
+      stewardCard.querySelector('.steward-dismiss').onclick = () => {
+        dismissTutorial(state);
+        renderSteward();
+      };
+    } else if (jitFlash) {
+      stewardCard.classList.remove('hidden');
+      stewardCard.classList.add('jit');
+      stewardCard.innerHTML = `<div class="steward-text">${jitFlash}</div>`;
+    } else {
+      stewardCard.classList.add('hidden');
+    }
+  }
+  renderSteward();
 
   const tabs = el('div', 'tabs');
   const panels = {};
@@ -737,6 +781,7 @@ export function buildUI(root, ctx) {
 
     renderSelection();
     renderUnit();
+    renderSteward();
     drawMinimap();
   }
 

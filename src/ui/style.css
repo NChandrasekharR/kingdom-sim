@@ -248,6 +248,58 @@ button {
   aspect-ratio: 1;
 }
 
+/* ── The Steward's Counsel ───────────────────────────────────────── */
+.steward-card {
+  margin: 0 10px 8px;
+  padding: 8px 10px;
+  background:
+    radial-gradient(ellipse at 30% 0%, rgba(255,255,255,0.35), transparent 55%),
+    linear-gradient(170deg, var(--parch), var(--parch-2));
+  border: 1px solid var(--ink-soft);
+  border-left: 4px solid var(--gold);
+  border-radius: 3px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+  animation: counsel-in 0.5s ease-out;
+}
+@keyframes counsel-in {
+  from { transform: translateY(-8px); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+.steward-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px;
+}
+.steward-name {
+  font-family: 'Pirata One', serif;
+  font-size: 15px;
+  letter-spacing: 0.5px;
+  color: #8a6510;
+}
+.steward-step { font-size: 10px; font-style: italic; color: var(--ink-soft); }
+.steward-text {
+  margin-top: 3px;
+  font-size: 12.5px;
+  font-style: italic;
+  line-height: 1.45;
+  color: var(--ink);
+}
+.steward-dismiss {
+  margin-top: 5px;
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: 'Alegreya', serif;
+  font-size: 10.5px;
+  font-style: italic;
+  color: var(--ink-soft);
+  text-decoration: underline;
+  opacity: 0.7;
+}
+.steward-dismiss:hover { opacity: 1; color: var(--bad); }
+.steward-card.jit { border-left-color: var(--gold-2); }
+
 .tabs { display: flex; padding: 0 10px; gap: 2px; }
 .tab {
   flex: 1;
@@ -415,6 +467,12 @@ button {
 .log-line.good { border-color: var(--good); }
 .log-line.bad, .log-line.raid { border-color: var(--bad); color: #6e1a0e; }
 .log-line.trade { border-color: var(--gold); }
+.log-line.counsel {
+  border-color: var(--gold);
+  background: rgba(224, 176, 76, 0.18);
+  font-style: italic;
+  color: #5c4310;
+}
 
 /* scrollbars */
 .panel::-webkit-scrollbar { width: 8px; }

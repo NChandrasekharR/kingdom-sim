@@ -2,6 +2,7 @@ import { MAP, T, BUILDINGS, TERRAIN_INFO, FOREST } from '../config.js';
 import { generateMap } from './mapgen.js';
 import { logEvent } from './events.js';
 import { makeVillager } from './villagers.js';
+import { initTutorial, seedTutorialForLoadedSave } from './tutorial.js';
 
 const KINGDOM_NAMES = [
   'Aldermere', 'Thornwick', 'Caer Bryn', 'Ravensholt', 'Duncastle',
@@ -83,6 +84,7 @@ export function createState(seed = (Math.random() * 1e9) | 0) {
     }
   }
   logEvent(state, `The kingdom of ${state.name} is founded.`, 'good');
+  initTutorial(state);   // the Steward's Counsel — retired at once for keepers who've ruled before
   return state;
 }
 
@@ -282,6 +284,9 @@ export function loadGame() {
       soldiersRecruited: 0, soldiersFallen: 0, veteransFallen: 0,
       mastersLost: 0, foodSpoiled: 0, tributeGold: 0, tributesPaid: 0,
     };
+    // saves from before the Steward's Counsel: this keeper has ruled before —
+    // the ladder never shows, and in-play systems are marked already-seen
+    seedTutorialForLoadedSave(s);
     recomputeInfluence(s);
     return s;
   } catch { return null; }

@@ -1,9 +1,16 @@
 # First-time user experience: the Steward's Counsel
 
-**Status: PLAN — not built.** Drafted 2026-07-20 (Session 6) for a future
-session. Nothing here is code yet; the copy samples are drafts in the game's
-voice. Companion problem to the landing page (which answers *"what is this?"*
-— this answers *"what do I do?"*).
+**Status: BUILT (2026-07-20, Session 7).** Implemented as designed:
+`src/core/tutorial.js` (ladder + JIT counsel, pure state reads, ticked after
+`winTick`), the steward card in `src/ui/ui.js` above the tabs, `'counsel'`
+chronicle kind. §9 calls taken: (1) ladder never restarts after
+completion/dismissal (localStorage flag `kingdom-sim-tutorial-done-v1`);
+(2) yes to the +100-tick first-raid grace, applied once at reign start while
+the ladder is fresh; (3) voice only; (4) speed untouched on the first
+warning — it touches player controls, revisit if playtests want it. One copy
+deviation: the spoilage JIT line waits for >10 food actually rotted, because
+the starting 40-food stock already sits over the spoil-free buffer at tick 1.
+The kill gate (§ below) still stands — hand it to a stranger.
 
 ---
 

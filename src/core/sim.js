@@ -10,6 +10,7 @@ import { winTick } from './win.js';
 import { saveGame } from './state.js';
 import { logEvent, emit } from './events.js';
 import { countMasters, villagersMoveTick } from './villagers.js';
+import { tutorialTick } from './tutorial.js';
 
 export function currentSeason(state) {
   return SEASONS[Math.floor(state.tick / SEASON_TICKS) % 4];
@@ -50,6 +51,7 @@ export function makeSim(state) {
       if (state.tick % 32 === 0 && !state.starving) claimEnclaves(state);
 
       winTick(state);
+      tutorialTick(state);   // the steward watches, and speaks once per lesson
 
       // lifetime peaks for the run summary
       if (state.pop > state.stats.peakPop) state.stats.peakPop = state.pop;
