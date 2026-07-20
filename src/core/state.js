@@ -60,7 +60,7 @@ export function createState(seed = (Math.random() * 1e9) | 0) {
     stats: {
       peakPop: 6, peakTerritory: 0,
       raids: 0, warlords: 0, raidersKilled: 0, raidSizes: [],
-      buildingsSacked: 0, wallsBreached: 0, keepFalls: 0,
+      buildingsSacked: 0, wallsBreached: 0, keepFalls: 0, lootRecovered: 0,
       villagersBorn: 0, villagersStarved: 0, villagersHunted: 0,
       soldiersRecruited: 0, soldiersFallen: 0, veteransFallen: 0,
       mastersLost: 0, foodSpoiled: 0, tributeGold: 0, tributesPaid: 0,
@@ -270,6 +270,8 @@ export function loadGame() {
       }
     }
     s.guilds ||= [];
+    // saves from before per-body loot: a mid-raid raider carries an empty bag
+    if (s.raid?.raiders) for (const rd of s.raid.raiders) rd.lootBag ??= {};
     // saves from before the warlord's camp
     s.camp ||= null;
     s.expedition ||= null;
@@ -279,11 +281,13 @@ export function loadGame() {
     s.stats ||= {
       peakPop: s.pop || 6, peakTerritory: 0,
       raids: 0, warlords: 0, raidersKilled: 0, raidSizes: [],
-      buildingsSacked: 0, wallsBreached: 0, keepFalls: 0,
+      buildingsSacked: 0, wallsBreached: 0, keepFalls: 0, lootRecovered: 0,
       villagersBorn: 0, villagersStarved: 0, villagersHunted: 0,
       soldiersRecruited: 0, soldiersFallen: 0, veteransFallen: 0,
       mastersLost: 0, foodSpoiled: 0, tributeGold: 0, tributesPaid: 0,
     };
+    // an older save's stats block predates loot-recovery: backfill the counter
+    if (s.stats) s.stats.lootRecovered ??= 0;
     // saves from before the Steward's Counsel: this keeper has ruled before —
     // the ladder never shows, and in-play systems are marked already-seen
     seedTutorialForLoadedSave(s);

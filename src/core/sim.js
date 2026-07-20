@@ -94,6 +94,7 @@ export function dumpStats(state) {
       avgRaidSize: +avgRaid, biggestRaid: maxRaid,
       raidersKilled: s.raidersKilled,
       buildingsSacked: s.buildingsSacked, wallsBreached: s.wallsBreached, keepFalls: s.keepFalls,
+      lootRecovered: s.lootRecovered || 0,
       expeditions: s.expeditions || 0, campsBroken: s.campsBroken || 0,
       massacres: s.massacres || 0, campFolkSlain: s.folkSlain || 0,
     },
