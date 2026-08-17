@@ -5,7 +5,8 @@ Commit-level record of what shipped, newest session first. For the narrative see
 the sim numbers see [`SIMULATIONS.md`](SIMULATIONS.md).
 
 Everything is on `main` (Session 4 merged the Session-3 branch). The Vercel
-deploy is manual and still runs the pre-Session-3 build — redeploy pending.
+deploy is manual (`npx vercel --prod`) and current through Session 7 — first
+deployed off current `main` in Session 6, redeployed 2026-07-20.
 
 ---
 
@@ -45,6 +46,81 @@ specified, plus the launch thread's visual assets.
   the tuning questions; "the sims find the numbers, taste finds the game").
   Rendered files live in `teaser/out/thread/` (gitignored — re-render from
   `src/Stills.jsx` with `npx remotion still`).
+
+---
+
+## Session 6 — The border, the roads, and the launch kit (2026-07-20)
+
+Four commits, `6a466b0`→`982cca0`. Arc: two playtest-driven map fixes from
+Chandra's year-60 Caer Bryn reign (the camp founding on claimed ground, armies
+ignoring the roads he'd paid for) → the outward-facing kit — landing page,
+Remotion teaser, launch-thread draft — and the FIRST deploy of current `main`
+(the live build had been five sessions stale) → the onboarding plan Session 7
+would build. Its CHATLOG turns were not reconstructed; the commit messages
+carry the record.
+
+### `6a466b0` — Camp respects the border + roads carry the war
+
+The one gameplay commit of the session; both halves shipped together
+(`camp.js`, `raids.js`, `config.js`).
+
+- **The camp never founds on claimed ground.** Site selection runs in
+  strictness tiers (shadow-clear of the border → merely unclaimed → legacy
+  anywhere), and a standing camp swallowed by the border (pre-fix saves)
+  strikes its tents and relocates to open wilds — folk, garrison, warlord,
+  and hoard re-pitched, Chronicle line written. Never mid-expedition; ashes
+  stay where they burned; a fully-claimed world backs off instead of
+  rescanning.
+- **Roads are the arteries of the map.** Road/bridge tiles are cheap in the
+  shared pathfinder (1/1.7 of plains, heuristic rescaled to stay admissible),
+  so raiders, stragglers, and the expedition host all bend onto the network
+  and march it at 1.7×. Also fixes a latent bridge stall: movement speed read
+  the water tile beneath a bridge (`move=Infinity`) and froze units mid-river.
+  The road description now teaches the tradeoff: armies march the roads —
+  yours, and theirs.
+- Verified headless (14 camp assertions + road-preference/bridge-crossing
+  tests, seed-42 harness regression clean) and in-browser (camp relocation
+  live; a 22-raider camp wave averaged 74% of its path on player roads).
+
+### `b53fd7d` — The landing page + the deploy
+
+- `landing.html`: a self-contained page in the game's own design language
+  (iron/parchment chrome, Pirata One + Alegreya, sprite matrices rendered by
+  the game's own `drawArt`) — hero with a living pixel diorama (raiders
+  marching the road from the camp on the horizon), what-it-is ledger,
+  how-a-reign-goes cards, Three Crowns rows, a Chronicle excerpt, the teaser
+  framed between hero and ledger.
+- `vite.config.js` multipage build (landing ships beside the game); `public/`
+  carries the teaser mp4 + poster into dist; `.vercelignore` keeps
+  teaser/sim2/model/docs/design out of deploy uploads.
+- **Deployed 2026-07-20**: kingdom-sim-fawn.vercel.app now runs current
+  `main` — the live build had been five sessions stale.
+
+### `32e8911` — Teaser video (Remotion) + launch tweet thread
+
+- `teaser/`: a Remotion 4 project rendering a 44s silent social teaser from
+  the game's own sprite matrices (SVG-rendered, crisp at 1080p) — eight
+  scenes: title, named souls with real Chronicle lines, raise-the-works, the
+  tradeoffs (HP-as-output, rot vs bread, mortal masters), the raid, the
+  enemy's address, the moral choice, outro.
+- Render note: Remotion's bundled ffmpeg targets macOS 15 and fails on this
+  machine — the working pipeline is `--sequence` PNG frames + an
+  `ffmpeg-static` encode (both scripted; recipe in the render docs).
+- `teaser/TWEET.md`: an 11-post launch thread with the behind-the-scenes
+  numbers (~4,900 Monte Carlo reigns, the raiderDmg master dial, the
+  warlord-NaN bug, the eat-order flip, the 201-masters problem), all checked
+  against `docs/`; includes a short-cut variant.
+
+### `982cca0` — The onboarding plan (`design/ONBOARDING.md`)
+
+- Design only, no code: the Steward's Counsel — a named steward offers ONE
+  diegetic counsel at a time (parchment card above the sidebar tabs),
+  completed by real events, acknowledged in the Chronicle, dismissible
+  forever in one click. Eight-step first-reign ladder + just-in-time
+  one-shots for every system's first contact; auto-skip for returning
+  players; no rewards; never blocks the sandbox (A3/sandbox constraints
+  honored). Open questions for Chandra + kill gate included. Built as
+  specified in Session 7.
 
 ---
 
