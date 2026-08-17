@@ -7,12 +7,15 @@ globalThis.localStorage = { getItem: () => null, setItem: () => {}, removeItem: 
 import { createState, canPlace, place, idx } from '../src/core/state.js';
 import { makeSim } from '../src/core/sim.js';
 import { recruitSoldier } from '../src/core/raids.js';
-import { sell } from '../src/core/trade.js';
+import { sell, buy, buyPrice } from '../src/core/trade.js';
 import { territorySize } from '../src/core/territory.js';
 import { MAP, SEASON_TICKS, BUILDINGS, T } from '../src/config.js';
 
 const YEARS = Number(process.argv[2] || 12);
 const SEED = Number(process.argv[3] || 42);
+// TRADE=1 flips on the minimal wood-import rule (Q2 A/B). Off by default so the
+// instrumentation baseline stays clean.
+const TRADE = process.env.TRADE === '1';
 const N = MAP.size;
 
 const state = createState(SEED);
@@ -102,6 +105,17 @@ function playerPolicy() {
 // sell surplus when the merchant is around (like a real player would)
 function tradePolicy() {
   if (state.merchant.status !== 'here') return;
+  // Q2 rescue rule (only when TRADE=1): when wood is critically short and the
+  // treasury can bear it, buy timber from the caravan — exactly the buy() a
+  // human would click. Kept minimal and clearly separate from the sell logic.
+  if (TRADE && state.res.wood < 10 && state.res.gold > 40) {
+    const qty = 20;
+    const price = buyPrice(state, 'wood');
+    if (state.res.gold - price * qty > 20 && buy(state, 'wood', qty)) {
+      woodImportGold += price * qty;
+      woodImportQty += qty;
+    }
+  }
   for (const r of ['wood', 'stone', 'food', 'iron']) {
     const keep = r === 'food' ? state.pop * 3 : 80;
     const surplus = Math.floor(state.res[r] - keep);
@@ -161,4 +175,5 @@ console.error(`\nFinal: pop ${state.pop}, gold ${state.res.gold.toFixed(0)}, woo
 console.error(`Depletion: campsBuilt ${campsBuilt} (relocations ${Math.max(0, campsBuilt - 1)}), ` +
   `liveLumber ${liveLumber()}, depletedLumber ${depletedLumber()}, ` +
   `forestCleared ${cleared}/${forestTilesAtStart} tiles (${(100 * cleared / forestTilesAtStart).toFixed(1)}%), ` +
-  `meanHpFrac ${meanHpFrac().toFixed(3)}`);
+  `meanHpFrac ${meanHpFrac().toFixed(3)}` +
+  (TRADE ? `, woodImport ${woodImportQty} wood for ${woodImportGold.toFixed(0)} gold` : ''));
