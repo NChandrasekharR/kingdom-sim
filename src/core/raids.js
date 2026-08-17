@@ -323,13 +323,27 @@ function spawnRaid(state, rand) {
     const wPath = keepB ? findPath(state, sx, sy, keepB.x, keepB.y) : null;
     if (wPath && keepB) {
       state.camp.warlord.home = false;
-      raid.raiders.push({
+      const warlordRaider = {
         x: sx, y: sy, px: sx, py: sy,
         hp: CAMP.warlordHp, loot: 0, lootBag: {}, warlord: true,
         name: state.camp.warlord.name,
         path: wPath, pathI: 0, mode: 'march', targetId: keepB.id,
         spawn: { x: sx, y: sy },
-      });
+      };
+      raid.raiders.push(warlordRaider);
+      // the oath-bound ride at his shoulder — a wall of sworn men who catch the
+      // arrows meant for him and never break for loot. Each carries a copy of
+      // the warlord's own march (so they keep his pace toward the keep).
+      for (let i = 0; i < CAMP.swornMen; i++) {
+        const sid = state.nextId++;
+        raid.raiders.push({
+          x: sx + (rand() - 0.5), y: sy + (rand() - 0.5), px: sx, py: sy,
+          hp: RAIDER.hp * 2.2, loot: 0, lootBag: {}, sworn: true,
+          name: `${RAIDER_FIRST[sid % RAIDER_FIRST.length]} the Oathbound`,
+          path: [...wPath], pathI: 0, mode: 'march', targetId: keepB.id,
+          spawn: { x: sx, y: sy },
+        });
+      }
     }
   }
   if (!raid.raiders.length) { endRaid(state, rand); return; }
@@ -376,13 +390,35 @@ function updateRaiders(state, rand) {
   // tile moves at road speed (the terrain beneath is water, move ∞: reading
   // it raw would stall every unit mid-river)
   const roads = roadTiles(state);
+  // the warlord, if he still rides — his sworn men clamp to his position
+  const warlord = raid.raiders.find((r) => r.warlord && r.hp > 0);
   for (const rd of raid.raiders) {
     rd.px = rd.x; rd.py = rd.y;
     if (rd.hp <= 0) continue;
 
+    // a sworn man with his warlord still alive holds to his shoulder: if he's
+    // drifted past ~2.5 tiles, he closes on the warlord instead of pressing his
+    // own march. He never loots — his oath is to the man, not the plunder.
+    if (rd.sworn && rd.mode !== 'flee' && rd.mode !== 'gone' && warlord) {
+      const dx = warlord.x - rd.x, dy = warlord.y - rd.y;
+      const dist = Math.hypot(dx, dy);
+      if (dist > 2.5) {
+        const speed = roads.has(idx(Math.round(rd.x), Math.round(rd.y)))
+          ? RAIDER.speed * ROAD_SPEED_MULT : RAIDER.speed;
+        rd.x += (dx / dist) * speed; rd.y += (dy / dist) * speed;
+        continue;
+      }
+      // close enough — hold the line beside him, don't over-march ahead
+      if (rd.mode === 'march' && rd.pathI >= rd.path.length) continue;
+    }
+
     if (rd.mode === 'march' || rd.mode === 'flee') {
       if (rd.pathI >= rd.path.length) {
         if (rd.mode === 'flee') { rd.mode = 'gone'; continue; }
+        // sworn men never sack: they hold at their lord's side — and if he no
+        // longer stands on the field (slipped home ahead of them), they turn
+        // for home too rather than linger leaderless
+        if (rd.sworn) { if (!warlord) startFlee(state, rd); continue; }
         rd.mode = 'loot';
         continue;
       }
@@ -490,6 +526,7 @@ function cullRaiders(state) {
     // him at the treeline — his loot goes to the hoard, not back to us
     if (rd.hp <= 0 && rd.loot > 0 && rd.mode !== 'gone') recoverLoot(state, rd);
     if (rd.warlord && rd.hp <= 0) {
+      state.stats.warlordsSlain = (state.stats.warlordsSlain || 0) + 1;
       warlordFell(state);
       for (const o of raid.raiders) {
         if (o.hp > 0 && o.mode !== 'flee' && o.mode !== 'gone') startFlee(state, o);
@@ -557,7 +594,14 @@ function updateTowers(state) {
       if (d < nd) { nd = d; nearest = rd; }
     }
     if (nearest) {
-      nearest.hp -= def.arrowDmg * (1 + watchSkill);
+      // his shield-bearers catch the shafts: while any sworn man still stands,
+      // the warlord takes only a fraction of the arrow. Cut them down and the
+      // shafts find him true.
+      let arrowMult = 1;
+      if (nearest.warlord && state.raid.raiders.some((r) => r.sworn && r.hp > 0)) {
+        arrowMult = CAMP.warlordArrowMult;
+      }
+      nearest.hp -= def.arrowDmg * (1 + watchSkill) * arrowMult;
       emit('arrow', { fx: b.x, fy: b.y, tx: nearest.x, ty: nearest.y });
       if (nearest.hp <= 0) {
         state.stats.raidersKilled++;
@@ -762,7 +806,11 @@ function updateSoldiers(state, rand) {
         // are ganging THIS soldier right now (spatial force-ratio) — being swarmed
         // is deadly, holding a line where you outnumber them is nearly safe.
         let localGang = 0;
-        for (const rd of raiders) { if (Math.hypot(rd.x - s.x, rd.y - s.y) < 1.6) localGang++; }
+        for (const rd of raiders) {
+          if (rd.hp <= 0 || Math.hypot(rd.x - s.x, rd.y - s.y) >= 1.6) continue;
+          // the warlord in your face is worth two men; a sworn man counts as one
+          localGang += rd.warlord ? 2 : 1;
+        }
         let woundChance = COMBAT.woundBase * Math.min(3, Math.max(0.5, localGang)); // each attacker adds risk
         woundChance *= (1 - COMBAT.woundSkillReduce * skill);  // veterans get hit less
         const sx = Math.round(s.x), sy = Math.round(s.y);

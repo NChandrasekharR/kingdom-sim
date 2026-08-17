@@ -491,6 +491,10 @@ function expeditionTick(state, rand) {
       exp.phase = 'battle';
       if (!exp.battleLogged) {
         exp.battleLogged = true;
+        // count the swords defending BEFORE the killing starts — the spoils of
+        // the camp (weapons off the dead) are reckoned against this, not the
+        // empty ground left after the battle
+        exp.battleGarrison = c.garrison.length;
         logEvent(state, `The host falls upon ${c.name}! Battle is joined at the tents.`, 'raid');
         emit('expedition-battle', { camp: c });
       }
@@ -666,7 +670,23 @@ export function resolveCampChoice(state, choice) {
   const grain = Math.round(c.ledger.plunder);
   state.res.gold += gold;
   state.res.food += grain;
+  const ledgerEmpty = gold <= 0 && grain <= 0;
   c.ledger.gold = 0; c.ledger.plunder = 0;
+
+  // even a broke camp is worth the taking: arm-rings, stores, and the weapons
+  // stripped off the fallen garrison. Reckoned the same for punish or massacre.
+  const sp = CAMP.spoils;
+  const garrisonAtBattle = exp.battleGarrison || 0;
+  const spoilGold = sp.gold;
+  const spoilFood = sp.food;
+  const spoilWood = sp.wood;
+  const spoilIron = Math.round(sp.ironPerSword * garrisonAtBattle);
+  state.res.gold += spoilGold;
+  state.res.food += spoilFood;
+  state.res.wood = (state.res.wood || 0) + spoilWood;
+  state.res.iron = (state.res.iron || 0) + spoilIron;
+  const takeGold = gold + spoilGold;
+  const takeGoods = grain + spoilFood;
 
   // the warlord slain in the assault: his camp will one day find a successor
   if (exp.warlordSlain) {
@@ -682,8 +702,9 @@ export function resolveCampChoice(state, choice) {
     c.nextSettlerAt = state.tick + CAMP.settlerGapTicks;
     state.stats.campsBroken = (state.stats.campsBroken || 0) + 1;
     state.campDirty = true;
-    logEvent(state,
-      `The war-tents of ${c.name} burn. The hoard comes home: ${gold} gold, ${grain} goods. The folk are spared — and they will remember.`,
+    logEvent(state, ledgerEmpty
+      ? `The war-tents of ${c.name} burn. The camp itself is stripped — arm-rings and weapons off the dead: ${takeGold} gold, ${takeGoods} goods. The folk are spared — and they will remember.`
+      : `The war-tents of ${c.name} burn. The hoard comes home, and the camp is stripped: ${takeGold} gold, ${takeGoods} goods. The folk are spared — and they will remember.`,
       'good');
     exp.report = `The host returns from ${c.name} with the hoard. Justice, not slaughter.`;
     startReturn(state, null);
@@ -706,6 +727,9 @@ export function resolveCampChoice(state, choice) {
       const d = Math.hypot(dx, dy);
       f.fleeX = dx / d; f.fleeY = dy / d;
     }
+    logEvent(state, ledgerEmpty
+      ? `The camp is stripped bare — arm-rings and weapons off the dead: ${takeGold} gold, ${takeGoods} goods.`
+      : `The hoard is seized and the camp stripped: ${takeGold} gold, ${takeGoods} goods.`, 'good');
     logEvent(state, `The order is given. Leave nothing standing at ${c.name}.`, 'bad');
     emit('camp-resolved', { choice, gold, grain });
     return { ok: true };

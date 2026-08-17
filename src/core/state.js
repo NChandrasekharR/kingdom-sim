@@ -59,7 +59,7 @@ export function createState(seed = (Math.random() * 1e9) | 0) {
     // lifetime run stats — for the end-of-run summary (dumpStats)
     stats: {
       peakPop: 6, peakTerritory: 0,
-      raids: 0, warlords: 0, raidersKilled: 0, raidSizes: [],
+      raids: 0, warlords: 0, warlordsSlain: 0, raidersKilled: 0, raidSizes: [],
       buildingsSacked: 0, wallsBreached: 0, keepFalls: 0, lootRecovered: 0,
       villagersBorn: 0, villagersStarved: 0, villagersHunted: 0,
       soldiersRecruited: 0, soldiersFallen: 0, veteransFallen: 0,
@@ -280,7 +280,7 @@ export function loadGame() {
     // saves from before run-stats: start tracking from now
     s.stats ||= {
       peakPop: s.pop || 6, peakTerritory: 0,
-      raids: 0, warlords: 0, raidersKilled: 0, raidSizes: [],
+      raids: 0, warlords: 0, warlordsSlain: 0, raidersKilled: 0, raidSizes: [],
       buildingsSacked: 0, wallsBreached: 0, keepFalls: 0, lootRecovered: 0,
       villagersBorn: 0, villagersStarved: 0, villagersHunted: 0,
       soldiersRecruited: 0, soldiersFallen: 0, veteransFallen: 0,
@@ -288,6 +288,8 @@ export function loadGame() {
     };
     // an older save's stats block predates loot-recovery: backfill the counter
     if (s.stats) s.stats.lootRecovered ??= 0;
+    // and predates sworn-men: backfill the warlords-slain tally
+    if (s.stats) s.stats.warlordsSlain ??= 0;
     // saves from before the Steward's Counsel: this keeper has ruled before —
     // the ladder never shows, and in-play systems are marked already-seen
     seedTutorialForLoadedSave(s);
