@@ -117,6 +117,9 @@ export function dumpStats(state) {
     },
     foodSpoiled: Math.round(s.foodSpoiled || 0),
     forestCleared: s.forestCleared || 0,
+    hillsFlattened: s.hillsFlattened || 0,
+    veinsSpent: s.veinsSpent || 0,
+    cascadeStone: Math.round(s.cascadeStone || 0),
     tribute: { paid: s.tributesPaid || 0, gold: Math.round(s.tributeGold || 0), appetite: state.tributeAppetite || 0 },
   };
   // eslint-disable-next-line no-console

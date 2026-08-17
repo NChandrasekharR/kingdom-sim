@@ -1,4 +1,4 @@
-import { MAP, T, BUILDINGS, TERRAIN_INFO, FOREST } from '../config.js';
+import { MAP, T, BUILDINGS, TERRAIN_INFO, FOREST, DEPOSITS } from '../config.js';
 import { generateMap } from './mapgen.js';
 import { logEvent } from './events.js';
 import { makeVillager } from './villagers.js';
@@ -26,14 +26,52 @@ export function seedForestWood(terrain) {
   return stock;
 }
 
+// Every HILLS tile holds a finite stock of stone; every ORE tile a stock of
+// ore. Seeded deterministically from coordinates (rich seams vs thin), just
+// like the forest. Mining draws these down; an exhausted hill flattens to
+// plains, an exhausted vein falls back to plain hills. Base can be 0/Infinity
+// (control): a bottomless reserve is sentinelled with Infinity so draw-down is
+// a no-op and the tile never transforms.
+// stone a single HILLS tile holds, deterministic from coordinates (rich seam
+// vs thin). Also used when a spent ORE vein falls back to hills: the dead
+// vein leaves quarryable rock behind (the deliberate cascade).
+export function stoneTileStock(x, y) {
+  if (!Number.isFinite(DEPOSITS.stoneBase) || DEPOSITS.stoneBase <= 0) return Infinity;
+  // distinct hash constants from forest/ore so the three reserves decorrelate
+  const h = ((x * 6151 + y * 8161) * 2654435761 >>> 0) / 4294967296;
+  return Math.max(15, DEPOSITS.stoneBase + (h * 2 - 1) * DEPOSITS.stoneVar);
+}
+
+export function seedStoneOre(terrain) {
+  const N = MAP.size;
+  const stone = new Float32Array(N * N);
+  const ore = new Float32Array(N * N);
+  const oreInf = !Number.isFinite(DEPOSITS.oreBase) || DEPOSITS.oreBase <= 0;
+  for (let i = 0; i < N * N; i++) {
+    const t = terrain[i];
+    if (t === T.HILLS) {
+      stone[i] = stoneTileStock(i % N, (i / N) | 0);
+    } else if (t === T.ORE) {
+      if (oreInf) { ore[i] = Infinity; continue; }
+      const x = i % N, y = (i / N) | 0;
+      const h = ((x * 9973 + y * 7717) * 2654435761 >>> 0) / 4294967296;
+      ore[i] = Math.max(10, DEPOSITS.oreBase + (h * 2 - 1) * DEPOSITS.oreVar);
+    }
+  }
+  return { stone, ore };
+}
+
 export function createState(seed = (Math.random() * 1e9) | 0) {
   const { terrain, start } = generateMap(seed);
   const N = MAP.size;
+  const { stone: stoneStock, ore: oreStock } = seedStoneOre(terrain);
   const state = {
     seed, tick: 0, speed: 1,
     name: KINGDOM_NAMES[seed % KINGDOM_NAMES.length],
     terrain,
     forestWood: seedForestWood(terrain),
+    stoneStock,   // finite stone per HILLS tile (Infinity = bottomless control)
+    oreStock,     // finite ore per ORE tile (Infinity = bottomless control)
     claimed: new Uint8Array(N * N),
     influence: new Float32Array(N * N),
     buildings: [],
@@ -64,6 +102,7 @@ export function createState(seed = (Math.random() * 1e9) | 0) {
       villagersBorn: 0, villagersStarved: 0, villagersHunted: 0,
       soldiersRecruited: 0, soldiersFallen: 0, veteransFallen: 0,
       mastersLost: 0, foodSpoiled: 0, tributeGold: 0, tributesPaid: 0,
+      forestCleared: 0, hillsFlattened: 0, veinsSpent: 0,
     },
     // render dirty flags
     territoryDirty: true, buildingsDirty: true, campDirty: true,
@@ -227,6 +266,9 @@ export function saveGame(state) {
     ...state,
     terrain: Array.from(state.terrain),
     forestWood: Array.from(state.forestWood, (v) => Math.round(v)),
+    // Infinity (bottomless control) → -1 sentinel so it survives JSON
+    stoneStock: Array.from(state.stoneStock, (v) => (Number.isFinite(v) ? Math.round(v) : -1)),
+    oreStock: Array.from(state.oreStock, (v) => (Number.isFinite(v) ? Math.round(v) : -1)),
     claimed: Array.from(state.claimed),
     // worker crews are live villager references, recomputed every tick
     buildings: state.buildings.map((b) => ({ ...b, workers: undefined })),
@@ -249,6 +291,16 @@ export function loadGame() {
     s.claimed = Uint8Array.from(s.claimed);
     // saves from before finite forests: seed stock fresh for standing timber
     s.forestWood = s.forestWood ? Float32Array.from(s.forestWood) : seedForestWood(s.terrain);
+    // saves from before finite stone/ore: seed fresh for standing hills/veins.
+    // present saves map the -1 sentinel back to Infinity (bottomless control).
+    if (s.stoneStock && s.oreStock) {
+      s.stoneStock = Float32Array.from(s.stoneStock, (v) => (v < 0 ? Infinity : v));
+      s.oreStock = Float32Array.from(s.oreStock, (v) => (v < 0 ? Infinity : v));
+    } else {
+      const seeded = seedStoneOre(s.terrain);
+      s.stoneStock = seeded.stone;
+      s.oreStock = seeded.ore;
+    }
     s.influence = new Float32Array(N * N);
     s.delta = { food: 0, wood: 0, stone: 0, ore: 0, iron: 0, bread: 0, gold: 0 };
     s.territoryDirty = true;
@@ -290,6 +342,8 @@ export function loadGame() {
     if (s.stats) s.stats.lootRecovered ??= 0;
     // and predates sworn-men: backfill the warlords-slain tally
     if (s.stats) s.stats.warlordsSlain ??= 0;
+    // older stats predate finite stone/ore counters
+    if (s.stats) { s.stats.hillsFlattened ??= 0; s.stats.veinsSpent ??= 0; s.stats.forestCleared ??= 0; }
     // saves from before the Steward's Counsel: this keeper has ruled before —
     // the ladder never shows, and in-play systems are marked already-seen
     seedTutorialForLoadedSave(s);

@@ -128,6 +128,36 @@ export const FOREST = {
   harvestRadius: 2.2,          // a camp cuts standing timber this far out
 };
 
+// ── The ground itself gives out (Prototype: finite stone & ore) ────
+// Mirror of FOREST for the two mining chains. Every HILLS tile holds a
+// stock of stone; every ORE tile holds a stock of ore. A quarry cuts the
+// nearest live hill within reach, a mine the nearest live vein. Exhaust a
+// hill and it flattens to PLAINS ("the quarry ground becomes a plain");
+// exhaust a vein and the ORE tile falls back to HILLS — the vein is spent
+// but the hill remains, quarryable ground (a deliberate cascade).
+//
+// Base values are overridable for the parameter sweep WITHOUT code edits,
+// via env vars read once at module load (harness only — undefined in the
+// browser, where the literals stand):
+//   KSIM_STONE_BASE, KSIM_STONE_VAR, KSIM_ORE_BASE, KSIM_ORE_VAR
+// A value of 0 or "inf"/"infinite" makes that reserve effectively bottomless
+// (the control case: the prototype changes nothing when reserves are infinite).
+const _envNum = (name, fallback) => {
+  const raw = (typeof process !== 'undefined' && process.env && process.env[name]) || '';
+  if (raw === '') return fallback;
+  if (/^inf/i.test(raw)) return Infinity;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : fallback;
+};
+
+export const DEPOSITS = {
+  harvestRadius: 2.2,          // a quarry/mine works ground this far out (shared with FOREST cadence)
+  stoneBase: _envNum('KSIM_STONE_BASE', 250),  // sweep-calibrated: first quarry site dies ~year 4-5, era not chore
+  stoneVar:  _envNum('KSIM_STONE_VAR', 90),    // ± mapgen richness
+  oreBase:   _envNum('KSIM_ORE_BASE', 150),    // sweep-calibrated: iron flows to ~year 17-19 with 3-5 forced relocations
+  oreVar:    _envNum('KSIM_ORE_VAR', 60),      // ± vein richness
+};
+
 // ── Population & morale ────────────────────────────────────────────
 export const EAT_PER_POP = 0.04;        // food-equivalents per tick per person
 export const SOLDIER_EAT_MULT = 3;      // a soldier eats 3× a citizen (the army's real cost)

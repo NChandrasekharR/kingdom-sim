@@ -1,69 +1,110 @@
-import { BUILDINGS, WORK_PRIORITY, WINTER_FARM_MULT, HP, SKILL, FOREST, T, MAP } from '../config.js';
-import { idx } from './state.js';
+import { BUILDINGS, WORK_PRIORITY, WINTER_FARM_MULT, HP, SKILL, FOREST, DEPOSITS, T, MAP } from '../config.js';
+import { idx, stoneTileStock } from './state.js';
 import { currentSeason } from './sim.js';
 import { logEvent, emit } from './events.js';
 
-// ── The forest is finite ───────────────────────────────────────────
-// A lumber camp cuts the nearest standing timber within reach. Each cut
-// draws down that tile's stock; a spent tile opens into PLAINS (farmable).
-// When nothing in reach still stands, the camp goes quiet for good.
+// ── The ground is finite ───────────────────────────────────────────
+// The same draw-down engine feeds three chains: a LUMBER camp cuts the
+// nearest standing timber (FOREST → PLAINS), a QUARRY cuts the nearest live
+// hill (HILLS → PLAINS, "the quarry ground becomes a plain"), a MINE works
+// the nearest live vein (ORE → HILLS, a spent vein leaves quarryable ground
+// — a deliberate cascade). Each producer draws the nearest live tile within
+// reach; a spent tile transforms; when nothing in reach is left, the
+// building falls quiet for good (b.depleted) and employs nobody.
 
-// the tile this camp is currently cutting (cached; rescan when it's spent)
-function findTimber(state, b) {
+// A deposit spec describes one chain. `stockKey` is the Float32Array on
+// state; `src` the terrain a live tile shows; `into` what it becomes when
+// spent (null = leave terrain unchanged); `stat` the run-stat counter to
+// bump per tile exhausted; `spentLog` the chronicle line when a site's reach
+// runs dry; `band` the density band for the "thinning" repaint (forest only).
+const DEPOSIT_SPECS = {
+  lumber: {
+    stockKey: 'forestWood', src: T.FOREST, into: T.PLAINS, stat: 'forestCleared', band: 30,
+    spentLog: 'The axes fall silent at a lumber camp — the wood nearby is spent. The cleared land lies open.',
+  },
+  quarry: {
+    stockKey: 'stoneStock', src: T.HILLS, into: T.PLAINS, stat: 'hillsFlattened', band: 30,
+    spentLog: 'A quarry falls quiet — the last stone nearby is cut, and the quarry ground becomes a plain.',
+  },
+  mine: {
+    stockKey: 'oreStock', src: T.ORE, into: T.HILLS, stat: 'veinsSpent', band: 30,
+    spentLog: 'A mine is worked out — the vein is spent, and only bare hills remain where it ran.',
+  },
+};
+
+// nearest live source tile within reach of building b, given its spec
+function findDeposit(state, b, spec) {
   const N = MAP.size;
-  const R = Math.ceil(FOREST.harvestRadius);
+  const R = Math.ceil(DEPOSITS.harvestRadius);
+  const stock = state[spec.stockKey];
   let best = -1, bd = Infinity;
   for (let dy = -R; dy <= R; dy++) {
     for (let dx = -R; dx <= R; dx++) {
       const x = b.x + dx, y = b.y + dy;
       if (x < 0 || y < 0 || x >= N || y >= N) continue;
       const d = Math.hypot(dx, dy);
-      if (d > FOREST.harvestRadius) continue;
+      if (d > DEPOSITS.harvestRadius) continue;
       const i = y * N + x;
-      if (state.terrain[i] !== T.FOREST || state.forestWood[i] <= 0) continue;
+      if (state.terrain[i] !== spec.src || stock[i] <= 0) continue;
       if (d < bd) { bd = d; best = i; }
     }
   }
   return best;
 }
 
-// harvest `amt` wood for camp b; returns what was actually cut
-function cutTimber(state, b, amt) {
-  let cut = 0;
-  while (cut < amt - 0.0001) {
-    if (b.timberI == null || state.forestWood[b.timberI] <= 0 ||
-        state.terrain[b.timberI] !== T.FOREST) {
-      b.timberI = findTimber(state, b);
-      if (b.timberI < 0) {
-        // the wood within reach is spent — the camp falls quiet for good
-        b.timberI = null;
+// draw `amt` of a finite deposit for building b; returns what was extracted.
+// Mirrors the old cutTimber exactly, generalized over the deposit spec.
+function drawDeposit(state, b, amt, spec) {
+  const stock = state[spec.stockKey];
+  let got = 0;
+  while (got < amt - 0.0001) {
+    if (b.depositI == null || stock[b.depositI] <= 0 ||
+        state.terrain[b.depositI] !== spec.src) {
+      b.depositI = findDeposit(state, b, spec);
+      if (b.depositI < 0) {
+        // nothing in reach still bears — the site falls quiet for good
+        b.depositI = null;
         if (!b.depleted) {
           b.depleted = true;
-          logEvent(state, 'The axes fall silent at a lumber camp — the wood nearby is spent. The cleared land lies open.', 'info');
+          logEvent(state, spec.spentLog, 'info');
         }
         break;
       }
     }
-    const i = b.timberI;
-    const take = Math.min(amt - cut, state.forestWood[i]);
-    const before = state.forestWood[i];
-    state.forestWood[i] -= take;
-    cut += take;
-    // the forest visibly THINS as it's cut (repaint on density-band crossings)
-    if (state.forestWood[i] > 0 &&
-        Math.floor(before / 30) !== Math.floor(state.forestWood[i] / 30)) {
+    const i = b.depositI;
+    // Infinity stock (bottomless control): take freely, never transform
+    if (!Number.isFinite(stock[i])) { got = amt; break; }
+    const take = Math.min(amt - got, stock[i]);
+    const before = stock[i];
+    stock[i] -= take;
+    got += take;
+    // instrumentation: stone actually quarried out of a spent vein's hill
+    // (did the ORE→HILLS cascade ever matter?)
+    if (spec.src === T.HILLS && state._veinHills instanceof Set && state._veinHills.has(i)) {
+      state.stats.cascadeStone = (state.stats.cascadeStone || 0) + take;
+    }
+    // visible thinning: repaint on density-band crossings
+    if (stock[i] > 0 && spec.band &&
+        Math.floor(before / spec.band) !== Math.floor(stock[i] / spec.band)) {
       emit('terrain-changed', { x: i % MAP.size, y: (i / MAP.size) | 0 });
     }
-    if (state.forestWood[i] <= 0) {
-      // clear-cut: the forest gives way to open field
-      state.terrain[i] = T.PLAINS;
-      state.forestWood[i] = 0;
-      b.timberI = null;
-      state.stats.forestCleared = (state.stats.forestCleared || 0) + 1;
+    if (stock[i] <= 0) {
+      // the tile is worked out: it transforms
+      if (spec.into != null) state.terrain[i] = spec.into;
+      stock[i] = 0;
+      // the cascade: a spent vein falls back to hills WITH stone in them —
+      // the vein is gone but the rock remains, quarryable ground
+      if (spec.into === T.HILLS) {
+        state.stoneStock[i] = stoneTileStock(i % MAP.size, (i / MAP.size) | 0);
+        if (!(state._veinHills instanceof Set)) state._veinHills = new Set();
+        state._veinHills.add(i);
+      }
+      b.depositI = null;
+      state.stats[spec.stat] = (state.stats[spec.stat] || 0) + 1;
       emit('terrain-changed', { x: i % MAP.size, y: (i / MAP.size) | 0 });
     }
   }
-  return cut;
+  return got;
 }
 
 // The redesign core: a building's output scales with its HP. Raiders grind HP
@@ -101,8 +142,8 @@ export function economyTick(state) {
       // a tower battered to rubble has no post to man — nobody stands in the
       // wreckage; repair it past half and the watch resumes
       if (type === 'tower' && b.sacked) continue;
-      // a lumber camp with no standing timber in reach employs no one
-      if (type === 'lumber' && b.depleted) continue;
+      // a camp/quarry/mine with no live deposit in reach employs no one
+      if ((type === 'lumber' || type === 'quarry' || type === 'mine') && b.depleted) continue;
       const need = BUILDINGS[type].workers;
       for (let i = 0; i < need && pool.length; i++) {
         let bestI = 0, bestSk = -1;
@@ -138,8 +179,11 @@ export function economyTick(state) {
       for (const [r, rate] of Object.entries(def.prod)) {
         let amt = rate * staffing * hpMult * skillMult;
         if (b.type === 'farm' && winter) amt *= WINTER_FARM_MULT;
-        // wood is CUT from real tiles, not conjured — the forest draws down
-        if (b.type === 'lumber' && r === 'wood') amt = cutTimber(state, b, amt);
+        // raw materials are DRAWN from real tiles, not conjured — the ground
+        // draws down: wood from forest, stone from hills, ore from veins
+        if (b.type === 'lumber' && r === 'wood') amt = drawDeposit(state, b, amt, DEPOSIT_SPECS.lumber);
+        else if (b.type === 'quarry' && r === 'stone') amt = drawDeposit(state, b, amt, DEPOSIT_SPECS.quarry);
+        else if (b.type === 'mine' && r === 'ore') amt = drawDeposit(state, b, amt, DEPOSIT_SPECS.mine);
         state.res[r] += amt;
         state.delta[r] += amt;
       }

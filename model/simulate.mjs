@@ -57,13 +57,15 @@ function playerPolicy() {
   if (state.pop >= state.popCap - 1 && foodEq() > pop * 2) {
     if (tryBuild('house')) return;
   }
-  // 3. raw production chains — depleted lumber camps don't count: the bot
-  // pushes new camps toward standing timber as the wood-line recedes
-  const liveLumber = state.buildings.filter(
-    (b) => b.type === 'lumber' && b.hp > 0 && !b.depleted).length;
-  if (liveLumber < 3 && tryBuild('lumber')) return;
-  if (count('quarry') < 2 && state.res.wood > 40 && tryBuild('quarry')) return;
-  if (count('mine') < 2 && state.res.wood > 50 && tryBuild('mine')) return;
+  // 3. raw production chains — depleted sites don't count: the bot pushes
+  // replacement camps/quarries/mines toward live ground as deposits give out.
+  // (Spent tiles TRANSFORM — HILLS→PLAINS, ORE→HILLS — so canPlace's terrain
+  // checks steer new sites to live stone/ore automatically.)
+  const live = (t) => state.buildings.filter(
+    (b) => b.type === t && b.hp > 0 && !b.depleted).length;
+  if (live('lumber') < 3 && tryBuild('lumber')) return;
+  if (live('quarry') < 2 && state.res.wood > 40 && tryBuild('quarry')) return;
+  if (live('mine') < 2 && state.res.wood > 50 && tryBuild('mine')) return;
   if (count('smelter') < 1 && state.res.ore > 15 && tryBuild('smelter')) return;
   if (count('bakery') < 2 && state.res.food > 80 && tryBuild('bakery')) return;
   if (count('market') < 1 && state.res.wood > 60 && tryBuild('market')) return;
