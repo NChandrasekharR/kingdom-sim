@@ -315,6 +315,10 @@ export const CAMP = {
   garrisonMax: 20,
   warlordHp: 170,              // the warlord himself — worth ~6 raiders
   warlordBatterMult: 3,        // he brings a ram: walls fall faster before him
+  swornMen: 4,                 // the oath-bound retinue who march at the warlord's shoulder
+  warlordArrowMult: 0.4,       // his shield-bearers catch the shafts: arrows bite him this much while any sworn man stands
+  // even a broke camp is worth the taking: arm-rings, stores, weapons off the dead
+  spoils: { gold: 25, food: 20, wood: 15, ironPerSword: 0.4 },
   battleRadius: 7,             // the host engages inside this ring of the camp
   alertRadius: 9,              // garrison rushes out when the host gets this close
   provisionFood: 6,            // food-eq per soldier to provision the march

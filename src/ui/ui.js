@@ -544,7 +544,9 @@ export function buildUI(root, ctx) {
         <h2>${info.camp.name} is taken</h2>
         <p>The garrison is slain.${info.warlordSlain ? ` <b>${info.camp.warlord.name} fell at his own hall.</b>` : info.unclaimed ? ' No warlord had yet claimed this nest — now none ever will.' : info.leaderless ? ' The camp stood leaderless — its chief already dead at your walls.' : info.wasHome === false ? ' The warlord was away — he will return to what you leave behind.' : ''}</p>
         <p>His people cower among the tents — <b>${info.folk}</b> souls, none of them fighters.</p>
-        <p>The hoard: <b>${info.gold} gold</b> and <b>${info.plunder} goods</b> in plunder, much of it yours already.</p>
+        <p>${(info.gold > 0 || info.plunder > 0)
+          ? `The hoard: <b>${info.gold} gold</b> and <b>${info.plunder} goods</b> in plunder, much of it yours already — and the camp itself yields arm-rings and weapons off the dead.`
+          : `The hoard is bare — but the camp itself is worth the taking: arm-rings, stores, and weapons stripped off the dead.`}</p>
         <p class="choice-ask">What is your word, sovereign?</p>
       </div>`;
     const btns = el('div', 'victory-btns choice-btns');

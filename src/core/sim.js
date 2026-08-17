@@ -90,7 +90,7 @@ export function dumpStats(state) {
     territory: { now: territorySize(state), peak: s.peakTerritory },
     resources: Object.fromEntries(Object.entries(state.res).map(([k, v]) => [k, Math.round(v)])),
     war: {
-      raids: s.raids, warlords: s.warlords,
+      raids: s.raids, warlords: s.warlords, warlordsSlain: s.warlordsSlain || 0,
       avgRaidSize: +avgRaid, biggestRaid: maxRaid,
       raidersKilled: s.raidersKilled,
       buildingsSacked: s.buildingsSacked, wallsBreached: s.wallsBreached, keepFalls: s.keepFalls,
