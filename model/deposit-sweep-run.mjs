@@ -103,6 +103,7 @@ const firsts = {
 };
 let prevQuarries = 0, prevMines = 0;
 let minPop = state.pop;
+let prevIron = 0, lastIronGainYear = null;   // last year the smelter actually put iron in the store
 
 const rows = [['year', 'pop', 'soldiers', 'gold', 'stone', 'ore', 'iron', 'wood',
   'quarries', 'quarriesDepleted', 'mines', 'minesDepleted', 'smelters',
@@ -125,6 +126,8 @@ for (let t = 0; t < TICKS; t++) {
   if ((state.stats.veinsSpent || 0) > 0 && firsts.veinSpent == null) firsts.veinSpent = y;
   if ((state.stats.hillsFlattened || 0) > 0 && firsts.hillFlattened == null) firsts.hillFlattened = y;
   if (state.pop < minPop) minPop = state.pop;
+  if (state.res.iron > prevIron + 0.001) lastIronGainYear = y;
+  prevIron = state.res.iron;
 
   if (state.tick % 120 === 0) {
     rows.push([y, state.pop, state.soldiers.length, state.res.gold.toFixed(0),
@@ -146,8 +149,10 @@ const summary = {
   oreFracConsumed: infiniteOre ? null : initial.oreTotal > 0 ? +((initial.oreTotal - oreRemaining) / initial.oreTotal).toFixed(3) : null,
   stoneFracConsumed: infiniteStone ? null : initial.stoneTotal > 0 ? +((initial.stoneTotal - stoneRemaining) / initial.stoneTotal).toFixed(3) : null,
   firsts,
+  lastIronGainYear,
   hillsFlattened: state.stats.hillsFlattened || 0,
   veinsSpent: state.stats.veinsSpent || 0,
+  cascadeStone: Math.round(state.stats.cascadeStone || 0),
   forestCleared: state.stats.forestCleared || 0,
   final: {
     pop: state.pop, minPop, gold: Math.round(state.res.gold),

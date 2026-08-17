@@ -1,5 +1,5 @@
 import { BUILDINGS, WORK_PRIORITY, WINTER_FARM_MULT, HP, SKILL, FOREST, DEPOSITS, T, MAP } from '../config.js';
-import { idx } from './state.js';
+import { idx, stoneTileStock } from './state.js';
 import { currentSeason } from './sim.js';
 import { logEvent, emit } from './events.js';
 
@@ -78,6 +78,11 @@ function drawDeposit(state, b, amt, spec) {
     const before = stock[i];
     stock[i] -= take;
     got += take;
+    // instrumentation: stone actually quarried out of a spent vein's hill
+    // (did the ORE→HILLS cascade ever matter?)
+    if (spec.src === T.HILLS && state._veinHills instanceof Set && state._veinHills.has(i)) {
+      state.stats.cascadeStone = (state.stats.cascadeStone || 0) + take;
+    }
     // visible thinning: repaint on density-band crossings
     if (stock[i] > 0 && spec.band &&
         Math.floor(before / spec.band) !== Math.floor(stock[i] / spec.band)) {
@@ -87,6 +92,13 @@ function drawDeposit(state, b, amt, spec) {
       // the tile is worked out: it transforms
       if (spec.into != null) state.terrain[i] = spec.into;
       stock[i] = 0;
+      // the cascade: a spent vein falls back to hills WITH stone in them —
+      // the vein is gone but the rock remains, quarryable ground
+      if (spec.into === T.HILLS) {
+        state.stoneStock[i] = stoneTileStock(i % MAP.size, (i / MAP.size) | 0);
+        if (!(state._veinHills instanceof Set)) state._veinHills = new Set();
+        state._veinHills.add(i);
+      }
       b.depositI = null;
       state.stats[spec.stat] = (state.stats[spec.stat] || 0) + 1;
       emit('terrain-changed', { x: i % MAP.size, y: (i / MAP.size) | 0 });

@@ -32,20 +32,25 @@ export function seedForestWood(terrain) {
 // plains, an exhausted vein falls back to plain hills. Base can be 0/Infinity
 // (control): a bottomless reserve is sentinelled with Infinity so draw-down is
 // a no-op and the tile never transforms.
+// stone a single HILLS tile holds, deterministic from coordinates (rich seam
+// vs thin). Also used when a spent ORE vein falls back to hills: the dead
+// vein leaves quarryable rock behind (the deliberate cascade).
+export function stoneTileStock(x, y) {
+  if (!Number.isFinite(DEPOSITS.stoneBase) || DEPOSITS.stoneBase <= 0) return Infinity;
+  // distinct hash constants from forest/ore so the three reserves decorrelate
+  const h = ((x * 6151 + y * 8161) * 2654435761 >>> 0) / 4294967296;
+  return Math.max(15, DEPOSITS.stoneBase + (h * 2 - 1) * DEPOSITS.stoneVar);
+}
+
 export function seedStoneOre(terrain) {
   const N = MAP.size;
   const stone = new Float32Array(N * N);
   const ore = new Float32Array(N * N);
-  const stoneInf = !Number.isFinite(DEPOSITS.stoneBase) || DEPOSITS.stoneBase <= 0;
   const oreInf = !Number.isFinite(DEPOSITS.oreBase) || DEPOSITS.oreBase <= 0;
   for (let i = 0; i < N * N; i++) {
     const t = terrain[i];
     if (t === T.HILLS) {
-      if (stoneInf) { stone[i] = Infinity; continue; }
-      const x = i % N, y = (i / N) | 0;
-      // distinct hash constants from forest/ore so the three reserves decorrelate
-      const h = ((x * 6151 + y * 8161) * 2654435761 >>> 0) / 4294967296;
-      stone[i] = Math.max(15, DEPOSITS.stoneBase + (h * 2 - 1) * DEPOSITS.stoneVar);
+      stone[i] = stoneTileStock(i % N, (i / N) | 0);
     } else if (t === T.ORE) {
       if (oreInf) { ore[i] = Infinity; continue; }
       const x = i % N, y = (i / N) | 0;
