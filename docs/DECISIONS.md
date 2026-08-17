@@ -5,6 +5,17 @@ first within each section. For still-open questions see `OPEN-QUESTIONS.md`.
 
 ---
 
+## Session 8 — loot justice, the warlord's retinue, and the depletion data (2026-08-17)
+
+- **Depleted lumber camps AUTO-DEMOLISH and refund the player** (Chandra,
+  2026-08-17 — **decided, not yet built**). The depletion campaign measured
+  dead camps pinning the worst-first repair queue and soaking 25–30% of all
+  repair wood as ghost maintenance. When a camp exhausts its last reachable
+  timber it strikes itself: auto-demolish with the standard condition-scaled
+  material refund (the existing demolish rule — no new refund math). Extends
+  naturally to quarries/mines if the deposit ladder ships. Implementation
+  deliberately deferred; log first, build with the depletion batch.
+
 ## Session 7 — the Steward's Counsel ships (2026-07-20)
 
 - **ONBOARDING.md §9 calls, taken per the doc's own recommendations** (built
