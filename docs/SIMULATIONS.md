@@ -428,11 +428,134 @@ now); what stopped is the churn.
 
 ---
 
+## Campaign 14 — Depletion: the wood treadmill and the deposit sweep (Session 8, 2026-08-17, `model/`)
+
+The follow-through promised since Session 5. Two halves: the WOOD campaign
+(does the repair treadmill kill a kingdom, and can trade save it?) and the
+STONE/ORE deposit sweep (where do finite mining reserves belong?). The wood
+half ran BEFORE the polish batch retuned `woodBase` — its numbers are the
+diagnosis that motivated the retune, not a measurement of the shipped game.
+
+### A. The wood campaign — the repair treadmill
+
+**Question:** with finite forests at `woodBase 90`, does the repair treadmill
+bleed a kingdom slowly, or does it end it? And do the wood-deadlocked seeds
+8/37 get rescued by trade, or merely die later?
+
+**Method:** `model/out/depletion-campaign/run-all.sh` — the real `src/core/`
+with the scripted player, 25 years (seed 7 also at 30), instrumented with
+`liveLumber`, `depletedLumber`, `campsBuilt`, `forestCleared`, and
+`meanHpFrac` (the treadmill gauge — mean building HP fraction). A `TRADE=1`
+rescue rule buys 20 wood from the caravan when wood < 10 and the treasury can
+bear it, exactly as a human would click. **Instrumentation and rescue rule are
+UNMERGED**, in worktree `agent-a7a5292f7f24eb425` (`5ff626c`, `8b50f30`,
+`87d8d72`) — see OPEN-QUESTIONS for the merge decision.
+
+**Finding 1 — the treadmill is a CLIFF, not a slope.** A kingdom does not
+decline as timber tightens. It runs healthy for two decades and then falls off
+the edge the year the last border-reachable forest dies:
+
+| seed | last live camp | meanHpFrac before → after | pop at the cliff | pop at end |
+|---|---|---|---|---|
+| 42 | **y19** | 0.71 (y17) → 0.18 (y19) → **0.018** (y21+) | 510 | 510 (frozen) |
+| 123 | **y24** | 0.74 (y23) → 0.45 (y24) → **0.099** (y26) | 810 | 810 (frozen) |
+| 7 (30y) | **y29** | 0.67 (y28) → 0.43 (y29) → **0.067** (y31) | 985 | 985 (frozen) |
+
+Within roughly two years of the last camp dying, mean building HP goes from
+~0.7 to **0.02–0.07** and population **freezes** — it never falls. This is the
+**"rich slum" endstate**: seed 42 finishes with 28.7k gold, 510 souls, and
+every building in the realm at 2% health. Nobody starves; nothing can be
+repaired; the kingdom is a museum of collapsing sheds with a full treasury.
+
+**Finding 2 — lumber sites lasted 1.0–1.2 years at `woodBase 90`.** 54–72
+camps built over 25 years, one relocation short of that each time. The FOREST
+comment's "4–6 years" was off by 4–5×. This is the measurement that drove the
+polish batch's retune to 250 (Campaign 13).
+
+**Finding 3 — one trade purchase RESCUES a deadlocked seed.** Seeds 8 and 37
+both open wood-deadlocked: no reachable timber, `meanHpFrac` at 0.019 by year
+4, pop pinned at 15 for the whole run. The `TRADE=1` rule — a single 20-wood
+purchase when the stores run dry — breaks it outright:
+
+| seed | baseline (25y) | TRADE=1 (25y) | lift-off | total import cost |
+|---|---|---|---|---|
+| 8 | pop **15**, gold 52, hp 0.019, no crowns | pop **493**, gold 29,914, hp 0.691, plenty+people | **y11** | 280 wood / **840 gold** |
+| 37 | pop **15**, gold 42, hp 0.019, no crowns | pop **347**, gold 14,703, hp 0.775, plenty+people | **y17** | 160 wood / **428 gold** |
+
+A dead run becomes a 493-soul kingdom for 840 gold of imported timber.
+
+**Finding 4 — structural imports are cheap.** 840g and 428g are **12–25% of
+late-game gold income**: trade can absolutely bear structural imports, which is
+what made the D4 buy cap necessary rather than optional. The rescue rule bought
+in 20-wood units, which is the data behind the **~20–25 wood/visit** threshold
+the shipped cap sits at (`capBase 20`, Campaign 13 §3).
+
+**Finding 5 — ghost camps soaked 25–30% of all repair wood.** Depleted lumber
+camps stayed in the worst-first repair queue forever, taking maintenance they
+could never repay. This is the measurement the auto-demolish decision was
+written against; Campaign 13 §4 records it going to 0.0%.
+
+### B. The deposit sweep — where finite stone and ore belong
+
+**Question:** at what reserve size does the ground giving out become
+punctuation rather than a treadmill — for stone, and for ore?
+
+**Method:** `sh model/deposit-sweep.sh` — **5 scenarios × 5 seeds × 25 years**
+via `model/deposit-sweep-run.mjs`, with `KSIM_STONE_BASE` / `KSIM_ORE_BASE`
+driving the config. Scenarios: `low` 60/40, `mid` 90/90, `high` 150/150,
+`rec` 250/150, `control` inf/inf. Seeds 8/42/7/123/99. Raw trajectories and
+`summaries.jsonl` committed under `model/out/deposit-sweep/` (`e7b240b`,
+merged `c92d692`).
+
+**Stone.** 60, 90, and 150 all die in **year 2–3** — the first quarry site
+exhausts before the player has finished the opening build-out, which is a chore
+by any reading. **250 pushes first depletion to year 4–5**, with 5–9 quarries
+raised over a run instead of 14–29. That is the era-not-chore band, and it is
+what shipped.
+
+| stoneBase | first quarry depleted | quarries raised over 25y (s42/s7/s123) |
+|---|---|---|
+| 60 | y2 | 29 / 19 / 14 |
+| 90 | y2 | 19 / 11 / 8 |
+| 150 | y3 | 11 / 5 / 9 |
+| **250** | **y4–5** | **7 / 8 / 7** |
+
+**Ore.** At 90 the iron chain **starves by year 7** (seed 42's last iron gain:
+y7). At 150 it **holds to year 17–19** across the mining seeds, with **3–5
+forced relocations** and only **20–30% of the map's ore consumed** — the vein
+you are standing on runs out, the map does not. 150 shipped.
+
+| oreBase | last iron gain (s42) | mine relocations | ore fraction consumed |
+|---|---|---|---|
+| 40 | y4 | 0–2 | 15–32% |
+| 90 | y7 | 2–3 | 15–30% |
+| 150 | **y17** | 3–5 | 19–30% |
+| 150 (`rec`) | **y19** | 4–5 | 21–30% |
+
+**The cascade fires.** A spent vein falling back to quarryable hills yielded
+**155–567 cascade stone** in the mining runs (`high` s99: 567; `rec` s99: 232;
+`low` s42: 277) — zero before `244e524`, which is how the bug was caught: the
+conversion had been leaving the fallen tile's `stoneStock` at 0.
+
+**Controls are clean.** Every `control` run (inf/inf) is **tick-identical to
+its scenario sibling up to the first exhaustion event** — the depletion code
+adds nothing until a reserve actually runs out. Seed 8 is byte-identical across
+all five scenarios (pop 15, gold 52) because it never builds a quarry at all:
+the wood deadlock kills it first.
+
+**No depletion death spirals.** Hills flattened rise as reserves shrink
+(0–86 across scenarios) and populations move within their normal seed range
+(330–914); no scenario collapsed a kingdom that the control kept alive.
+
+---
+
 ## Cumulative totals
 
-~8,300 Monte Carlo runs across eleven campaigns, plus many headless 12-year
-runs of the real game, ~240 controlled harness trials against the real game
-core (combat, rout, tribute), and three full human playtests with
+~8,300 Monte Carlo runs across eleven `sim2` campaigns, plus the two Session-8
+depletion campaigns against the real core (Campaign 13's wood sweep and polish
+batch; Campaign 14's 8 wood runs and 25-run deposit sweep), many headless
+12-year runs of the real game, ~240 controlled harness trials against the real
+game core (combat, rout, tribute), and three full human playtests with
 `kingdom.summary()` telemetry. Every number is reproducible from the commands
 listed; `sim2/README.md` documents the harness. Two standing lessons: (1) for
 spatial combat *feel*, the human playtest is the ground truth — synthetic

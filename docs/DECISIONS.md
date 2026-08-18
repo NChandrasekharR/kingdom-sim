@@ -5,7 +5,58 @@ first within each section. For still-open questions see `OPEN-QUESTIONS.md`.
 
 ---
 
-## Session 8 — loot justice, the warlord's retinue, and the depletion data (2026-08-17)
+## Session 8 — loot justice, the warlord's retinue, and the depletion data (2026-08-17→18)
+
+- **March mid-massing and you fight the gathering at its TRUE size** (design
+  call, `7b551a9`). The massing bodies were props; a host that marched while a
+  wave was forming fought only the garrison and walked through the scenery.
+  The call: the gathering is real, it turns to meet you, and it fights at the
+  wave's full predicted count — not the 18 the eye was shown. **Win and the
+  wave is cancelled outright** (fresh quiet gap, the same formula that follows
+  any raid); the raid timer HOLDS while that battle is fought, because the
+  battle decides the wave, not the clock. **Being repulsed buys nothing** —
+  survivors stand back down to props and their wave marches as it always would
+  have. The preemptive strike is a real verb with a real price, not a way to
+  buy time by showing up. Corollary invariant: a camp broken or burned
+  mid-gathering **scatters** the wave; it must never re-home on a map edge and
+  arrive as if it had come from the wilds.
+
+- **The warlord fight should cost blood — reaching him IS the battle**
+  (design call, `842aa8a`). Killing him breaks his host, which makes him the
+  single highest-value target on the field and made the fight a decapitation
+  puzzle: rush the crown, win the war. Four **sworn men** (66 HP, clamped
+  within 2.5 tiles of his shoulder, never looting, fleeing the instant he
+  falls) plus `warlordArrowMult 0.4` while any of them stands mean the retinue
+  must be cut through before the tower fire can touch him. The warlord counts
+  as **two men** in the spatial force-ratio and a sworn man as one — standing
+  in front of him is dangerous by the same rule that governs everything else.
+  Measured cost: **+7 soldier deaths and −8.5% population** on seed 42, with no
+  spiral. That is the intended price.
+
+- **The spoils are IDENTICAL for punish and massacre — mercy is not priced**
+  (design call, `842aa8a`). Even a bare-ledger camp yields a floor of
+  `gold 25, food 20, wood 15`, plus iron off the swords counted **before** the
+  battle (`0.4 × garrison-at-battle-start`) — arm-rings, stores, weapons off
+  the dead. Two reasons, both load-bearing: a victory that pays literally
+  nothing makes the march feel like a mistake even when it was right; and if
+  massacre paid better than punish, the moral choice would become an economic
+  one. The Session-5 rule stands — the choice must be the player's alone, and
+  it must not be bought. The hoard-as-ledger invariant is untouched: the floor
+  is spoils off bodies and tents, not treasure that regenerates.
+
+- **`design/REAVING.md` written — thralls ratified for FULL structural
+  modeling** (`9216fd9`). The design decision inside the doc, recorded because
+  it shaped everything else: if coerced labor is in the game at all, it gets the
+  whole structure — guard ratio, escape, the revolt threshold, manumission,
+  the masters exclusion, the Crowns exclusion — and not a resource-with-a-dark-
+  name. A half-modeled version is the version that reads as endorsement.
+  **Hold relationships (ARM / BAND / SUBMIT / INFAMY) were deliberately left as
+  discussed tradeoffs, not a ratified shape** — §6.5 recommends a v1 subset and
+  states the counterargument against itself rather than settling it. The doc's
+  **nine open questions (§11) are pending Chandra** and are not decisions;
+  Q2 in particular ("is slavery in this game, at all?") is explicitly flagged as
+  a values call that is his, with the doc written to degrade gracefully if the
+  answer is no.
 
 - **Depleted lumber camps AUTO-DEMOLISH and refund the player** (Chandra,
   2026-08-17 — **decided; BUILT in the depletion polish batch**). The depletion
