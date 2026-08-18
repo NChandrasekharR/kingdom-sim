@@ -5,7 +5,7 @@ in one place. Grouped by area. Status key:
 **OPEN** (needs a decision) · **EXPERIMENT** (answerable by running the sim) ·
 **DEFERRED** (parked for later) · **RESOLVED** (settled — moved to `DECISIONS.md`).
 
-Last updated: 2026-07-20 (Session 7 — see the pickup section at the bottom).
+Last updated: 2026-08-18 (Session 8 — see the pickup section at the bottom).
 
 ---
 
@@ -57,7 +57,7 @@ in case the redesign doesn't ship and we patch the current game instead.
 | D1 | **Bakery rework** (0.25→0.4 bread output). | **SHIPPED 2026-07-14** | In `src/config.js`. |
 | D2 | **Soldier food upkeep** (3× a citizen, not gold). | **SHIPPED 2026-07-14** | Soldiers cost 5 iron once, then eat 3×. Recruit pulls a real villager. |
 | D3 | **Building upkeep in materials.** | SUPERSEDED | HP decay + repair materials (shipped) replaces this. |
-| D4 | **Merchant buy-cap** to stop infinite liquidation. | **SHIPPED 2026-08-17** | `TRADE_CAP` in `src/config.js`: per-visit BUY cap `20 + 15/dock + 5/market`, selling uncapped. Scaled by commerce so a harbor imports through depletion and a landlocked realm cannot. See DECISIONS.md Session 8. |
+| D4 | **Merchant buy-cap** to stop infinite liquidation. | **RESOLVED / SHIPPED 2026-08-17** | `TRADE_CAP` in `src/config.js`: per-visit BUY cap `20 + 15/dock + 5/market`, selling uncapped. Scaled by commerce so a harbor imports through depletion and a landlocked realm cannot. Threshold set from Campaign 14's rescue data (20-wood units broke both deadlocked seeds; structural imports cost only 12–25% of late-game income, so a cap was necessary rather than optional). Rationale in DECISIONS.md Session 8; numbers in SIMULATIONS.md Campaigns 13–14. |
 
 ## E. Product / housekeeping
 
@@ -195,3 +195,72 @@ save migration); `public/og-card.png` + `og:`/`twitter:` meta on both pages
    rally banner as one endgame design session.
 5. **Depletion sim follow-through** (unchanged): repair treadmill vs finite
    wood, seeds 8/37, ore later.
+
+---
+
+## Session 8 (2026-08-17→18) — what shipped and what's open now
+
+*(Pickup point for the next chat. Full record: `CHANGELOG.md` Session 8,
+`DECISIONS.md` Session 8, `SIMULATIONS.md` Campaigns 13–14, `design/REAVING.md`.
+The deploy is still the Session-7 build — none of this session's work is live.)*
+
+**SHIPPED:** loot recovery (typed `lootBag`, escaped-raider guard, "goods won
+back from the slain", `stats.lootRecovered`); the warlord's sworn men + the
+camp spoils floor; finite stone and ore (`DEPOSITS`, HILLS→PLAINS, the
+ORE→HILLS cascade, per-tile reserves, env-overridable); the depletion polish
+batch (wood retune to 250, the Potosí, the merchant buy cap, auto-demolish);
+the preemptive strike / massing fix (`7b551a9` — **built and asserted, not yet
+merged to `main`**, in worktree `agent-af96065743f5723c4`);
+`design/REAVING.md` (design only).
+
+**CLOSED this session:**
+- **D4 RESOLVED** — the merchant buy cap shipped, commerce-scaled. See the D
+  table above and `DECISIONS.md` Session 8 for the reasoning.
+- **Depletion sim follow-through DONE** — both promised campaigns ran. The
+  wood treadmill and the seeds-8/37 rescue question, and the stone/ore deposit
+  sweep, are answered in `SIMULATIONS.md` Campaign 14 (the polish batch's own
+  measurements are Campaign 13). Headline: the treadmill is a **cliff**, not a
+  slope, and its endstate is a rich slum.
+
+**NEW candidates from this session's design talk** (none decided — each needs a
+session or a call):
+- **(a) The TRUCE MARKET — trade with the camp.** The third rider's answer:
+  the warlord spends his hoard at your market, so his garrison shrinks as the
+  hoard drains, and raids pause while the trade holds. Breaks on betrayal —
+  by either side. Wants designing **next to REAVING's infamy**, so the trader
+  and the reaver identities price consistently against each other rather than
+  being two unrelated systems. Historical precedent to steal from: the Ming
+  horse-market, where trade privileges were the pressure valve on raiding.
+- **(b) The SMALL RAID — a middle verb.** Between "do nothing" and the all-in
+  march there is nothing. A handful of men slip out and steal from the
+  hoard-ledger, risking capture rather than annihilation. Couples directly
+  with REAVING's named prisoners: capture is the interesting failure, and it
+  gives the ransom layer something to hold.
+- **(c) REAVING.md's nine open questions await Chandra** (§11). Especially
+  **Q1** (does it ship at all, and does it ship before the Great Works
+  summit — a sequencing call), **Q2** (is slavery in this game, at all — a
+  values call, explicitly his), **Q4** (the guard ratio: 1:5? the single most
+  load-bearing constant in the doc), and **Q9** (should thralls be sellable to
+  the merchant — the one place the doc admits it flinched).
+- **(d) The wood-campaign instrumentation + `TRADE=1` rescue rule are
+  UNMERGED** — worktree `agent-a7a5292f7f24eb425` (`5ff626c`, `8b50f30`,
+  `87d8d72`). They produced Campaign 14A's numbers but never landed on `main`.
+  Merge, cherry-pick, or discard: pending. Merging costs nothing at runtime
+  (the rescue rule is env-gated) and keeps the campaign reproducible.
+
+**STANDING (carried, unchanged in substance):**
+1. **THE LONG PLAYTEST** — now **more** valuable than it has ever been. Two
+   sessions of combat, economy, and depletion change have landed with no human
+   ever having played them: the sworn-men boss fight, the preemptive strike,
+   finite stone and ore, the wood retune, auto-demolish. All of it is
+   sim-validated and none of it is play-validated. The massacre still has
+   never been chosen by a person.
+2. **The onboarding kill gate** (ONBOARDING.md) — one person who has never
+   seen the game, ladder on.
+3. **The Great Works summit** — ladder + Crown of Ages + Last Muster + rally
+   banner as one endgame design session. **Pushed by Chandra this session.**
+4. **Steward Q4** — drop to 1× speed at the first raid warning? **Pushed by
+   Chandra this session.**
+5. **Typed camp hoard** — should the warlord's ledger hold typed goods the way
+   raiders' bags now do, rather than an undifferentiated `plunder` number? A
+   small call. **Pushed by Chandra this session.**

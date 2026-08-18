@@ -5,12 +5,159 @@ Commit-level record of what shipped, newest session first. For the narrative see
 the sim numbers see [`SIMULATIONS.md`](SIMULATIONS.md).
 
 Everything is on `main` (Session 4 merged the Session-3 branch). The Vercel
-deploy is manual (`npx vercel --prod`) and current through Session 7 — first
-deployed off current `main` in Session 6, redeployed 2026-07-20.
+deploy is manual (`npx vercel --prod`) and current through **Session 7** —
+first deployed off current `main` in Session 6, redeployed 2026-07-20. Session
+8's work is NOT live; the redeploy waits on the long playtest.
 
 ---
 
-## Session 8 — the depletion polish batch (2026-08-17)
+## Session 8 — loot justice, the boss, the ladder, and the Reaving (2026-08-17→18)
+
+The session's arc, in merge order: an old broken promise paid off (loot
+recovery) → the warlord made worth killing (sworn men + camp spoils) → the
+ground made finite for stone and ore, and swept → the Reaving designed on
+paper → the depletion polish batch (below) → the preemptive strike, which
+began as a bug report and ended as a verb. Measurements in
+`docs/SIMULATIONS.md` (Campaigns 13–14).
+
+### `7b551a9` — The gathering turns to meet them (the preemptive strike)
+
+*(Not yet merged to `main` at the time of writing — the commit sits in worktree
+`agent-af96065743f5723c4`.)*
+
+Started as a playtest question — *what happens if I march while they're
+massing?* — and the answer was: nothing good, in four ways at once.
+
+**The diagnosis.** The massing bodies at the tents were **render-only props**
+(`c.massing`, capped at 18 for the eye) with no count behind them. So a host
+that marched mid-massing fought **only the garrison** — the wave standing right
+there was scenery you walked through. Worse, breaking the camp left the pending
+camp-origin wave still armed in `state.raid`: with no camp to march from, it
+**teleported to a random map edge** and arrived as if it had always come from
+the wilds. And the sally stance had nothing to target, because the gathering
+wasn't made of bodies.
+
+**The fix** (`camp.js`, `raids.js`, `state.js`, `scene.js`)
+- `c.massingCount` now carries the **true size** of the coming wave (the props
+  stay capped); `joinMassers()` mints that many real bodies — named in the
+  raiders' saga style — into a **battle-only** `c.massers` array when the host
+  engages. Battle-only, not folded into the garrison, because the garrison
+  drives the iron spoils reckoning and the refill target, and none of that
+  should count men who were never garrison.
+- **Victory cancels the wave.** The gathering died on its own ground, so it
+  never marches: the pending raid goes back to a fresh `quietGap()` — the same
+  formula that follows any raid, now extracted so both callers share it.
+- **The timer HOLDS during the battle.** While your host is fighting at the
+  tents and the gathering has turned to meet it, the countdown stops. The
+  battle decides the wave, not the clock.
+- **Repulse or host-wiped releases them.** Survivors stand back down to props
+  and their wave marches as it always would have — being repulsed buys nothing.
+- **The dispersal branch kills the teleport at source**: a camp broken or
+  burned while a wave was gathering scatters it outright
+  (*"The war-band that was gathering has scattered — there is no camp to muster
+  at."*) rather than re-homing it on a map edge.
+- `clearMassing()` is the single exit — every path that ends a gathering (wave
+  launched, raid over, tribute paid, camp struck, camp relocated) clears both
+  the props and the count, so scenery never animates at a dead camp.
+- Save migration infers `massingCount` from the prop count for pre-fix saves;
+  massers render beside the garrison.
+- **38/38 staged assertions** pass.
+
+### `c92d692` — Finite stone and ore (merge of `f94ce4c` + `244e524` + `e7b240b`)
+
+The forest's pattern extended to the two mining chains: the ground itself gives
+out. Swept before landing — see SIMULATIONS Campaign 14.
+
+- **`DEPOSITS` config block** (`src/config.js`): `stoneBase 250 ±90`,
+  `oreBase 150 ±60`, `harvestRadius 2.2` shared with the FOREST cadence. Every
+  value `_envNum`-overridable (`KSIM_STONE_BASE` / `KSIM_ORE_BASE` / `…_VAR`),
+  with `'inf'` for a bottomless control run — that's what made the sweep
+  possible.
+- Every HILLS tile holds stone and every ORE tile holds ore, as **per-tile
+  Float32 reserves**; quarries and mines draw down the nearest live tile in
+  reach, and a depleted site employs nobody.
+- **HILLS → PLAINS**: worked-out hill country flattens — the quarry ground
+  becomes a plain, farmable, exactly as spent forest becomes assarted field.
+- **ORE → HILLS cascade**: a spent vein falls back to bare hills that are
+  themselves quarryable. `244e524` fixed this: the conversion had been leaving
+  `stoneStock` at 0, so the cascade never actually fired. The fallen tile is
+  now seeded through `stoneTileStock()` and the stone drawn from such tiles is
+  tracked as `cascadeStone` (155–567 in mining-heavy runs).
+- Save migration seeds reserves for pre-deposit saves.
+
+### `4539a14` — `design/REAVING.md` (merge of `9216fd9`)
+
+Design only, no code. The third answer to depletion — trade, expand, or
+**take** — specced at 1,304 lines.
+
+- **Off-map holds** as stat-block addresses: no map presence, no rival economy
+  (DECISIONS Session 5's asymmetry law held), a roster model, discovery, the
+  expedition reusing the existing march, battle math, and exposure as the true
+  cost of being away.
+- **Named prisoners** with ransom (the warlord's rider, inverted), where they
+  are held, and the prison-break raid.
+- **Thralls** at full structural depth: what a thrall is mechanically, housing,
+  why they can never become masters, the **guard ratio** as the central
+  mechanism, escape and the revolt threshold, manumission, citizen–thrall
+  interaction, the Crowns exclusion, and voice.
+- **Hold relationships** as a tradeoff space (ARM / BAND / SUBMIT / INFAMY)
+  with a v1 recommendation; historical grounding across the plunder-and-tribute
+  economy, serfdom, Sparta, the Black Death, colonization frontiers, and the
+  structural verdict on coerced labor.
+- **Phasing A → C → B** with kill gates, an explicit out-of-scope list, a sim
+  plan, adversarial checks, and **nine open questions for Chandra** (§11).
+  Its sim plan is written as "Campaign 13"; that number went to the polish
+  batch, so the Reaving campaign will number from 15.
+
+### `e5056d7` — The warlord rides with sworn men + the spoils of the camp (merge of `842aa8a`)
+
+Two halves of one problem: the boss fight was cheap, and winning it could pay
+nothing at all.
+
+**The sworn men** (`config.js` CAMP, `raids.js`, `camp.js`)
+- Four **Oathbound** ride at the warlord's shoulder (`swornMen: 4`), each
+  `RAIDER.hp × 2.2` = 66 HP and named in his own style.
+- They **clamp to his position** (within 2.5 tiles) while he lives, **never
+  loot** — they hold at their lord's side — and **flee the moment he falls**.
+- `warlordArrowMult: 0.4` — while any sworn man still stands, his
+  shield-bearers catch the shafts and arrows bite the warlord at 40%. Kill the
+  retinue first or the tower fire is wasted on him.
+- In the spatial force-ratio, **the warlord counts as two men** in `localGang`
+  and a sworn man as one: standing in front of him is genuinely dangerous.
+- `stats.warlordsSlain` now counted.
+
+**The spoils of the camp** (`CAMP.spoils`, `camp.js`, `ui.js`)
+- A victory floor: `gold 25, food 20, wood 15, ironPerSword 0.4` — arm-rings,
+  stores, and weapons stripped off the dead. Iron is reckoned against
+  `exp.battleGarrison`, the swords counted **before the killing starts**, not
+  the empty ground left after.
+- **Identical for punish and massacre.** Mercy is not priced.
+- An empty ledger now gets its own chronicle line and its own victory-modal
+  copy (*"The hoard is bare — but the camp itself is worth the taking"*)
+  instead of announcing zero gold and zero goods.
+- **Validation** (seed 42, 25y): the fight now costs **+7 soldier deaths** and
+  **−8.5% population** against baseline, with no death spiral.
+
+### `9918c96` — Slain raiders drop their plunder (merge of `f274725` + `fee84f6`)
+
+The sally-stance tooltip has promised *"loot recovered, blood risked"* since
+Session 4. The code never delivered it — a raider cut down with your grain on
+his back simply deleted it.
+
+- Each raider carries a **typed `lootBag`**: `{gold, iron, bread, food, wood,
+  stone, ore}` recording *what* he stole, not just how much. Cut him down and
+  the very goods roll back into the stockpile, resource by resource.
+- **The escape rule is by mode, not by pulse** (`fee84f6`): a raider who has
+  already slipped away (`mode === 'gone'`) banks to the camp hoard *even if an
+  arrow finds him at the treeline on his escape tick*. He got away; the ledger
+  says so. Without the guard, that one man's plunder was paid to the player and
+  to the hoard both.
+- The per-raid reckoning gained a line: *"N goods won back from the slain."*
+- `stats.lootRecovered` tracked; save migration backfills `lootBag` on
+  in-flight raiders and refunds bag-less legacy loot as food, so nothing stolen
+  is ever silently destroyed.
+
+### The depletion polish batch (`2b775a6`, `0284f7a`)
 
 Four ratified designer calls built together, because they all touch the same
 seam: the ground is finite, and the systems around it hadn't caught up.
