@@ -1,0 +1,61 @@
+⚜ Ashbourne — run summary {
+  kingdom: 'Ashbourne',
+  yearsReigned: 15.7,
+  outcome: 'FALLEN',
+  crowns: 'plenty, people',
+  population: { now: 1, peak: 335, cap: 335 },
+  territory: { now: 172, peak: 405 },
+  resources: {
+    food: 0,
+    wood: 0,
+    stone: 89,
+    ore: 315,
+    iron: 2,
+    bread: 0,
+    gold: 10252
+  },
+  war: {
+    raids: 12,
+    warlords: 2,
+    warlordsSlain: 0,
+    avgRaidSize: 28.4,
+    biggestRaid: 45,
+    raidersKilled: 264,
+    buildingsSacked: 139,
+    wallsBreached: 0,
+    keepFalls: 1,
+    lootRecovered: 1082,
+    expeditions: 0,
+    campsBroken: 0,
+    massacres: 0,
+    campFolkSlain: 0
+  },
+  camp: {
+    name: 'Grimswallow',
+    warlord: 'Warlord Bront Longreach',
+    garrison: 20,
+    hoard: 1416,
+    state: 'festering'
+  },
+  army: {
+    soldiersNow: 0,
+    recruited: 86,
+    fallen: 86,
+    veteransFallen: 26,
+    killDeathRatio: 3.07
+  },
+  people: {
+    born: 420,
+    starved: 334,
+    huntedInRaids: 2,
+    mastersNow: 0,
+    mastersLost: 45
+  },
+  foodSpoiled: 8480,
+  forestCleared: 57,
+  hillsFlattened: 11,
+  veinsSpent: 12,
+  cascadeStone: 214,
+  tribute: { paid: 0, gold: 0, appetite: 0 }
+}
+{"seed":99,"years":25,"woodBase":90,"woodVar":50,"built":{"lumber":41,"quarry":5,"mine":6},"lifetime":{"lumber":1.83,"quarry":10,"mine":8.33},"year3":{"pop":45,"wood":88,"gold":793,"iron":15,"buildings":37},"ghost":{"ghostHpHealed":5206,"totalHpHealed":21607,"ghostFrac":0.241},"meanHpFrac20":0.018,"veinMults":null,"deepVeinStruck":false,"merchant":{"bought":0,"blocked":0,"visits":57},"final":{"pop":1,"minPop":1,"gold":10252,"wood":0,"stone":89,"ore":315,"iron":2,"soldiers":0,"territory":172,"lumber":41,"lumberDepleted":41,"quarries":5,"quarriesDepleted":3,"mines":6,"minesDepleted":6,"forestCleared":57,"hillsFlattened":11,"veinsSpent":12,"keepFalls":1,"crowns":{"dominion":false,"plenty":true,"people":true}}}

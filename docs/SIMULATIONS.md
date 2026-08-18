@@ -330,6 +330,104 @@ late-game WANT problem.
 
 ---
 
+## Campaign 13 — The depletion polish batch (Session 8, 2026-08-17, `model/`)
+
+**Question:** Four questions in one batch. (1) What woodBase actually delivers
+the 4–6 year lumber-site lifetime the FOREST comment has always claimed?
+(2) Does per-vein richness variance produce runs that play differently?
+(3) Where should the merchant's per-visit buy cap sit? (4) Does auto-demolishing
+spent camps recover the measured ghost-repair soak?
+
+**Method:** `sh model/wood-sweep.sh` and `sh model/polish-batch.sh <tag> 25`
+(both drive `model/depletion-polish-run.mjs` — the real `src/core/` with the
+scripted player from `simulate.mjs`, plus instrumentation for site lifetime,
+ghost repair, and vein fortune). Targeted behavior in
+`node model/polish-unit-checks.mjs` (39 assertions). Vein lottery surveyed with
+`node model/vein-probe.mjs`.
+
+**Site lifetime = concurrent sites × years ÷ sites raised** (the campaign's
+method: the bot holds 3 live lumber camps, so 3 × 25 ÷ camps-built).
+
+### 1. Wood retune — 25-year runs, seeds 42/7/123
+
+| woodBase | s42 | s7 | s123 | mean | year-3 wood | verdict |
+|---|---|---|---|---|---|---|
+| 90 (was) | 1.34 | 1.04 | 1.34 | **1.24** | 63–121 | 5× too fast — a chore |
+| **250** | 5.00 | 4.41 | 3.57 | **4.33** | 85–101 | **chosen — the band, no seed running long** |
+| 300 | 7.50 | 5.36 | 4.41 | 5.66 | 89–109 | seed 42 overshoots |
+| 350 | 6.82 | 5.00 | 5.00 | 5.61 | 91–106 | one seed over |
+| 450 | 7.50 | 7.50 | 5.77 | 6.92 | 87–98 | a camp outlives the interest |
+
+**Result:** the old comment's "~4-6 years per site" was aspirational — the
+shipped value delivered 1.0–1.8. **woodBase 250 / woodVar 125** lands 3.6–5.0
+across four seeds (mean 4.23 in the after-batch run). Year-3 wood and pop are
+flat across every candidate, so nothing starves the early game: the retune only
+stops the late-game churn.
+
+### 2. The Potosí — per-vein richness
+
+Each of the 11 veins draws a fortune from the map seed: ordinary 0.8–1.3×, and
+`1.5/11` of them a **deep vein at 3–6×**. Over 300 seeds: mean **1.56** deep
+veins per map, and 52/300 maps have none at all — the bonanza is a place you
+might not get.
+
+Sample (`model/vein-probe.mjs`): seed 42 → `[0.83…1.11, 4.31, 5.31, 5.55]`,
+deep share 67% of map ore · seed 7 → `[0.83…1.28]`, no deep vein · seed 123 →
+three deep veins, 51% share · seeds 99, 777 → none.
+
+**Does it shape a run?** 25-year runs, deep-struck vs not:
+
+| seed | struck a deep vein | final ore | final iron |
+|---|---|---|---|
+| 11 | **yes** | **2,282** | **81** |
+| 42 | no | 73 | 10 |
+| 5 / 7 / 99 / 777 | no | 0 | 0–3 |
+
+**Result:** a run that mines a Potosí banks ~30× the ore and ~8× the iron of the
+best run that doesn't. The vein is a run-defining event, as intended.
+
+### 3. Merchant buy cap
+
+Set at `capBase 20 + 15/dock + 5/market` (`TRADE_CAP`, `src/config.js`).
+Bare gates = 20/visit; a two-dock, one-market harbor = 55. Selling stays
+uncapped. Verified by assertion rather than long-run economics: the scripted
+player only sells, so the cap is exercised in `polish-unit-checks.mjs` (§1–3).
+
+### 4. Ghost repair — before vs after auto-demolish
+
+Share of all HP healed that went into already-depleted producer buildings:
+
+| seed | before | after | mean building HP frac, year 20+ |
+|---|---|---|---|
+| 42 | 25.7% | **0.0%** | 0.044 → **0.739** |
+| 7 | 18.8% | **0.0%** | 0.739 → 0.734 |
+| 123 | 22.7% | **0.0%** | 0.134 → **0.733** |
+| 99 | 24.1% | **0.0%** | 0.018 → **0.695** |
+
+**Result:** the 25–30% soak the Session-8 decision was written against is gone
+entirely. The knock-on is larger than the soak itself: on three of four seeds
+mean late-game building HP went from near-total collapse (0.02–0.13) to healthy
+(0.70+), because repair wood now reaches buildings that can use it.
+
+### Batch validation — 25-year runs, before vs after the whole batch
+
+| seed | pop | gold | iron | hillsFlat | veinsSpent | lumber life | keepFalls |
+|---|---|---|---|---|---|---|---|
+| 42 | 480 → **775** | 22.8k → 67.2k | 1 → **10** | 18 → 23 | 9 → 8 | 1.34 → **4.41** | 1 → **0** |
+| 7 | 830 → 866 | 69.4k → 74.0k | 0 → 0 | 22 → 24 | 0 → 0 | 1.04 → **3.95** | 0 → 0 |
+| 123 | 590 → **832** | 25.6k → 69.8k | 0 → 0 | 21 → 25 | 0 → 0 | 1.34 → **3.57** | 1 → **0** |
+| 99 | **1 → 700** | 10.3k → 60.4k | 2 → 1 | 11 → 22 | 12 → 9 | 1.83 → **5.00** | 1 → **0** |
+
+**Read:** no death spirals, no crashes, `npx vite build` clean. Seed 99 was a
+baseline COLLAPSE (pop 1, "FALLEN" at year 15.7, 334 starved) and now finishes
+at pop 700 — the fix was never a difficulty change, it was ending the ghost-repair
+drain that was eating the wood those kingdoms needed to maintain themselves.
+**Every keep fall across the four seeds is gone.** Depletion still bites (hills
+flattened went UP, 11–22 → 22–25, because live quarries actually get worked
+now); what stopped is the churn.
+
+---
+
 ## Cumulative totals
 
 ~8,300 Monte Carlo runs across eleven campaigns, plus many headless 12-year

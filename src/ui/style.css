@@ -437,6 +437,9 @@ button {
 /* Trade tab */
 .merch-status { font-size: 13px; font-style: italic; margin-bottom: 8px; }
 .merch-status.here { color: var(--good); font-weight: 700; font-style: normal; }
+/* the caravan's finite carts — a running tally, not an alarm, until it's full */
+.merch-carts { display: inline-block; margin-top: 3px; font-size: 12px; font-weight: 400; color: var(--wood); }
+.merch-carts.bad { color: var(--bad); }
 .trade-row {
   display: flex;
   align-items: center;

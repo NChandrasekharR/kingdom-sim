@@ -42,7 +42,10 @@ export function stoneTileStock(x, y) {
   return Math.max(15, DEPOSITS.stoneBase + (h * 2 - 1) * DEPOSITS.stoneVar);
 }
 
-export function seedStoneOre(terrain) {
+// `veinRichness` (tile index → multiplier) comes from mapgen: per-VEIN fortune,
+// most seams ordinary and about one Potosí per map. Absent (old saves, callers
+// that only have terrain) every vein reads as an ordinary 1×.
+export function seedStoneOre(terrain, veinRichness = null) {
   const N = MAP.size;
   const stone = new Float32Array(N * N);
   const ore = new Float32Array(N * N);
@@ -55,16 +58,23 @@ export function seedStoneOre(terrain) {
       if (oreInf) { ore[i] = Infinity; continue; }
       const x = i % N, y = (i / N) | 0;
       const h = ((x * 9973 + y * 7717) * 2654435761 >>> 0) / 4294967296;
-      ore[i] = Math.max(10, DEPOSITS.oreBase + (h * 2 - 1) * DEPOSITS.oreVar);
+      const base = Math.max(10, DEPOSITS.oreBase + (h * 2 - 1) * DEPOSITS.oreVar);
+      // the vein's fortune multiplies the tile's own thin-or-rich roll
+      ore[i] = base * (veinRichness?.get(i) ?? 1);
     }
   }
   return { stone, ore };
 }
 
 export function createState(seed = (Math.random() * 1e9) | 0) {
-  const { terrain, start } = generateMap(seed);
+  const { terrain, start, veinRichness, deepVeins } = generateMap(seed);
   const N = MAP.size;
-  const { stone: stoneStock, ore: oreStock } = seedStoneOre(terrain);
+  const { stone: stoneStock, ore: oreStock } = seedStoneOre(terrain, veinRichness);
+  // tiles belonging to a DEEP vein — the Potosí. Kept as a plain array of tile
+  // indices so it survives JSON save/load (a Set would serialize to `{}`); the
+  // reserves themselves are already in oreStock, this is only for the chronicle.
+  const deepVeinTiles = [];
+  for (const v of deepVeins || []) for (const i of v.tiles) deepVeinTiles.push(i);
   const state = {
     seed, tick: 0, speed: 1,
     name: KINGDOM_NAMES[seed % KINGDOM_NAMES.length],
@@ -72,6 +82,9 @@ export function createState(seed = (Math.random() * 1e9) | 0) {
     forestWood: seedForestWood(terrain),
     stoneStock,   // finite stone per HILLS tile (Infinity = bottomless control)
     oreStock,     // finite ore per ORE tile (Infinity = bottomless control)
+    deepVeinTiles,   // the Potosí: ORE tiles of a 3-6× vein (chronicle only)
+    deepVeinFound: false,   // has a mine of ours struck the deep vein yet?
+    sawDepletedSite: null,  // type of the last spent site to strike itself (the steward's cue)
     claimed: new Uint8Array(N * N),
     influence: new Float32Array(N * N),
     buildings: [],
@@ -92,7 +105,8 @@ export function createState(seed = (Math.random() * 1e9) | 0) {
     raid: { phase: 'quiet', timer: 300, raiders: [], wave: 0 },
     camp: null,          // the warlord's camp — founded when he first shows himself
     expedition: null,    // the counter-raid, while the host is afield
-    merchant: { status: 'away', timer: 160, prices: {}, visits: 0 },
+    // `bought` = goods bought THIS visit, against the caravan's cart capacity
+    merchant: { status: 'away', timer: 160, prices: {}, visits: 0, bought: 0 },
     log: [],
     // lifetime run stats — for the end-of-run summary (dumpStats)
     stats: {
@@ -102,7 +116,8 @@ export function createState(seed = (Math.random() * 1e9) | 0) {
       villagersBorn: 0, villagersStarved: 0, villagersHunted: 0,
       soldiersRecruited: 0, soldiersFallen: 0, veteransFallen: 0,
       mastersLost: 0, foodSpoiled: 0, tributeGold: 0, tributesPaid: 0,
-      forestCleared: 0, hillsFlattened: 0, veinsSpent: 0,
+      forestCleared: 0, hillsFlattened: 0, veinsSpent: 0, deepVeinStruck: 0,
+      goodsBought: 0, buysBlocked: 0,
     },
     // render dirty flags
     territoryDirty: true, buildingsDirty: true, campDirty: true,
@@ -211,7 +226,9 @@ function addBuilding(state, type, x, y) {
   state.territoryDirty = true;
 }
 
-export function demolish(state, id) {
+// `opts.silent` suppresses the chronicle line so a caller can write its own
+// (the auto-demolish of a spent site announces itself in the house voice).
+export function demolish(state, id, opts = {}) {
   const i = state.buildings.findIndex((b) => b.id === id);
   if (i < 0) return;
   const b = state.buildings[i];
@@ -225,7 +242,7 @@ export function demolish(state, id) {
   for (const [r, amt] of Object.entries(def.cost)) {
     state.res[r] += Math.floor(amt * frac);
   }
-  logEvent(state, `${def.name} torn down — the materials are reclaimed.`);
+  if (!opts.silent) logEvent(state, `${def.name} torn down — the materials are reclaimed.`);
   recomputeInfluence(state);
   state.buildingsDirty = true;
   state.territoryDirty = true;
@@ -274,6 +291,9 @@ export function saveGame(state) {
     buildings: state.buildings.map((b) => ({ ...b, workers: undefined })),
     influence: undefined, delta: undefined,
     territoryDirty: undefined, buildingsDirty: undefined, campDirty: undefined,
+    // live lookup caches: Sets/Maps JSON-serialize to `{}` and would come back
+    // as a truthy-but-empty husk, so drop them and let the tick rebuild them
+    _deepSet: undefined, _veinHills: undefined,
   };
   try {
     localStorage.setItem(SAVE_KEY, JSON.stringify(s));
@@ -297,10 +317,18 @@ export function loadGame() {
       s.stoneStock = Float32Array.from(s.stoneStock, (v) => (v < 0 ? Infinity : v));
       s.oreStock = Float32Array.from(s.oreStock, (v) => (v < 0 ? Infinity : v));
     } else {
-      const seeded = seedStoneOre(s.terrain);
+      // pre-depletion save: regenerate the map from its seed so the Potosí
+      // lottery lands where it would have, then seed reserves through it
+      let richness = null;
+      try { richness = generateMap(s.seed).veinRichness; } catch { /* seedless save */ }
+      const seeded = seedStoneOre(s.terrain, richness);
       s.stoneStock = seeded.stone;
       s.oreStock = seeded.ore;
     }
+    // saves from before the vein lottery: no Potosí was ever seeded in their
+    // reserves, so there is none to announce (the reserves stand as saved)
+    s.deepVeinTiles ||= [];
+    s.deepVeinFound ??= false;
     s.influence = new Float32Array(N * N);
     s.delta = { food: 0, wood: 0, stone: 0, ore: 0, iron: 0, bread: 0, gold: 0 };
     s.territoryDirty = true;
@@ -344,6 +372,11 @@ export function loadGame() {
     if (s.stats) s.stats.warlordsSlain ??= 0;
     // older stats predate finite stone/ore counters
     if (s.stats) { s.stats.hillsFlattened ??= 0; s.stats.veinsSpent ??= 0; s.stats.forestCleared ??= 0; }
+    // …and predate the vein lottery and the caravan's cart cap
+    if (s.stats) { s.stats.deepVeinStruck ??= 0; s.stats.goodsBought ??= 0; s.stats.buysBlocked ??= 0; }
+    // saves from before the buy cap: the caravan on the doorstep gets fresh
+    // carts rather than being retroactively charged for a bottomless past
+    if (s.merchant) s.merchant.bought ??= 0;
     // saves from before the Steward's Counsel: this keeper has ruled before —
     // the ladder never shows, and in-play systems are marked already-seen
     seedTutorialForLoadedSave(s);

@@ -117,29 +117,12 @@ export const WIN = {
 export const ROAD_SPEED_MULT = 1.7;
 export const ROAD_MERCHANT_FACTOR = 0.004; // per road tile, capped at 40% faster returns
 
-// ── The forest is finite (Session 5c) ──────────────────────────────
-// Every forest tile holds a stock of wood. Lumber camps cut the nearest
-// standing timber; a spent tile becomes PLAINS — farmable, buildable, open.
-// The economy EATS the map: the wood-line recedes, camps go quiet (~4-6
-// years per site), and the kingdom must push outward or buy its timber.
-export const FOREST = {
-  woodBase: 90,                // typical wood in a fresh forest tile
-  woodVar: 50,                 // ± mapgen richness (old growth vs scrub)
-  harvestRadius: 2.2,          // a camp cuts standing timber this far out
-};
-
-// ── The ground itself gives out (Prototype: finite stone & ore) ────
-// Mirror of FOREST for the two mining chains. Every HILLS tile holds a
-// stock of stone; every ORE tile holds a stock of ore. A quarry cuts the
-// nearest live hill within reach, a mine the nearest live vein. Exhaust a
-// hill and it flattens to PLAINS ("the quarry ground becomes a plain");
-// exhaust a vein and the ORE tile falls back to HILLS — the vein is spent
-// but the hill remains, quarryable ground (a deliberate cascade).
-//
-// Base values are overridable for the parameter sweep WITHOUT code edits,
+// ── Reserve knobs, sweepable without code edits ────────────────────
+// The finite-ground bases (forest wood, hill stone, vein ore) are overridable
 // via env vars read once at module load (harness only — undefined in the
 // browser, where the literals stand):
-//   KSIM_STONE_BASE, KSIM_STONE_VAR, KSIM_ORE_BASE, KSIM_ORE_VAR
+//   KSIM_WOOD_BASE, KSIM_WOOD_VAR, KSIM_STONE_BASE, KSIM_STONE_VAR,
+//   KSIM_ORE_BASE, KSIM_ORE_VAR
 // A value of 0 or "inf"/"infinite" makes that reserve effectively bottomless
 // (the control case: the prototype changes nothing when reserves are infinite).
 const _envNum = (name, fallback) => {
@@ -150,6 +133,37 @@ const _envNum = (name, fallback) => {
   return Number.isFinite(n) ? n : fallback;
 };
 
+// ── The forest is finite (Session 5c; retuned Session 8) ──────────
+// Every forest tile holds a stock of wood. Lumber camps cut the nearest
+// standing timber; a spent tile becomes PLAINS — farmable, buildable, open.
+// The economy EATS the map: the wood-line recedes, camps go quiet, and the
+// kingdom must push outward or buy its timber.
+//
+// MEASURED CADENCE (harness, 25-yr runs, seeds 42/7/123/99 — the number the
+// old comment claimed but never had). At woodBase 90 a lumber site lasted
+// only 1.0-1.8 years: a chore, five times faster than the design intent.
+// Sweep at 250/300/350/450 (see docs/SIMULATIONS.md, wood retune):
+//   250 → 3.6-5.0 yr/site   ← chosen: the 4-6 band, no seed running long
+//   300 → 4.4-7.5 yr/site      (seed 42 overshoots)
+//   350 → 5.0-6.8 yr/site
+//   450 → 5.8-7.5 yr/site      (a camp outlives the interest)
+// At 250 a camp is an ERA rather than a tick-box, the forest visibly recedes
+// across a reign, and year-3 wood/pop are unchanged from the old value —
+// the early game never starves, only the late game stops churning.
+export const FOREST = {
+  woodBase: _envNum('KSIM_WOOD_BASE', 250),  // typical wood in a fresh forest tile
+  woodVar: _envNum('KSIM_WOOD_VAR', 125),    // ± mapgen richness (old growth vs scrub)
+  harvestRadius: 2.2,          // a camp cuts standing timber this far out
+};
+
+// ── The ground itself gives out (Prototype: finite stone & ore) ────
+// Mirror of FOREST for the two mining chains. Every HILLS tile holds a
+// stock of stone; every ORE tile holds a stock of ore. A quarry cuts the
+// nearest live hill within reach, a mine the nearest live vein. Exhaust a
+// hill and it flattens to PLAINS ("the quarry ground becomes a plain");
+// exhaust a vein and the ORE tile falls back to HILLS — the vein is spent
+// but the hill remains, quarryable ground (a deliberate cascade).
+// Bases are env-sweepable — see the _envNum block above the FOREST config.
 export const DEPOSITS = {
   harvestRadius: 2.2,          // a quarry/mine works ground this far out (shared with FOREST cadence)
   stoneBase: _envNum('KSIM_STONE_BASE', 250),  // sweep-calibrated: first quarry site dies ~year 4-5, era not chore
@@ -394,3 +408,21 @@ export const WINTER_FARM_MULT = 0.4;
 
 // ── Trade ──────────────────────────────────────────────────────────
 export const MERCHANT = { awayMin: 140, awayMax: 240, stay: 80, markup: 1.35 };
+
+// The caravan's carts are FINITE (Session 8 — resolves the long-open D4).
+// Selling is uncapped: the merchant will always take what you have. BUYING is
+// capped per visit, because before this the caravan was a bottomless import
+// pipe and a keeper could simply buy his way out of depletion — the finite
+// ground stopped meaning anything once gold flowed.
+//
+// The cap SCALES WITH COMMERCE, and that is the whole design: a harbor kingdom
+// with docks and a market imports its way through a spent hinterland, and a
+// landlocked one cannot. Depletion therefore hits different maps differently,
+// which is the point. Sweep-calibrated at ~20-25/visit baseline: structural
+// imports (a smelter fed through a dead vein) stay possible, trivializing
+// depletion does not.
+export const TRADE_CAP = {
+  capBase: 20,        // goods the carts hold on a bare-gates visit
+  perDock: 15,        // every fishing dock is a quay the caravan can unload at
+  perMarket: 5,       // a market means porters, scales, and somewhere to pile it
+};
