@@ -1,5 +1,5 @@
 import { BUILDINGS, WORK_PRIORITY, WINTER_FARM_MULT, HP, SKILL, FOREST, DEPOSITS, T, MAP } from '../config.js';
-import { idx, stoneTileStock } from './state.js';
+import { idx, stoneTileStock, demolish } from './state.js';
 import { currentSeason } from './sim.js';
 import { logEvent, emit } from './events.js';
 
@@ -72,6 +72,15 @@ function drawDeposit(state, b, amt, spec) {
       }
     }
     const i = b.depositI;
+    // THE POTOSÍ: the first bite of a deep vein is a moment in the chronicle.
+    // Announced on the first DRAW rather than at placement — the miners learn
+    // what they are standing on by digging into it, not by looking at it.
+    if (spec.src === T.ORE && !state.deepVeinFound && state.deepVeinTiles?.length &&
+        (state._deepSet ||= new Set(state.deepVeinTiles)).has(i)) {
+      state.deepVeinFound = true;
+      state.stats.deepVeinStruck = 1;
+      logEvent(state, `The miners strike a vein that runs deeper than any man of ${state.name} has known.`, 'good');
+    }
     // Infinity stock (bottomless control): take freely, never transform
     if (!Number.isFinite(stock[i])) { got = amt; break; }
     const take = Math.min(amt - got, stock[i]);
@@ -105,6 +114,36 @@ function drawDeposit(state, b, amt, spec) {
     }
   }
   return got;
+}
+
+// ── Spent camps strike themselves (Session 8, ratified in DECISIONS.md) ──
+// A depleted camp/quarry/mine employs nobody and produces nothing, but it still
+// sat in the worst-first repair queue — the depletion campaign measured dead
+// sites soaking 25-30% of ALL repair wood as ghost maintenance, and a keeper had
+// to hand-demolish each husk to stop it. So the site strikes itself, with the
+// standard condition-scaled refund (the existing demolish path — no new refund
+// math): the timbers come home and the queue is clean.
+//
+// Runs as its own pass rather than inside drawDeposit so that a husk carried in
+// on a LOADED SAVE is caught too — it never draws again, so it would otherwise
+// sit forever. The sticky `sawDepletedSite` flag is what the steward's 'depleted'
+// counsel keys on: the building is gone by the time tutorialTick runs, so the
+// LESSON has to outlive the building.
+const DEPLETABLE = new Set(['lumber', 'quarry', 'mine']);
+
+export function autoDemolishSpentTick(state) {
+  let struck = null;
+  for (const b of state.buildings) {
+    if (!b.depleted || !DEPLETABLE.has(b.type) || b.hp <= 0) continue;
+    struck = b;
+    break;   // one per tick: demolish() mutates state.buildings
+  }
+  if (!struck) return;
+  // the steward must still be able to teach the lesson after the husk is gone
+  state.sawDepletedSite = struck.type;
+  const def = BUILDINGS[struck.type];
+  demolish(state, struck.id, { silent: true });
+  logEvent(state, `The ${def.name.toLowerCase()} at the spent ground is struck — its timbers come home.`, 'info');
 }
 
 // The redesign core: a building's output scales with its HP. Raiders grind HP

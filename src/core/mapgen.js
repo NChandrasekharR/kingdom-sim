@@ -25,28 +25,60 @@ export function generateMap(seed) {
     }
   }
 
-  // Ore veins: small blobs seeded on hills/mountains
+  // Ore veins: small blobs seeded on hills/mountains.
+  //
+  // POTOSÍ (Session 8): a vein is not just ore, it is a LOTTERY. Each vein
+  // draws a richness multiplier from the map seed: most run ordinary (0.8-1.3×
+  // — a good seam, a thin one), but roughly one vein per map is a DEEP VEIN at
+  // 3-6×, the Potosí that finances a whole reign. The multiplier is per-vein,
+  // not per-tile, so the bonanza is a PLACE you can find, lose, and fight over
+  // — and the run that strikes one plays differently from the run that doesn't.
+  //
+  // `veinRichness` maps tile index → multiplier for every ORE tile, so ore
+  // seeding (state.js) can apply it without knowing how veins were painted.
+  const veinRichness = new Map();
+  const deepVeins = [];
   let veins = 0, guard = 0;
-  while (veins < 11 && guard++ < 4000) {
+  while (veins < VEIN_COUNT && guard++ < 4000) {
     const x = 2 + Math.floor(rand() * (N - 4));
     const y = 2 + Math.floor(rand() * (N - 4));
     const t = terrain[y * N + x];
     if (t !== T.HILLS && t !== T.MOUNTAIN) continue;
+    // draw this vein's fortune BEFORE painting it, from the same map rand —
+    // deterministic in the seed, and every vein consumes exactly two draws
+    // (fortune roll + richness) so adding the lottery can't desync a blob.
+    const deep = rand() < DEEP_VEIN_CHANCE;
+    const mult = deep
+      ? DEEP_MULT_MIN + rand() * (DEEP_MULT_MAX - DEEP_MULT_MIN)
+      : ORDINARY_MULT_MIN + rand() * (ORDINARY_MULT_MAX - ORDINARY_MULT_MIN);
     let cx = x, cy = y;
     const blob = 3 + Math.floor(rand() * 5);
+    const tiles = [];
     for (let i = 0; i < blob; i++) {
       terrain[cy * N + cx] = T.ORE;
+      tiles.push(cy * N + cx);
       cx = Math.max(1, Math.min(N - 2, cx + Math.floor(rand() * 3) - 1));
       cy = Math.max(1, Math.min(N - 2, cy + Math.floor(rand() * 3) - 1));
       const ct = terrain[cy * N + cx];
       if (ct === T.WATER || ct === T.PLAINS) break;
     }
+    // blobs can overlap: the richer fortune wins the shared tile
+    for (const i of tiles) {
+      if (!veinRichness.has(i) || veinRichness.get(i) < mult) veinRichness.set(i, mult);
+    }
+    if (deep) deepVeins.push({ mult, tiles });
     veins++;
   }
 
   const start = findStart(terrain, N);
-  return { terrain, start };
+  return { terrain, start, veinRichness, deepVeins };
 }
+
+// Vein lottery knobs (mapgen-local: they shape the map, not the economy).
+const VEIN_COUNT = 11;
+const DEEP_VEIN_CHANCE = 1.5 / 11;   // ≈ 1 deep vein per map, sometimes 0, sometimes 2
+const ORDINARY_MULT_MIN = 0.8, ORDINARY_MULT_MAX = 1.3;
+const DEEP_MULT_MIN = 3, DEEP_MULT_MAX = 6;
 
 // Score candidate keep locations: plains underfoot, forest & hills reachable, no water too close.
 function findStart(terrain, N) {
