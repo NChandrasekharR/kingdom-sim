@@ -1,7 +1,7 @@
 import { MAP, T, TERRAIN_INFO, CAMP, COMBAT, SOLDIER, RAIDER, SKILL, ROAD_SPEED_MULT } from '../config.js';
 import { idx, inBounds } from './state.js';
 import { logEvent, emit } from './events.js';
-import { findPath, roadTiles, soldierSkill } from './raids.js';
+import { findPath, roadTiles, soldierSkill, quietGap } from './raids.js';
 import { makeVillager, killVillager } from './villagers.js';
 
 // ── The warlord's camp ─────────────────────────────────────────────
@@ -143,7 +143,9 @@ export function ensureCamp(state, rand, opts = {}) {
     },
     avenger: !!opts.avenger,      // an avenger sends no rider and takes no gold
     folk: [], garrison: [], tents,
-    massing: [],                  // bodies gathering before a wave (render-only)
+    massing: [],                  // bodies gathering before a wave (props for the eye)
+    massingCount: 0,              // the TRUE size of that gathering — what you fight
+    massers: [],                  // battle-only: the gathering, turned to meet the host
     ledger: { gold: 0, plunder: 0 },
     broken: false, brokenUntil: 0,
     leaderless: false, successorAt: 0,
@@ -187,6 +189,30 @@ export function claimCampByWarlord(state) {
   };
   logEvent(state, `A warlord has claimed ${c.name}: ${c.warlord.name}. His banner rises over the tents.`, 'raid');
   emit('warlord-claimed', c);
+}
+
+// ── The gathering ──────────────────────────────────────────────────
+// Before a camp-origin wave marches, bodies gather at the tents: props for the
+// eye (c.massing) plus the true count of the coming host (c.massingCount).
+// Strike the camp while they stand there and they turn to meet you — so every
+// path that ends the gathering (wave launched, raid over, tribute paid, camp
+// struck, camp broken) must clear BOTH, or scenery animates at a dead camp.
+export function clearMassing(state) {
+  const c = state.camp;
+  if (!c) return;
+  c.massing = [];
+  c.massingCount = 0;
+}
+
+// Is the host fighting at the tents while a camp-origin wave is still
+// gathering there? (The window in which the pending raid is on the field.)
+export function massingUnderAssault(state) {
+  const c = state.camp;
+  const exp = state.expedition;
+  if (!c || c.gone || !exp) return false;
+  if (exp.phase !== 'battle') return false;
+  const raid = state.raid;
+  return raid.stage >= 1 && raid.nextFromCamp === true && (exp.massersJoined || 0) > 0;
 }
 
 function garrisonTarget(camp) {
@@ -432,7 +458,8 @@ function relocateCamp(state, c, rand) {
     c.warlord.x = c.x; c.warlord.y = c.y - 0.6;
     c.warlord.px = c.warlord.x; c.warlord.py = c.warlord.y;
   }
-  c.massing = [];
+  clearMassing(state);
+  c.massers = [];
   state.campDirty = true;
   logEvent(state,
     c.unclaimed || !c.warlord.name
@@ -474,6 +501,9 @@ function expeditionTick(state, rand) {
     if (exp.phase !== 'return' || exp.lost >= exp.startCount) {
       logEvent(state, 'None came back from the march.', 'bad');
     }
+    // the host died among the tents: the gathering it was fighting stands down
+    // to scenery and its wave marches as it always would have
+    releaseGatheredWave(state);
     state.expedition = null;
     return;
   }
@@ -495,8 +525,14 @@ function expeditionTick(state, rand) {
         // the camp (weapons off the dead) are reckoned against this, not the
         // empty ground left after the battle
         exp.battleGarrison = c.garrison.length;
-        logEvent(state, `The host falls upon ${c.name}! Battle is joined at the tents.`, 'raid');
-        emit('expedition-battle', { camp: c });
+        // THE PREEMPTIVE STRIKE: if a wave was gathering at these tents, it is
+        // standing right here — and it turns to meet the host. The scenery
+        // becomes bodies you have to kill. Win, and that wave never marches.
+        const joined = joinMassers(state, c, rand);
+        logEvent(state, joined
+          ? `The host falls upon ${c.name} — and the war-band gathered at the tents turns to meet them!`
+          : `The host falls upon ${c.name}! Battle is joined at the tents.`, 'raid');
+        emit('expedition-battle', { camp: c, massers: joined });
       }
     }
   } else if (exp.phase === 'battle') {
@@ -520,10 +556,90 @@ function expeditionTick(state, rand) {
   // 'choice' phase: the host stands in the taken camp, awaiting your word
 }
 
+// the gathered wave gets saga names too, in the raiders' style
+const MASSER_EPITHET = [
+  'Redknife', 'the Cruel', 'Wolfjaw', 'Nine-Fingers', 'the Vulture',
+  'Bloodbraid', 'the Lame', 'Ironmaw', 'the Quiet Blade', 'Corpsegrin',
+  'the Burned', 'Longreach', 'Two-Axe', 'the Hollow', 'Ratbane',
+];
+
+// The gathered wave takes the field. Kept in a BATTLE-ONLY array (c.massers)
+// rather than folded into c.garrison: the garrison drives the iron spoils
+// reckoning, the refill target, and what survives a punitive burning — none of
+// which should count men who were never garrison. Cleared on every exit.
+function joinMassers(state, c, rand) {
+  const raid = state.raid;
+  const n = c.massingCount || 0;
+  if (raid.phase !== 'quiet' || !(raid.stage >= 1) || raid.nextFromCamp !== true || n <= 0) {
+    clearMassing(state);
+    return 0;
+  }
+  // the warlord of a dread wave is already a defender when he is home —
+  // liveDefenders adds him; don't hand him a second body
+  const spots = c.massing || [];
+  c.massers = [];
+  for (let i = 0; i < n; i++) {
+    const id = state.nextId++;
+    const spot = spots[i % Math.max(1, spots.length)] ||
+      { x: c.x, y: c.y + 1.6 };
+    c.massers.push({
+      id, masser: true,
+      name: `${WARLORD_FIRST[id % WARLORD_FIRST.length]} ${MASSER_EPITHET[(id * 11) % MASSER_EPITHET.length]}`,
+      hp: RAIDER.hp,
+      x: spot.x + (rand() - 0.5) * 0.6, y: spot.y + (rand() - 0.5) * 0.6,
+      px: 0, py: 0,
+    });
+    c.massers[i].px = c.massers[i].x;
+    c.massers[i].py = c.massers[i].y;
+  }
+  // the bodies you now fight REPLACE the scenery (count stays: it is the
+  // pending wave's size, and the victory branch reads it to know what it cancelled)
+  c.massing = [];
+  state.expedition.massersJoined = n;
+  return n;
+}
+
 function liveDefenders(c) {
   const d = c.garrison.filter((g) => g.hp > 0);
+  for (const m of c.massers || []) if (m.hp > 0) d.push(m);
   if (c.warlord.home && !c.leaderless && c.warlord.hp > 0) d.push(c.warlord);
   return d;
+}
+
+// The gathered wave died on its own ground: it will never march. The pending
+// raid goes back to a fresh quiet gap — the same formula that follows any raid.
+// A wave forming at a random map edge is untouched: it was never at the tents.
+function cancelGatheredWave(state, rand) {
+  const c = state.camp;
+  const exp = state.expedition;
+  const raid = state.raid;
+  const joined = exp?.massersJoined || 0;
+  if (c) { c.massers = []; }
+  if (!joined || raid.phase !== 'quiet' || raid.nextFromCamp !== true) {
+    if (c) clearMassing(state);
+    if (exp) exp.massersJoined = 0;
+    return;
+  }
+  raid.stage = null;
+  raid.nextFromCamp = undefined;
+  raid.timer = quietGap(state, rand, raid.lastSacked || 0);
+  clearMassing(state);
+  exp.massersJoined = 0;
+  logEvent(state, 'The wave that gathered at the tents will never march.', 'good');
+}
+
+// The assault broke against them: the surviving gathering stands down to
+// scenery again and the held countdown runs on. The wave still marches, from
+// the camp, on schedule — a repulsed strike buys the kingdom nothing.
+function releaseGatheredWave(state) {
+  const c = state.camp;
+  const exp = state.expedition;
+  if (!c || !exp?.massersJoined) return;
+  const alive = (c.massers || []).filter((m) => m.hp > 0);
+  c.massing = alive.slice(0, 18).map((m) => ({ x: m.x, y: m.y, px: m.x, py: m.y }));
+  c.massingCount = alive.length;
+  c.massers = [];
+  exp.massersJoined = 0;   // releases the timer hold (massingUnderAssault)
 }
 
 function battleTick(state, rand) {
@@ -536,6 +652,7 @@ function battleTick(state, rand) {
   if (!defenders.length) {
     exp.phase = 'choice';
     logEvent(state, `${c.name} is TAKEN. The garrison is slain. His people cower among the tents.`, 'good');
+    cancelGatheredWave(state, rand);
     emit('camp-victory', {
       camp: c, warlordSlain: exp.warlordSlain, wasHome: exp.warlordWasHome,
       leaderless: c.leaderless, unclaimed: c.unclaimed,
@@ -549,6 +666,9 @@ function battleTick(state, rand) {
   // rout: half the host down → the survivors turn for home
   if (!exp.routed && exp.lost >= Math.ceil(exp.startCount * CAMP.routFrac)) {
     exp.routed = true;
+    // the gathering survived the assault — it re-forms at the tents and the
+    // clock is released: that wave marches on schedule, from the camp, as before
+    releaseGatheredWave(state);
     state.raid.timer = Math.min(state.raid.timer, 150);   // he smells weakness
     startReturn(state,
       `The assault on ${c.name} is REPULSED — ${exp.lost} of ${exp.startCount} lost. The warlord is emboldened.`);
@@ -644,6 +764,7 @@ function battleTick(state, rand) {
     }
   }
   c.garrison = c.garrison.filter((g) => g.hp > 0);
+  if (c.massers?.length) c.massers = c.massers.filter((m) => m.hp > 0);
 }
 
 function startReturn(state, line) {
@@ -664,6 +785,12 @@ export function resolveCampChoice(state, choice) {
   const exp = state.expedition;
   const c = state.camp;
   if (!exp || exp.phase !== 'choice' || !c) return { ok: false, reason: 'No choice stands' };
+
+  // nothing gathers at a taken camp: no props left to animate, no bodies left
+  // to fight (the victory branch already cancelled the wave, but a save loaded
+  // mid-choice or an unclaimed nest path could still be carrying them)
+  clearMassing(state);
+  c.massers = [];
 
   // either way, the hoard comes home: your gold, and his plunder as grain carts
   const gold = Math.round(c.ledger.gold);
@@ -794,6 +921,8 @@ function finishMassacre(state) {
   c.tents = [];
   c.burnedXY = { x: c.x, y: c.y };
   c.garrison = [];
+  clearMassing(state);
+  c.massers = [];
   state.campDirty = true;
   const toll = c.folk.filter((f) => f.dead).length;
   c.avengerAt = state.tick + CAMP.avengerTicks;

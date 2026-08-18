@@ -239,6 +239,11 @@ export class KingdomScene extends Phaser.Scene {
       for (const g of camp.garrison) if (g.hp > 0) units.push({ u: g, key: 'u-raider' });
       // the massing wave, milling by the tents — the storm you can see coming
       for (const m of camp.massing || []) units.push({ u: m, key: 'u-raider', tint: 0xd98877 });
+      // ...and once the host arrives, that same gathering turned to meet it:
+      // real bodies now, fighting in the line (same tint — same men)
+      for (const m of camp.massers || []) {
+        if (m.hp > 0) units.push({ u: m, key: 'u-raider', tint: 0xd98877 });
+      }
       if (camp.warlord.home && !camp.leaderless && camp.warlord.hp > 0) {
         units.push({ u: camp.warlord, key: 'u-warlord', size: 8 });
       }

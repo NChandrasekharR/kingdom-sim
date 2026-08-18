@@ -3,7 +3,7 @@ import { idx } from './state.js';
 import { prosperity } from './economy.js';
 import { logEvent, emit } from './events.js';
 import { killVillager, isMaster, ejectVillager, isSheltered, bestSkill } from './villagers.js';
-import { ensureCamp, claimCampByWarlord, warlordAvailable, warlordFell, warlordReturned, addPlunder, addTributeGold } from './camp.js';
+import { ensureCamp, claimCampByWarlord, warlordAvailable, warlordFell, warlordReturned, addPlunder, addTributeGold, massingUnderAssault, clearMassing } from './camp.js';
 
 // ── A* over the tile grid ──────────────────────────────────────────
 function wallSet(state) {
@@ -116,7 +116,14 @@ export function findPath(state, fx, fy, tx, ty) {
 export function raidTick(state, rand) {
   const raid = state.raid;
 
-  if (raid.phase === 'quiet') {
+  // THE PREEMPTIVE STRIKE: while your host is fighting at the tents and the
+  // wave that was gathering there has turned to meet it, the countdown HOLDS.
+  // The battle decides whether that wave ever marches — win and it never does,
+  // be repulsed and the clock runs on from where it stopped.
+  const held = raid.phase === 'quiet' && massingUnderAssault(state);
+  if (held) raid.timer = Math.max(1, raid.timer);
+
+  if (raid.phase === 'quiet' && !held) {
     raid.timer--;
     // the staged march: once the camp stands, you can WATCH a wave build —
     // "raiders are massing" (bodies gather at the tents) → "they may march
@@ -133,6 +140,9 @@ export function raidTick(state, rand) {
             + state.soldiers.length * RAID.militaryPressure;
           if (willBeWarlord) predicted *= RAID.warlordSizeMult;
           predicted = Math.min(RAID.sizeCap, Math.max(1, Math.round(predicted)));
+          // the TRUE size of the gathering (the props below are capped for the
+          // eye) — march on the camp mid-massing and you fight all of them
+          c.massingCount = predicted;
           c.massing = Array.from({ length: Math.min(predicted, 18) }, (_, i) => {
             const mx = c.x + (((i * 7) % 9) - 4) * 0.55;
             const my = c.y + 1.6 + ((i * 5) % 3) * 0.6;
@@ -144,6 +154,15 @@ export function raidTick(state, rand) {
         raid.stage = 2;
         logEvent(state, `The war-camp stirs — ${c.name} may march soon.`, 'raid');
       }
+    } else if (raid.stage >= 1 && raid.nextFromCamp === true) {
+      // the camp that was gathering this wave is broken or burned: the host has
+      // no muster ground and no chief to call it. It disperses — it does NOT
+      // reappear on a random map edge as if it had always come from the wilds.
+      raid.stage = null;
+      raid.nextFromCamp = undefined;
+      raid.timer = quietGap(state, rand, raid.lastSacked || 0);
+      clearMassing(state);
+      logEvent(state, 'The war-band that was gathering has scattered — there is no camp to muster at.', 'good');
     }
     if (raid.timer <= 0) {
       raid.phase = 'warning';
@@ -287,7 +306,7 @@ function spawnRaid(state, rand) {
   // the man himself rides ONLY at the head of his own dread waves — common
   // camp-origin bands march without him
   const warlordRides = fromCamp && isWarlord && warlordAvailable(state);
-  if (state.camp) state.camp.massing = [];   // the gathering becomes the wave
+  clearMassing(state);   // the gathering becomes the wave
   let sx = 0, sy = 0, tries = 0;
   if (fromCamp) {
     sx = state.camp.x; sy = state.camp.y;
@@ -925,20 +944,27 @@ function keepDarkAge(state, rand) {
   logEvent(state, 'From the ashes of the keep, the realm must be rebuilt.', 'info');
 }
 
+// How long the kingdom breathes between waves: the base gap, jittered, shorter
+// the fatter you are, longer if the last raid hurt. One formula, used by the
+// end of a raid and by any other event that sends a pending wave back to quiet.
+export function quietGap(state, rand, sacked = 0) {
+  let t = RAID.minGapTicks + Math.floor(rand() * 200) - Math.min(150, Math.floor(prosperity(state) / 15));
+  // rubber-band: a raid that hurt buys quiet ticks to rebuild in
+  t += sacked * RAID.mercyPerSack;
+  return Math.max(120, t);
+}
+
 function endRaid(state, rand, fled = false) {
   const raid = state.raid;
   raid.phase = 'quiet';
   raid.keepBesieged = false;
   raid.stage = null;               // the staged countdown starts anew
   raid.nextFromCamp = undefined;
-  if (state.camp) state.camp.massing = [];
+  clearMassing(state);
   // the danger passed: the fled come out of hiding and go back to work
   for (const v of state.villagers) v.fleeing = false;
   raid.lastSacked = raid.sackedThisRaid || 0;
-  raid.timer = RAID.minGapTicks + Math.floor(rand() * 200) - Math.min(150, Math.floor(prosperity(state) / 15));
-  // rubber-band: a raid that hurt buys quiet ticks to rebuild in
-  raid.timer += raid.lastSacked * RAID.mercyPerSack;
-  raid.timer = Math.max(120, raid.timer);
+  raid.timer = quietGap(state, rand, raid.lastSacked);
 
   // the reckoning: one Chronicle line that tells you what the raid cost —
   // and the raw ledger in the console for tuning (kingdom.summary()'s sibling)
@@ -1064,7 +1090,7 @@ export function payTribute(state) {
   raid.timer = RAID.minGapTicks;   // bought peace — but not a long one
   raid.stage = null;               // the bought-off horde disperses
   raid.nextFromCamp = undefined;
-  if (state.camp) state.camp.massing = [];
+  clearMassing(state);
   logEvent(state, `You pay ${d.gold} gold. ${d.name} turns away — for now. Word spreads of easy coin.`, 'info');
   emit('tribute-paid');
   return { ok: true };

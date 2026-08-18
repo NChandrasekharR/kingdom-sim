@@ -327,7 +327,13 @@ export function loadGame() {
     // saves from before the warlord's camp
     s.camp ||= null;
     s.expedition ||= null;
-    if (s.camp) { s.camp.massing ||= []; s.camp.unclaimed ||= false; }
+    if (s.camp) {
+      s.camp.massing ||= []; s.camp.unclaimed ||= false;
+      // saves from before the gathering could be fought: infer the pending
+      // wave's size from the props (capped at 18 — close enough for a save)
+      s.camp.massingCount ??= s.camp.massing.length;
+      s.camp.massers ||= [];
+    }
     s.campDirty = true;
     // saves from before run-stats: start tracking from now
     s.stats ||= {
