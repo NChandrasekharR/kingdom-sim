@@ -7,7 +7,7 @@ import { demolish, clearSave, saveGame, createState } from '../core/state.js';
 import { recruitSoldier, dismissSoldier, hireMercenaries, dismissMercenaries, mercCount, mercUpkeepRate, rallyToKeep, payTribute, refuseTribute, armedReserve } from '../core/raids.js';
 import { marchOnCamp, resolveCampChoice } from '../core/camp.js';
 import { countMasters } from '../core/villagers.js';
-import { outputMult } from '../core/economy.js';
+import { outputMult, depositInReach } from '../core/economy.js';
 import { sell, buy, sellPrice, buyPrice, buyCapacity, buyRemaining } from '../core/trade.js';
 import { getProgress, CROWN_NAMES } from '../core/win.js';
 import { activeCounsel, dismissTutorial } from '../core/tutorial.js';
@@ -364,21 +364,21 @@ export function buildUI(root, ctx) {
       crewLine += selected.sacked ? ' · <span class="bad">SILENT — battered to rubble</span>'
         : selected.assigned > 0 ? ` · ${crew[0]?.name || 'a watchman'} at the post` : ' · unmanned';
     }
-    if (selected.type === 'lumber') {
+    // every extractor shows what the ground around it still holds
+    const REACH_WORD = { lumber: 'timber', quarry: 'stone', mine: 'ore' };
+    const SPENT_WORD = {
+      lumber: 'the wood nearby is spent',
+      quarry: 'the stone here is spent',
+      mine: 'the vein is spent',
+    };
+    if (REACH_WORD[selected.type]) {
       if (selected.depleted) {
-        crewLine += ' · <span class="bad">the wood nearby is spent</span>';
-      } else if (state.forestWood) {
-        let near = 0;
-        const R = 3;
-        for (let dy = -R; dy <= R; dy++) {
-          for (let dx = -R; dx <= R; dx++) {
-            const x = selected.x + dx, y = selected.y + dy;
-            if (x < 0 || y < 0 || x >= MAP.size || y >= MAP.size) continue;
-            if (Math.hypot(dx, dy) > 2.2) continue;
-            if (state.terrain[y * MAP.size + x] === T.FOREST) near += state.forestWood[y * MAP.size + x];
-          }
+        crewLine += ` · <span class="bad">${SPENT_WORD[selected.type]}</span>`;
+      } else {
+        const near = depositInReach(state, selected);
+        if (near != null && Number.isFinite(near)) {
+          crewLine += ` · ${REACH_WORD[selected.type]} in reach ~${Math.round(near)}`;
         }
-        crewLine += ` · timber in reach ~${Math.round(near)}`;
       }
     }
     selPanel.innerHTML = `

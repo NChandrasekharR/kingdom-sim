@@ -32,6 +32,28 @@ const DEPOSIT_SPECS = {
   },
 };
 
+// Total stock still in reach of a camp/quarry/mine — what the inspector shows
+// as "timber/stone/ore in reach ~N". Returns null for non-extractor buildings,
+// Infinity when the reserve is bottomless (the control case: show no number).
+export function depositInReach(state, b) {
+  const spec = DEPOSIT_SPECS[b.type];
+  if (!spec || !state[spec.stockKey]) return null;
+  const N = MAP.size;
+  const R = Math.ceil(DEPOSITS.harvestRadius);
+  const stock = state[spec.stockKey];
+  let sum = 0;
+  for (let dy = -R; dy <= R; dy++) {
+    for (let dx = -R; dx <= R; dx++) {
+      const x = b.x + dx, y = b.y + dy;
+      if (x < 0 || y < 0 || x >= N || y >= N) continue;
+      if (Math.hypot(dx, dy) > DEPOSITS.harvestRadius) continue;
+      const i = y * N + x;
+      if (state.terrain[i] === spec.src && stock[i] > 0) sum += stock[i];
+    }
+  }
+  return sum;
+}
+
 // nearest live source tile within reach of building b, given its spec
 function findDeposit(state, b, spec) {
   const N = MAP.size;
