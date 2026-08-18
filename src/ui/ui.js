@@ -8,7 +8,7 @@ import { recruitSoldier, dismissSoldier, hireMercenaries, dismissMercenaries, me
 import { marchOnCamp, resolveCampChoice } from '../core/camp.js';
 import { countMasters } from '../core/villagers.js';
 import { outputMult } from '../core/economy.js';
-import { sell, buy, sellPrice, buyPrice } from '../core/trade.js';
+import { sell, buy, sellPrice, buyPrice, buyCapacity, buyRemaining } from '../core/trade.js';
 import { getProgress, CROWN_NAMES } from '../core/win.js';
 import { activeCounsel, dismissTutorial } from '../core/tutorial.js';
 
@@ -315,8 +315,13 @@ export function buildUI(root, ctx) {
        <button data-act="buy" data-q="10">×10</button>`);
     row.querySelectorAll('button').forEach((b) => {
       b.onclick = () => {
-        const fn = b.dataset.act === 'sell' ? sell : buy;
-        if (!fn(state, r, +b.dataset.q)) showToast(b.dataset.act === 'sell' ? 'Nothing to sell' : 'Not enough gold');
+        const selling = b.dataset.act === 'sell';
+        // sell() answers with a bare boolean; buy() answers with `true` or the
+        // REASON it refused (gold, or the carts already being full)
+        const res = (selling ? sell : buy)(state, r, +b.dataset.q);
+        if (res !== true) {
+          showToast(typeof res === 'string' ? res : selling ? 'Nothing to sell' : 'Not enough gold');
+        }
         render();
       };
     });
@@ -757,10 +762,18 @@ export function buildUI(root, ctx) {
     // trade
     const m = state.merchant;
     if (m.status === 'here') {
-      merchStatus.innerHTML = `<b>The merchant is here!</b> Departs in ${Math.ceil(m.timer * TICK_MS / 1000)}s`;
+      // the carts are finite, and your own commerce is what enlarges them
+      const cap = buyCapacity(state), left = buyRemaining(state);
+      merchStatus.innerHTML = `<b>The merchant is here!</b> Departs in ${Math.ceil(m.timer * TICK_MS / 1000)}s`
+        + `<br><span class="${left > 0 ? 'merch-carts' : 'merch-carts bad'}">`
+        + (left > 0
+          ? `Carts: ${left} of ${cap} goods left to buy`
+          : `Carts full — ${cap} goods bought this visit`)
+        + '</span>';
       merchStatus.className = 'merch-status here';
     } else {
-      merchStatus.textContent = `Merchant returns in ~${Math.ceil(m.timer * TICK_MS / 1000)}s`;
+      merchStatus.textContent = `Merchant returns in ~${Math.ceil(m.timer * TICK_MS / 1000)}s`
+        + ` · carts hold ${buyCapacity(state)} goods`;
       merchStatus.className = 'merch-status';
     }
     for (const r of TRADABLE) {

@@ -1,7 +1,20 @@
-import { RES_INFO, MERCHANT, ROAD_MERCHANT_FACTOR } from '../config.js';
+import { RES_INFO, MERCHANT, TRADE_CAP, ROAD_MERCHANT_FACTOR } from '../config.js';
 import { logEvent, emit } from './events.js';
 
 const TRADABLE = ['food', 'wood', 'stone', 'ore', 'iron', 'bread'];
+
+// How much the caravan can SELL you this visit — the carts are finite, and
+// what enlarges them is your own commerce (docks to unload at, a market to
+// pile it in). Selling to the merchant is never capped.
+export function buyCapacity(state) {
+  const live = (t) => state.buildings.filter((b) => b.type === t && b.hp > 0).length;
+  return TRADE_CAP.capBase + live('dock') * TRADE_CAP.perDock + live('market') * TRADE_CAP.perMarket;
+}
+
+// goods still available to buy before the carts run out
+export function buyRemaining(state) {
+  return Math.max(0, buyCapacity(state) - (state.merchant.bought || 0));
+}
 
 export function tradeTick(state, rand) {
   const m = state.merchant;
@@ -10,6 +23,7 @@ export function tradeTick(state, rand) {
     m.status = 'here';
     m.timer = MERCHANT.stay;
     m.visits++;
+    m.bought = 0;        // fresh carts: the per-visit buy allowance resets
     m.prices = {};
     for (const r of TRADABLE) {
       m.prices[r] = RES_INFO[r].base * (0.65 + rand());
@@ -45,13 +59,22 @@ export function sell(state, r, qty) {
   return true;
 }
 
+// Returns true on a completed purchase, or a reason string the UI can show.
+// Partial fills are deliberately NOT done: asking for 10 when 3 carts remain
+// tells you the carts are full rather than quietly selling you 3.
 export function buy(state, r, qty) {
   const m = state.merchant;
   if (m.status !== 'here' || !TRADABLE.includes(r)) return false;
+  if (qty > buyRemaining(state)) {
+    state.stats.buysBlocked = (state.stats.buysBlocked || 0) + 1;
+    return "the caravan's carts are full — harbors would carry more";
+  }
   const cost = buyPrice(state, r) * qty;
-  if (state.res.gold < cost) return false;
+  if (state.res.gold < cost) return 'not enough gold';
   state.res.gold -= cost;
   state.res[r] += qty;
+  m.bought = (m.bought || 0) + qty;
+  state.stats.goodsBought = (state.stats.goodsBought || 0) + qty;
   m.prices[r] *= 1 + qty * 0.004;
   return true;
 }
