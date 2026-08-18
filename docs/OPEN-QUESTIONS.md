@@ -209,8 +209,7 @@ back from the slain", `stats.lootRecovered`); the warlord's sworn men + the
 camp spoils floor; finite stone and ore (`DEPOSITS`, HILLS→PLAINS, the
 ORE→HILLS cascade, per-tile reserves, env-overridable); the depletion polish
 batch (wood retune to 250, the Potosí, the merchant buy cap, auto-demolish);
-the preemptive strike / massing fix (`7b551a9` — **built and asserted, not yet
-merged to `main`**, in worktree `agent-af96065743f5723c4`);
+the preemptive strike / massing fix (`7b551a9`, merged);
 `design/REAVING.md` (design only).
 
 **CLOSED this session:**

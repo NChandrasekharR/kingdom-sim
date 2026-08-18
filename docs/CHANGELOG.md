@@ -5,9 +5,8 @@ Commit-level record of what shipped, newest session first. For the narrative see
 the sim numbers see [`SIMULATIONS.md`](SIMULATIONS.md).
 
 Everything is on `main` (Session 4 merged the Session-3 branch). The Vercel
-deploy is manual (`npx vercel --prod`) and current through **Session 7** —
-first deployed off current `main` in Session 6, redeployed 2026-07-20. Session
-8's work is NOT live; the redeploy waits on the long playtest.
+deploy is manual (`npx vercel --prod`) and current through **Session 8** —
+redeployed 2026-08-18 at Chandra's word, the full Session-8 stack included.
 
 ---
 
@@ -21,9 +20,6 @@ began as a bug report and ended as a verb. Measurements in
 `docs/SIMULATIONS.md` (Campaigns 13–14).
 
 ### `7b551a9` — The gathering turns to meet them (the preemptive strike)
-
-*(Not yet merged to `main` at the time of writing — the commit sits in worktree
-`agent-af96065743f5723c4`.)*
 
 Started as a playtest question — *what happens if I march while they're
 massing?* — and the answer was: nothing good, in four ways at once.
