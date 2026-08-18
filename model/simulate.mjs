@@ -127,5 +127,5 @@ for (let t = 0; t < TICKS; t++) {
 
 console.log(rows.map((r) => r.join(',')).join('\n'));
 console.error(`\nFinal: pop ${state.pop}, gold ${state.res.gold.toFixed(0)}, territory ${territorySize(state)}, ` +
-  `raids ${raidDamage.raidsSeen}, buildings lost ${raidDamage.buildingsLost}, ` +
+  `raids ${raidDamage.raidsSeen}, buildings gone ${raidDamage.buildingsLost} (raid losses + struck spent camps), ` +
   `crowns ${JSON.stringify(state.crowns)}`);
