@@ -5,112 +5,10 @@ import { logEvent, emit } from './events.js';
 import { killVillager, isMaster, ejectVillager, isSheltered, bestSkill } from './villagers.js';
 import { ensureCamp, claimCampByWarlord, warlordAvailable, warlordFell, warlordReturned, addPlunder, addTributeGold, massingUnderAssault, clearMassing } from './camp.js';
 
-// ── A* over the tile grid ──────────────────────────────────────────
-function wallSet(state) {
-  const s = new Set();
-  for (const b of state.buildings) {
-    // a breached wall is rubble — it no longer bars the way (raiders walk through)
-    if (b.type === 'wall' && b.hp > 0 && !b.breached) s.add(idx(b.x, b.y));
-  }
-  return s;
-}
-
-class MinHeap {
-  constructor() { this.a = []; }
-  push(item) {
-    const a = this.a; a.push(item);
-    let i = a.length - 1;
-    while (i > 0) {
-      const p = (i - 1) >> 1;
-      if (a[p].f <= a[i].f) break;
-      [a[p], a[i]] = [a[i], a[p]]; i = p;
-    }
-  }
-  pop() {
-    const a = this.a;
-    const top = a[0], last = a.pop();
-    if (a.length) {
-      a[0] = last;
-      let i = 0;
-      for (;;) {
-        const l = i * 2 + 1, r = l + 1;
-        let m = i;
-        if (l < a.length && a[l].f < a[m].f) m = l;
-        if (r < a.length && a[r].f < a[m].f) m = r;
-        if (m === i) break;
-        [a[m], a[i]] = [a[i], a[m]]; i = m;
-      }
-    }
-    return top;
-  }
-  get size() { return this.a.length; }
-}
-
-// road and bridge tiles, for road-aware pathing and marching speed
-export function roadTiles(state) {
-  const s = new Set();
-  for (const b of state.buildings) {
-    if ((b.type === 'road' || b.type === 'bridge') && b.hp > 0) s.add(idx(b.x, b.y));
-  }
-  return s;
-}
-
-export function findPath(state, fx, fy, tx, ty) {
-  const N = MAP.size;
-  const walls = wallSet(state);
-  // roads are the arteries of the map: marching a road tile is CHEAPER than
-  // open ground, so the pathfinder bends every route onto the network — the
-  // expedition host, stragglers walking home, and the raiders too. Armies
-  // flow down roads, which makes a road both a lifeline and an approach.
-  // Bridges are road over water (walkable, same marching speed).
-  const roads = roadTiles(state);
-  const ROAD_COST = 1 / ROAD_SPEED_MULT;
-  const moveCost = (i) => {
-    if (roads.has(i)) return ROAD_COST;
-    const base = TERRAIN_INFO[state.terrain[i]].move;
-    if (!isFinite(base)) return Infinity;
-    return walls.has(i) ? base + 30 : base; // batter through if no way around
-  };
-  const start = fy * N + fx, goal = ty * N + tx;
-  const g = new Float32Array(N * N).fill(Infinity);
-  const came = new Int32Array(N * N).fill(-1);
-  const closed = new Uint8Array(N * N);
-  g[start] = 0;
-  // heuristic scaled by the cheapest tile cost so it stays admissible now
-  // that roads undercut plains (else A* would skip the very detours we want)
-  const h = (i) => (Math.abs((i % N) - tx) + Math.abs(((i / N) | 0) - ty)) * ROAD_COST;
-  const heap = new MinHeap();
-  heap.push({ i: start, f: h(start) });
-  const DIRS = [1, -1, N, -N];
-  let guard = 0;
-  while (heap.size && guard++ < 60000) {
-    const { i } = heap.pop();
-    if (closed[i]) continue;
-    closed[i] = 1;
-    if (i === goal) break;
-    const x = i % N;
-    for (const d of DIRS) {
-      const n = i + d;
-      if (n < 0 || n >= N * N) continue;
-      if ((d === 1 && x === N - 1) || (d === -1 && x === 0)) continue;
-      if (closed[n]) continue;
-      const c = moveCost(n);
-      if (!isFinite(c)) continue;
-      const ng = g[i] + c;
-      if (ng < g[n]) {
-        g[n] = ng;
-        came[n] = i;
-        heap.push({ i: n, f: ng + h(n) });
-      }
-    }
-  }
-  if (came[goal] === -1 && goal !== start) return null;
-  const path = [];
-  let cur = goal;
-  while (cur !== -1 && cur !== start) { path.push(cur); cur = came[cur]; }
-  path.reverse();
-  return path;
-}
+// A* and road-route following live in pathing.js (shared by raiders, the
+// expedition, soldiers and villagers). Re-exported so callers keep one import.
+import { findPath, roadTiles, marchOrStep, clearRoute } from './pathing.js';
+export { findPath, roadTiles };
 
 // ── Raid lifecycle ─────────────────────────────────────────────────
 export function raidTick(state, rand) {
@@ -710,8 +608,13 @@ export function soldierSkill(state, s) {
   return v?.skills.soldier || 0;
 }
 
+// at most this many fresh A* routes per tick, per unit class — routes are
+// cached, so steady state costs nothing and only reshuffles pay
+const SOLDIER_PATH_BUDGET = 6;
+
 function updateSoldiers(state, rand) {
   const keep = state.buildings.find((b) => b.type === 'keep');
+  const pathBudget = [SOLDIER_PATH_BUDGET];
   const roads = new Set();
   const defenders = [];   // buildings that give covering fire (towers + keep)
   for (const b of state.buildings) {
@@ -773,8 +676,6 @@ function updateSoldiers(state, rand) {
   for (const s of order) {
     if (s.exp) continue;   // afield with the expedition — beyond the horn's reach
     s.px = s.x; s.py = s.y;
-    const onRoad = roads.has(idx(Math.round(s.x), Math.round(s.y)));
-    const speed = SOLDIER.speed * (onRoad ? ROAD_SPEED_MULT : 1);
 
     // A badly-wounded veteran falls back to mend rather than die in the line —
     // if they're skilled enough to disengage and the keep isn't being stormed.
@@ -784,9 +685,8 @@ function updateSoldiers(state, rand) {
     const retreating = !state.raid.keepBesieged &&
       s.hp < SOLDIER.hp * COMBAT.retreatBelowFrac && sSkill >= COMBAT.retreatSkillGate;
     if (retreating && keep) {
-      const dx = keep.x - s.x, dy = (keep.y + 3) - s.y;
-      const d = Math.max(0.001, Math.hypot(dx, dy));
-      if (d > 0.5) { s.x += (dx / d) * speed; s.y += (dy / d) * speed; }
+      // a long fall-back is a march: take the road home
+      marchOrStep(state, s, keep.x, keep.y + 3, SOLDIER.speed, roads, pathBudget);
       // mend faster once clear of the fray (out of local danger)
       let localGang = 0;
       for (const rd of engageable) { if (Math.hypot(rd.x - s.x, rd.y - s.y) < 1.6) localGang++; }
@@ -814,6 +714,7 @@ function updateSoldiers(state, rand) {
       // distance for the ATTACK check is always soldier→raider
       nd = Math.hypot(nearest.x - s.x, nearest.y - s.y);
       if (nd < 1.1) {
+        clearRoute(s);   // blades crossed: the march is over
         const vet = s.merc ? null : state.villagers.find((v) => v.id === s.villagerId);
         const skill = sSkill;
 
@@ -866,17 +767,14 @@ function updateSoldiers(state, rand) {
           logEvent(state, `${nearest.name} is cut down by ${killer}${crit ? ' — a mighty blow!' : '.'}`, 'good');
         }
       } else {
-        const dx = nearest.x - s.x, dy = nearest.y - s.y;
-        const d = Math.max(0.001, Math.hypot(dx, dy));
-        s.x += (dx / d) * speed;
-        s.y += (dy / d) * speed;
+        // closing on a distant raider is a march (road it); inside four tiles
+        // it's maneuvering and stays a straight line
+        marchOrStep(state, s, nearest.x, nearest.y, SOLDIER.speed, roads, pathBudget, 0);
       }
     } else if (keep) {
       // drift back to a rally point by the keep
       const rx = keep.x + (s.id % 3) - 1, ry = keep.y + 2 + ((s.id / 3) | 0) % 2;
-      const dx = rx - s.x, dy = ry - s.y;
-      const d = Math.hypot(dx, dy);
-      if (d > 0.5) { s.x += (dx / d) * Math.min(speed, d); s.y += (dy / d) * Math.min(speed, d); }
+      marchOrStep(state, s, rx, ry, SOLDIER.speed, roads, pathBudget);
       s.hp = Math.min(SOLDIER.hp, s.hp + 0.4); // rest and mend wounds between raids
     }
   }

@@ -1,4 +1,5 @@
 import { SKILL, VILLAGER } from '../config.js';
+import { roadTiles, marchOrStep, clearRoute } from './pathing.js';
 
 // Villagers are discrete agents: a job, a skill per craft, a stomach.
 // "15 pop" is 15 little lives — which is what makes losing one mean something.
@@ -28,8 +29,17 @@ export function makeVillager(state, job = 'idle') {
     // position, for render interpolation (same contract as soldiers/raiders).
     x: null, y: null, px: null, py: null,
     fleeing: false,      // running for the keep; holed up until the raid ends
+    // cached road commute: tile indices + cursor + which posting it's for.
+    // Plain arrays/numbers, so they save and load with the rest of the record;
+    // an older save simply arrives without them and gets one on demand.
+    route: null, routeI: 0, routeGoal: null, routeKey: null,
   };
 }
+
+// at most this many fresh A* routes per tick across the whole population —
+// with hundreds of bodies a labor reshuffle would otherwise path them all at
+// once. Routes are cached, so steady state costs nothing.
+const VILLAGER_PATH_BUDGET = 8;
 
 // a small deterministic per-villager offset so crews don't stack on one pixel
 function offset(v, salt) {
@@ -42,6 +52,13 @@ function offset(v, salt) {
 export function villagersMoveTick(state) {
   const keep = state.buildings.find((b) => b.type === 'keep');
   if (!keep) return;
+  // the commute takes the road: a villager walking to a STABLE target (their
+  // workplace, or the keep plaza) gets an A* route cached on them and walks it
+  // at road speed where the road runs. Fresh routes are budgeted — after a
+  // labor reshuffle the crews trickle onto the network over a few seconds
+  // rather than all pathing on one tick.
+  const roads = roadTiles(state);
+  const pathBudget = [VILLAGER_PATH_BUDGET];
   const raidActive = state.raid.phase === 'active';
   const raiders = raidActive ? state.raid.raiders.filter((r) => r.hp > 0 && r.mode !== 'flee' && r.mode !== 'gone') : [];
   const byId = new Map(state.buildings.map((b) => [b.id, b]));
@@ -73,19 +90,33 @@ export function villagersMoveTick(state) {
       }
     }
 
-    // pick where this body is headed
-    let tx, ty;
+    // pick where this body is headed — and whether the walk is a COMMUTE
+    // (a fixed destination worth routing) or a scramble (beeline)
+    let tx, ty, commute = false, key = null;
     if (v.fleeing) {
+      // terror does not follow roads: a fleeing civilian runs the shortest line
       tx = keep.x + offset(v, 37); ty = keep.y + 1.5 + Math.abs(offset(v, 53));
     } else if (v.job === 'producer' && byId.get(v.workplaceId)) {
       const b = byId.get(v.workplaceId);
       tx = b.x + offset(v, 37); ty = b.y + 0.8 + offset(v, 53) * 0.5;
+      commute = true; key = v.workplaceId;
     } else if (v.job === 'builder' && worst) {
+      // a builder's target is the worst-damaged building, which changes every
+      // few ticks — routing it would thrash. Straight line.
       tx = worst.x + offset(v, 37); ty = worst.y + 0.8;
     } else {
       // idle folk mill about the keep plaza
       tx = keep.x + offset(v, 37) * 2; ty = keep.y + 2 + Math.abs(offset(v, 53)) * 2;
+      commute = true; key = 'keep';
     }
+
+    if (commute) {
+      // a new posting throws away the old road
+      if (v.routeKey !== key) { clearRoute(v); v.routeKey = key; }
+      marchOrStep(state, v, tx, ty, VILLAGER.walkSpeed, roads, pathBudget, 0.4);
+      continue;
+    }
+    if (v.routeKey != null) { clearRoute(v); v.routeKey = null; }
     const dx = tx - v.x, dy = ty - v.y;
     const d = Math.hypot(dx, dy);
     if (d > 0.4) {
