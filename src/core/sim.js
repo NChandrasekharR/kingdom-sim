@@ -1,6 +1,6 @@
 import { SEASON_TICKS, SEASONS } from '../config.js';
 import { mulberry32 } from './rng.js';
-import { economyTick, maintenanceTick } from './economy.js';
+import { economyTick, maintenanceTick, autoDemolishSpentTick } from './economy.js';
 import { populationTick } from './population.js';
 import { tradeTick } from './trade.js';
 import { raidTick, mercenaryUpkeepTick } from './raids.js';
@@ -35,6 +35,9 @@ export function makeSim(state) {
       }
 
       economyTick(state);
+      // spent sites strike themselves BEFORE the repair queue is drawn up, so a
+      // husk never takes a last mouthful of repair wood on its way out
+      autoDemolishSpentTick(state);
       maintenanceTick(state);
       populationTick(state);
       villagersMoveTick(state);   // bodies walk (and panic) before the raid resolves

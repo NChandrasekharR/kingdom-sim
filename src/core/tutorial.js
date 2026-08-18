@@ -126,8 +126,12 @@ const JIT = [
   },
   {
     key: 'depleted',
-    when: (s) => s.buildings.some((b) => b.type === 'lumber' && b.depleted),
-    text: () => 'The wood there is spent; the land lies open for the plough. Tear the camp down — the timbers come back — and follow the forest.',
+    // keys on the STICKY flag, not a live husk: a spent site now strikes itself
+    // inside the same tick it goes depleted (economy.js autoDemolishSpentTick),
+    // so the building is already gone by the time the steward gets to speak.
+    when: (s) => !!s.sawDepletedSite ||
+      s.buildings.some((b) => b.type === 'lumber' && b.depleted),
+    text: () => 'The ground there is spent, and the camp struck itself — the timbers are already home. The land lies open for the plough now. Follow the forest.',
   },
   {
     key: 'breach',
