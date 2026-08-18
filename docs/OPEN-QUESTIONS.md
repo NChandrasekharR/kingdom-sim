@@ -57,7 +57,7 @@ in case the redesign doesn't ship and we patch the current game instead.
 | D1 | **Bakery rework** (0.25→0.4 bread output). | **SHIPPED 2026-07-14** | In `src/config.js`. |
 | D2 | **Soldier food upkeep** (3× a citizen, not gold). | **SHIPPED 2026-07-14** | Soldiers cost 5 iron once, then eat 3×. Recruit pulls a real villager. |
 | D3 | **Building upkeep in materials.** | SUPERSEDED | HP decay + repair materials (shipped) replaces this. |
-| D4 | **Merchant buy-cap** to stop infinite liquidation. | DEFERRED | Trade is manual in the game; revisit if players grind the merchant. |
+| D4 | **Merchant buy-cap** to stop infinite liquidation. | **SHIPPED 2026-08-17** | `TRADE_CAP` in `src/config.js`: per-visit BUY cap `20 + 15/dock + 5/market`, selling uncapped. Scaled by commerce so a harbor imports through depletion and a landlocked realm cannot. See DECISIONS.md Session 8. |
 
 ## E. Product / housekeeping
 

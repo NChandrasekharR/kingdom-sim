@@ -8,13 +8,37 @@ first within each section. For still-open questions see `OPEN-QUESTIONS.md`.
 ## Session 8 — loot justice, the warlord's retinue, and the depletion data (2026-08-17)
 
 - **Depleted lumber camps AUTO-DEMOLISH and refund the player** (Chandra,
-  2026-08-17 — **decided, not yet built**). The depletion campaign measured
-  dead camps pinning the worst-first repair queue and soaking 25–30% of all
-  repair wood as ghost maintenance. When a camp exhausts its last reachable
-  timber it strikes itself: auto-demolish with the standard condition-scaled
-  material refund (the existing demolish rule — no new refund math). Extends
-  naturally to quarries/mines if the deposit ladder ships. Implementation
-  deliberately deferred; log first, build with the depletion batch.
+  2026-08-17 — **decided; BUILT in the depletion polish batch**). The depletion
+  campaign measured dead camps pinning the worst-first repair queue and soaking
+  25–30% of all repair wood as ghost maintenance. When a camp exhausts its last
+  reachable timber it strikes itself: auto-demolish with the standard
+  condition-scaled material refund (the existing demolish rule — no new refund
+  math). Shipped covering quarries and mines too, as the entry anticipated.
+  Measured after: ghost repair **25.7/18.8/22.7/24.1% → 0.0%**, and mean
+  late-game building HP recovered from 0.02–0.13 to 0.70+ on three of four
+  seeds (Campaign 13, `docs/SIMULATIONS.md`).
+
+- **The FOREST comment's "4–6 years per site" is now TRUE** (measured, not
+  asserted). The shipped `woodBase 90` delivered 1.0–1.8 years — the comment
+  had been aspirational since Session 5c. Swept 250/300/350/450; **250** lands
+  3.6–5.0 across four seeds with year-3 wood and pop unchanged. The rule this
+  sets: a config comment that states a cadence must cite the run that measured
+  it, or it is a wish.
+
+- **Ore veins carry per-vein fortune — the Potosí** (Chandra, ratified). Most
+  veins run 0.8–1.3×; `1.5/11` of them are a deep vein at 3–6×. Measured 1.56
+  deep veins per map over 300 seeds, and 52/300 maps get none. A run that mines
+  one banks ~30× the ore of one that doesn't — the vein is a run-defining place,
+  not a stat tweak. The fortune is rolled in mapgen from the map seed (not at
+  seeding time) so the lottery is a property of the MAP, reproducible per seed.
+
+- **D4 RESOLVED: the caravan's carts are finite, and commerce enlarges them.**
+  Per-visit BUY cap `20 + 15/dock + 5/market`; selling stays uncapped. The
+  designer's reasoning, kept: a harbor kingdom imports its way through a spent
+  hinterland and a landlocked one cannot, so depletion means different things on
+  different maps. An oversized order is refused whole rather than partially
+  filled — the player is told the carts are full, not quietly sold less than
+  they asked for.
 
 ## Session 7 — the Steward's Counsel ships (2026-07-20)
 

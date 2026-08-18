@@ -10,6 +10,65 @@ deployed off current `main` in Session 6, redeployed 2026-07-20.
 
 ---
 
+## Session 8 — the depletion polish batch (2026-08-17)
+
+Four ratified designer calls built together, because they all touch the same
+seam: the ground is finite, and the systems around it hadn't caught up.
+Measurements in `docs/SIMULATIONS.md` (Campaign 13).
+
+**Wood retune** (`src/config.js` FOREST)
+- `woodBase` 90 → **250**, `woodVar` 50 → **125**. The block's "~4-6 years per
+  site" comment had been aspirational since Session 5c — the shipped value
+  actually delivered **1.0–1.8 years**. Swept 250/300/350/450 over seeds
+  42/7/123; 250 lands **3.6–5.0** with year-3 wood and pop unchanged.
+- The comment now states the measured cadence and cites the sweep.
+- `_envNum` hoisted above FOREST so wood is env-sweepable too
+  (`KSIM_WOOD_BASE` / `KSIM_WOOD_VAR`) alongside the existing stone/ore knobs.
+
+**The Potosí — per-vein richness** (`src/core/mapgen.js`, `src/core/state.js`)
+- Each vein draws a fortune from the map seed: ordinary **0.8–1.3×**, and
+  `1.5/11` of them a **deep vein at 3–6×**. Measured 1.56 deep veins per map
+  over 300 seeds; 52/300 maps get none.
+- `generateMap` now returns `veinRichness` (tile → multiplier) and `deepVeins`;
+  `seedStoneOre(terrain, veinRichness)` multiplies each ORE tile's own roll by
+  its vein's fortune. Deterministic per seed; reserves serialize as before.
+- First DRAW from a deep vein writes one chronicle line in the house voice:
+  *"The miners strike a vein that runs deeper than any man of {name} has known."*
+- A run that mines one banks **~30× the ore and ~8× the iron** of one that
+  doesn't (seed 11: ore 2,282 / iron 81, vs seed 42's 73 / 10).
+
+**Merchant buy cap — resolves D4** (`src/config.js` TRADE_CAP, `src/core/trade.js`)
+- Per-visit cap on goods BOUGHT: `capBase 20 + 15/dock + 5/market`. Selling
+  stays uncapped. Resets on caravan arrival; survives save/load.
+- Commerce-scaled by design: a harbor kingdom imports its way through a spent
+  hinterland, a landlocked one cannot.
+- `buy()` now returns `true` or the REASON it refused, so the UI can say
+  *"the caravan's carts are full — harbors would carry more"*. Oversized orders
+  are refused whole — no silent partial fills.
+- Trade panel shows remaining capacity in both merchant states.
+
+**Auto-demolish spent camps** (`src/core/economy.js`, `src/core/sim.js`)
+- A depleted lumber camp / quarry / mine strikes itself, reusing the existing
+  condition-scaled `demolish()` refund (no new refund math). Runs before
+  `maintenanceTick` so a husk never takes a last mouthful of repair wood, and
+  as its own pass so husks carried in on a LOADED SAVE are swept too.
+- Chronicle line: *"The … at the spent ground is struck — its timbers come home."*
+- The steward's `depleted` counsel now keys on a sticky `sawDepletedSite` flag,
+  because the building is gone before `tutorialTick` runs; its text was rewritten
+  (it used to tell the player to tear the camp down).
+- **Ghost repair 25.7/18.8/22.7/24.1% → 0.0%.** Knock-on: mean late-game
+  building HP recovered from 0.02–0.13 to **0.70+** on three of four seeds, and
+  every keep fall across the four validation seeds disappeared. Seed 99's
+  baseline collapse (pop 1, FALLEN at year 15.7) now finishes at pop 700.
+
+**Harness** (`model/`)
+- `depletion-polish-run.mjs` — site lifetime, ghost repair, vein fortune, cap usage.
+- `polish-unit-checks.mjs` — 39 assertions covering the cap, the Potosí, the
+  auto-demolish refund, and old-save migration. All pass.
+- `vein-probe.mjs`, `wood-sweep.sh`, `wood-one.sh`, `polish-batch.sh`.
+
+---
+
 ## Session 7 — The Steward's Counsel + launch assets (2026-07-20)
 
 The onboarding plan (`design/ONBOARDING.md`, drafted Session 6) built as
