@@ -792,3 +792,20 @@ updated.
 **Claude:** Committed Session 7, deployed current main to Vercel (og-card now
 unfurls), and brought CHANGELOG / CHATLOG / DECISIONS / OPEN-QUESTIONS up to
 date — including this entry.
+
+## Turn 24 — Session 8, end to end (2026-08-17→18)
+
+**User:** (across two days) The review-and-orchestrate brief; "what if ALL
+resources are depletable. So then say.. the quarry ground becomes a plain??";
+loot back from slain raiders; the warlord must be difficult and mean something;
+"do the depletion sim."; the ratification batch (merge at 250/150, the Potosí,
+commerce-scaled buy caps, auto-demolish, REAVING.md in full); the Reaving
+brainstorm and the 90%-prisoners balance challenge; the massing-camp bug
+report; "host it"; inspector parity; "civs dont always use roads" → "Do it
+all."; the stone-asymmetry question from a Year-40 Caer Bryn, three crowns won.
+
+**Claude:** Ten merges to main, four production deploys, two sim campaigns
+(13–14), one 1,304-line design doc, and one process scar honestly earned. The
+full narrative, design rationale, numbers, and the complete pending register
+live in [SESSION-8.md](SESSION-8.md) — written as this session's record at
+Chandra's request.
