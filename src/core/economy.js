@@ -1,7 +1,8 @@
-import { BUILDINGS, WORK_PRIORITY, WINTER_FARM_MULT, HP, SKILL, FOREST, DEPOSITS, T, MAP } from '../config.js';
+import { BUILDINGS, WORK_PRIORITY, WINTER_FARM_MULT, HP, SKILL, FOREST, DEPOSITS, T, MAP, GREAT_WORK } from '../config.js';
 import { idx, stoneTileStock, demolish } from './state.js';
 import { currentSeason } from './sim.js';
 import { logEvent, emit } from './events.js';
+import { bestSkill, isMaster } from './villagers.js';
 
 // ── The ground is finite ───────────────────────────────────────────
 // The same draw-down engine feeds three chains: a LUMBER camp cuts the
@@ -197,7 +198,7 @@ export function economyTick(state) {
 
   // 2. producers: fill buildings down the priority list, best-skilled first
   for (const b of state.buildings) { b.assigned = 0; b.workers = []; }
-  for (const type of WORK_PRIORITY) {
+  const fillType = (type) => {
     for (const b of state.buildings) {
       if (b.type !== type || !active(b)) continue;
       // a tower battered to rubble has no post to man — nobody stands in the
@@ -219,6 +220,31 @@ export function economyTick(state) {
       }
       if (!pool.length) break;
     }
+  };
+  // the watch is posted first (defense competes for labor — the sim2 rule)…
+  fillType('tower');
+  // …then a rising Great Work claims the realm's finest hands: masters fill
+  // its slots before any workshop gets them — the economy VISIBLY dips while
+  // the Work rises (ENDGAME §4) — and journeymen fill what's left at half pace
+  for (const b of state.buildings) {
+    if (!pool.length) break;
+    const gw = BUILDINGS[b.type].greatWork;
+    if (!gw || b.greatWorkDone || b.sacked || !active(b)) continue;
+    for (let i = 0; i < gw.masterSlots && pool.length; i++) {
+      let bestI = 0, bestSk = -1;
+      for (let j = 0; j < pool.length; j++) {
+        const sk = bestSkill(pool[j]);
+        if (sk > bestSk) { bestSk = sk; bestI = j; }
+      }
+      const v = pool.splice(bestI, 1)[0];
+      v.job = 'producer'; v.workplaceId = b.id; v.workType = b.type;
+      b.workers.push(v);
+      b.assigned++;
+    }
+  }
+  for (const type of WORK_PRIORITY) {
+    if (type === 'tower') continue;   // already posted above
+    fillType(type);
     if (!pool.length) break;
   }
   state.idleWorkers = pool.length;
@@ -274,6 +300,75 @@ export function economyTick(state) {
   }
 }
 
+// ── The Great Works rise (design/ENDGAME.md §4) ────────────────────
+// Materials are hauled from the stockpile and STAGED on site — real wealth in
+// the open, lootable: the provocation is the point. The crew builds staged
+// materials in: a master works at full pace, a journeyman at half, and the
+// scarcest staged material throttles the whole scaffold. A sacked scaffold
+// stands silent until repaired past half. Completion is forever.
+export function greatWorksTick(state) {
+  for (const b of state.buildings) {
+    const gw = BUILDINGS[b.type].greatWork;
+    if (!gw || b.hp <= 0 || b.greatWorkDone) continue;
+    b.progress ||= 0; b.staged ||= {}; b.stagedIn ||= {};
+    if (b.sacked || !state.claimed[idx(b.x, b.y)]) continue;
+
+    // haul: stream the draught to the site, running ahead of the burn rate.
+    // A hungry realm does not feed its stones: nothing is hauled while the
+    // people starve, and the LARDER is staged only past a comfort floor —
+    // famine stalls the Work, the Work never deepens the famine (ENDGAME §6).
+    const larder = state.res.food + state.res.bread * 2;
+    const larderFloor = state.pop * GREAT_WORK.larderFloorPerPop;
+    for (const [r, total] of Object.entries(gw.stage)) {
+      if (state.starving) break;
+      if ((r === 'food' || r === 'bread') && larder <= larderFloor) continue;
+      const remaining = total - (b.stagedIn[r] || 0);
+      if (remaining <= 0) continue;
+      const haul = Math.min((total / gw.workTicks) * GREAT_WORK.stageLead, remaining, state.res[r]);
+      if (haul <= 0) continue;
+      state.res[r] -= haul;
+      state.delta[r] -= haul;
+      b.stagedIn[r] = (b.stagedIn[r] || 0) + haul;
+      b.staged[r] = (b.staged[r] || 0) + haul;
+    }
+
+    const crew = b.workers || [];
+    if (!crew.length) continue;
+    let rate = crew.reduce((s, v) => s + (isMaster(v) ? 1 : GREAT_WORK.journeymanRate), 0) / gw.masterSlots;
+    rate = Math.min(1, rate) * outputMult(b);
+    for (const [r, total] of Object.entries(gw.stage)) {
+      const perTick = total / gw.workTicks;
+      if (perTick > 0) rate = Math.min(rate, (b.staged[r] || 0) / perTick);
+    }
+    // the master's ache: a scaffold with no master is a visible stall, said once
+    const masters = crew.reduce((n, v) => n + (isMaster(v) ? 1 : 0), 0);
+    if (!masters && !b.noMasterLogged) {
+      b.noMasterLogged = true;
+      logEvent(state, `No master stands on the scaffold of the ${BUILDINGS[b.type].name} — the journeymen carry on at half pace.`, 'info');
+    } else if (masters) b.noMasterLogged = false;
+    if (rate <= 0.001) continue;
+
+    for (const [r, total] of Object.entries(gw.stage)) {
+      b.staged[r] = Math.max(0, (b.staged[r] || 0) - (total / gw.workTicks) * rate);
+    }
+    b.progress += rate;
+
+    // half-a-tick tolerance: the staged draught totals EXACTLY the build's
+    // consumption, so demanding the full count makes the last crumb of
+    // progress chase the last crumb of material below the work cutoff — an
+    // asymptote, never an arrival
+    if (b.progress >= gw.workTicks - 0.5) {
+      b.greatWorkDone = true;
+      // whatever still lies staged was over-hauled — it comes back to the stores
+      for (const [r, amt] of Object.entries(b.staged)) state.res[r] += amt;
+      b.staged = {};
+      state.buildingsDirty = true;   // the scaffold tint comes off
+      logEvent(state, gw.completeLog, 'good');
+      emit('great-work', { type: b.type, tier: gw.tier });
+    }
+  }
+}
+
 // Builders repair worst-first, spending wood and stone per HP; then everything
 // but the keep decays. Recovery-vs-decay is where the death spiral lives.
 export function maintenanceTick(state) {
@@ -320,6 +415,14 @@ export function prosperity(state) {
     let best = 0;
     for (const s of Object.values(vl.skills)) if (s > best) best = s;
     v += best * 15;
+  }
+  // a Great Work is wealth made visible: the staged draught and the risen
+  // stone draw hungrier waves — the provocation is the design (ENDGAME §3)
+  for (const b of state.buildings) {
+    const gw = BUILDINGS[b.type].greatWork;
+    if (!gw || b.hp <= 0) continue;
+    for (const amt of Object.values(b.staged || {})) v += amt;
+    v += gw.menace * (b.greatWorkDone ? 1 : (b.progress || 0) / gw.workTicks);
   }
   return v;
 }

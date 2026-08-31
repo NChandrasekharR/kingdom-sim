@@ -48,6 +48,17 @@ function tryBuild(type) {
 // ── Scripted player: greedy priorities, evaluated every 10 ticks ──
 function playerPolicy() {
   const pop = state.pop;
+  // 0. the Ladder of Great Works: foundations go down when the hoards run deep
+  // AND the realm is defended — the provocation is real, and a bot that builds
+  // wonders with no army measures suicide, not the mechanic (measured: seed 7,
+  // zero soldiers ever, opted in anyway and fell to the dread waves it invited).
+  // Checked FIRST: the greedy food rule below never yields at big pop, and the
+  // ladder is 3 placements across a whole reign.
+  if (state.soldiers.length >= 4) {
+    if (!count('guildhall') && state.res.gold > 1500 && tryBuild('guildhall')) return;
+    if (!count('temple') && state.res.gold > 6000 && tryBuild('temple')) return;
+    if (!count('highseat') && state.res.gold > 12000 && tryBuild('highseat')) return;
+  }
   // 1. food first: keep enough farms+docks to feed everyone with margin
   const foodBuildings = count('farm') + count('dock');
   if (foodBuildings * 0.5 < pop * 0.04 * 1.6 + 0.3) {
@@ -126,6 +137,10 @@ for (let t = 0; t < TICKS; t++) {
 }
 
 console.log(rows.map((r) => r.join(',')).join('\n'));
+const works = state.buildings
+  .filter((b) => BUILDINGS[b.type].greatWork)
+  .map((b) => `${b.type} ${b.greatWorkDone ? 'COMPLETE' : Math.floor(((b.progress || 0) / BUILDINGS[b.type].greatWork.workTicks) * 100) + '%'}`)
+  .join(', ') || 'none';
 console.error(`\nFinal: pop ${state.pop}, gold ${state.res.gold.toFixed(0)}, territory ${territorySize(state)}, ` +
   `raids ${raidDamage.raidsSeen}, buildings gone ${raidDamage.buildingsLost} (raid losses + struck spent camps), ` +
-  `crowns ${JSON.stringify(state.crowns)}`);
+  `crowns ${JSON.stringify(state.crowns)}, works: ${works}`);

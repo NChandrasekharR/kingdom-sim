@@ -1,3 +1,4 @@
+import { BUILDINGS } from '../config.js';
 import { logEvent, emit } from './events.js';
 
 // ── The Steward's Counsel (design/ONBOARDING.md) ───────────────────
@@ -143,6 +144,11 @@ const JIT = [
     when: (s) => !!s.camp && !s.camp.gone && !s.camp.broken &&
       s.soldiers.filter((x) => x.hp > 0 && !x.exp).length >= 3,
     text: () => 'You have swords enough to answer him at his own tents, sire — if you dare leave home thin.',
+  },
+  {
+    key: 'greatwork',
+    when: (s) => s.buildings.some((b) => !!BUILDINGS[b.type].greatWork),
+    text: () => 'A Great Work, sire. The masters will leave their benches for the scaffold — and every raider from here to the sea will hear of what we pile there.',
   },
 ];
 

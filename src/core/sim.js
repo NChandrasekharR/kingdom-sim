@@ -1,6 +1,6 @@
-import { SEASON_TICKS, SEASONS } from '../config.js';
+import { SEASON_TICKS, SEASONS, BUILDINGS } from '../config.js';
 import { mulberry32 } from './rng.js';
-import { economyTick, maintenanceTick, autoDemolishSpentTick } from './economy.js';
+import { economyTick, maintenanceTick, autoDemolishSpentTick, greatWorksTick } from './economy.js';
 import { populationTick } from './population.js';
 import { tradeTick } from './trade.js';
 import { raidTick, mercenaryUpkeepTick } from './raids.js';
@@ -31,10 +31,19 @@ export function makeSim(state) {
       if (state.tick % SEASON_TICKS === 0) {
         const s = currentSeason(state);
         if (s === 'Winter') logEvent(state, 'Winter sets in. The fields lie fallow.', 'bad');
-        if (s === 'Spring') logEvent(state, `Spring returns — Year ${currentYear(state)} of ${state.name}.`, 'good');
+        if (s === 'Spring') {
+          logEvent(state, `Spring returns — Year ${currentYear(state)} of ${state.name}.`, 'good');
+          // a standing Great Temple keeps the festival calendar: the fears of
+          // the old year are sung away with the first thaw
+          if (state.buildings.some((b) => b.type === 'temple' && b.greatWorkDone && b.hp > 0 && !b.sacked)) {
+            state.raidShock = 0;
+            logEvent(state, 'A festival fills the Great Temple — the fears of the old year are sung away.', 'good');
+          }
+        }
       }
 
       economyTick(state);
+      greatWorksTick(state);   // the scaffold draws its draught while the crews stand posted
       // spent sites strike themselves BEFORE the repair queue is drawn up, so a
       // husk never takes a last mouthful of repair wood on its way out
       autoDemolishSpentTick(state);
@@ -118,6 +127,10 @@ export function dumpStats(state) {
       huntedInRaids: s.villagersHunted || 0,
       mastersNow: countMasters(state), mastersLost: s.mastersLost,
     },
+    greatWorks: state.buildings
+      .filter((b) => BUILDINGS[b.type].greatWork && b.greatWorkDone)
+      .map((b) => BUILDINGS[b.type].name),
+    worksSacked: s.worksSacked || 0,
     foodSpoiled: Math.round(s.foodSpoiled || 0),
     forestCleared: s.forestCleared || 0,
     hillsFlattened: s.hillsFlattened || 0,

@@ -6,7 +6,7 @@ import { territorySize } from '../core/territory.js';
 import { demolish, clearSave, saveGame, createState } from '../core/state.js';
 import { recruitSoldier, dismissSoldier, hireMercenaries, dismissMercenaries, mercCount, mercUpkeepRate, rallyToKeep, payTribute, refuseTribute, armedReserve } from '../core/raids.js';
 import { marchOnCamp, resolveCampChoice } from '../core/camp.js';
-import { countMasters } from '../core/villagers.js';
+import { countMasters, isMaster } from '../core/villagers.js';
 import { outputMult, depositInReach } from '../core/economy.js';
 import { sell, buy, sellPrice, buyPrice, buyCapacity, buyRemaining } from '../core/trade.js';
 import { getProgress, CROWN_NAMES } from '../core/win.js';
@@ -381,6 +381,23 @@ export function buildUI(root, ctx) {
         }
       }
     }
+    // a Great Work shows its rise: progress, who stands on the scaffold, and
+    // the staged draught (the pile a raider would love to reach)
+    const gw = def.greatWork;
+    if (gw) {
+      if (selected.greatWorkDone) {
+        crewLine += ' · <span class="good"><b>COMPLETE</b></span>';
+      } else {
+        const pct = Math.floor(((selected.progress || 0) / gw.workTicks) * 100);
+        const crew2 = selected.workers || [];
+        const masters = crew2.filter((v) => isMaster(v)).length;
+        crewLine += ` · raised <b>${pct}%</b> · ${masters} master${masters === 1 ? '' : 's'} + ${crew2.length - masters} on the scaffold`;
+        const staged = Object.entries(selected.staged || {})
+          .filter(([, a]) => a >= 1)
+          .map(([r, a]) => `${Math.floor(a)} ${r}`).join(', ');
+        if (staged) crewLine += ` · staged on site: ${staged}`;
+      }
+    }
     selPanel.innerHTML = `
       <img class="bicon" src="${buildingIconURL(selected.type)}" alt="">
       <div class="sel-info">
@@ -692,6 +709,10 @@ export function buildUI(root, ctx) {
       let ok = true;
       for (const [r, amt] of Object.entries(def.cost)) if (state.res[r] < amt) ok = false;
       if (def.unique && state.buildings.some((b) => b.type === type && b.hp > 0)) ok = false;
+      // the ladder rises one Work at a time — the next tier grays out until
+      // the one below it stands complete
+      if (def.greatWork?.requires &&
+          !state.buildings.some((b) => b.type === def.greatWork.requires && b.greatWorkDone)) ok = false;
       card.classList.toggle('disabled', !ok);
     }
 
@@ -702,7 +723,9 @@ export function buildUI(root, ctx) {
       const earned = state.crowns[key];
       row.classList.toggle('earned', earned);
       row.querySelector('.fill').style.width = `${Math.min(100, (cur / goal) * 100)}%`;
-      row.querySelector('.crown-prog').textContent = earned ? 'Earned!' : `${cur} / ${goal}`;
+      row.querySelector('.crown-prog').textContent = earned ? 'Earned!'
+        : key === 'ages' ? (cur > 0 ? `the High Seat rises — ${cur}%` : 'raise the High Seat')
+        : `${cur} / ${goal}`;
     }
 
     // kingdom stats

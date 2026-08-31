@@ -100,7 +100,7 @@ export function createState(seed = (Math.random() * 1e9) | 0) {
     stance: 'hold',       // 'hold' = fight on claimed land only; 'sally' = pursue anywhere
     ateBread: false,
     soldiers: [],
-    crowns: { dominion: false, plenty: false, people: false },
+    crowns: { dominion: false, plenty: false, people: false, ages: false },
     won: false,
     raid: { phase: 'quiet', timer: 300, raiders: [], wave: 0 },
     camp: null,          // the warlord's camp — founded when he first shows himself
@@ -117,7 +117,7 @@ export function createState(seed = (Math.random() * 1e9) | 0) {
       soldiersRecruited: 0, soldiersFallen: 0, veteransFallen: 0,
       mastersLost: 0, foodSpoiled: 0, tributeGold: 0, tributesPaid: 0,
       forestCleared: 0, hillsFlattened: 0, veinsSpent: 0, deepVeinStruck: 0,
-      goodsBought: 0, buysBlocked: 0,
+      goodsBought: 0, buysBlocked: 0, worksSacked: 0,
     },
     // render dirty flags
     territoryDirty: true, buildingsDirty: true, campDirty: true,
@@ -189,6 +189,11 @@ export function canPlace(state, type, x, y) {
       }
     if (!found) return { ok: false, reason: `Must border ${TERRAIN_INFO[def.place.near].name.toLowerCase()}` };
   }
+  // the Ladder of Great Works rises one tier at a time
+  if (def.greatWork?.requires &&
+      !state.buildings.some((b) => b.type === def.greatWork.requires && b.greatWorkDone)) {
+    return { ok: false, reason: `The ladder rises one Work at a time — complete the ${BUILDINGS[def.greatWork.requires].name} first` };
+  }
   if (def.unique && state.buildings.some((b) => b.type === type && b.hp > 0)) {
     return { ok: false, reason: 'Already built' };
   }
@@ -211,7 +216,9 @@ export function place(state, type, x, y) {
     state.claimed[idx(x, y)] = 1;
     state.territoryDirty = true;
   }
-  logEvent(state, `${def.name} raised at (${x}, ${y}).`);
+  logEvent(state, def.greatWork
+    ? `The foundations of the ${def.name} are laid — the masters gather their tools.`
+    : `${def.name} raised at (${x}, ${y}).`);
   return { ok: true };
 }
 
@@ -241,6 +248,11 @@ export function demolish(state, id, opts = {}) {
   const frac = Math.max(0, Math.min(1, b.hp / b.maxHp));
   for (const [r, amt] of Object.entries(def.cost)) {
     state.res[r] += Math.floor(amt * frac);
+  }
+  // an unfinished Great Work returns what still lies staged on site —
+  // the built-in draught and the seasons of labor are sunk (the ache is real)
+  if (b.staged) {
+    for (const [r, amt] of Object.entries(b.staged)) state.res[r] += Math.floor(amt);
   }
   if (!opts.silent) logEvent(state, `${def.name} torn down — the materials are reclaimed.`);
   recomputeInfluence(state);
@@ -292,8 +304,12 @@ export function saveGame(state) {
     influence: undefined, delta: undefined,
     territoryDirty: undefined, buildingsDirty: undefined, campDirty: undefined,
     // live lookup caches: Sets/Maps JSON-serialize to `{}` and would come back
-    // as a truthy-but-empty husk, so drop them and let the tick rebuild them
+    // as a truthy-but-empty husk. _deepSet rebuilds lazily from deepVeinTiles;
+    // _veinHills CANNOT be re-derived (the terrain already flipped under it),
+    // so its membership rides along as a plain tile list and is rebuilt on load
+    // — otherwise cascadeStone stops counting after every reload.
     _deepSet: undefined, _veinHills: undefined,
+    veinHillTiles: state._veinHills instanceof Set ? Array.from(state._veinHills) : [],
   };
   try {
     localStorage.setItem(SAVE_KEY, JSON.stringify(s));
@@ -329,6 +345,10 @@ export function loadGame() {
     // reserves, so there is none to announce (the reserves stand as saved)
     s.deepVeinTiles ||= [];
     s.deepVeinFound ??= false;
+    // the cascade instrumentation set, rebuilt from its saved tile list
+    // (older saves start empty — their vein-hills are simply uncounted)
+    s._veinHills = new Set(s.veinHillTiles || []);
+    delete s.veinHillTiles;
     s.influence = new Float32Array(N * N);
     s.delta = { food: 0, wood: 0, stone: 0, ore: 0, iron: 0, bread: 0, gold: 0 };
     s.territoryDirty = true;
@@ -336,6 +356,7 @@ export function loadGame() {
     s.speed = Math.max(1, s.speed || 1);
     // saves from before the Three Crowns update
     s.crowns ||= { dominion: false, plenty: false, people: false };
+    s.crowns.ages ??= false;   // …and before the Fourth (the Crown of Ages)
     s.won ||= false;
     // saves from before the villager update: synthesize agents from the count
     if (!s.villagers) {

@@ -172,15 +172,17 @@ export class KingdomScene extends Phaser.Scene {
         // roads lie flat under everything else; buildings stand proud of their tile
         const flat = b.type === 'road' || b.type === 'bridge';
         img = this.add.image(0, 0, `b-${b.type}`).setDepth(flat ? 550 : 600 + b.y);
-        const size = b.type === 'keep' ? 16 : flat ? TILE : 12;
+        // Great Works stand monumental — near the keep's stature
+        const size = b.type === 'keep' ? 16 : BUILDINGS[b.type].greatWork ? 15 : flat ? TILE : 12;
         img.setDisplaySize(size, size);
         this.buildingSprites.set(b.id, img);
       }
       img.setPosition(b.x * TILE + TILE / 2, b.y * TILE + TILE / 2 - (b.type === 'road' || b.type === 'bridge' ? 0 : 2));
       // breached walls and silenced towers read as dark rubble; other damage
-      // tints red under half HP
+      // tints red under half HP; an unfinished Great Work wears scaffold-brown
       img.setTint(b.breached || (b.type === 'tower' && b.sacked) ? 0x6b5a4a
-        : b.hp < b.maxHp * 0.5 ? 0xff8877 : 0xffffff);
+        : b.hp < b.maxHp * 0.5 ? 0xff8877
+        : BUILDINGS[b.type].greatWork && !b.greatWorkDone ? 0xb59a72 : 0xffffff);
       img.setAlpha(state.claimed[idx(b.x, b.y)] ? 1 : 0.55);
     }
     for (const [id, img] of this.buildingSprites) {

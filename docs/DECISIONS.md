@@ -5,6 +5,81 @@ first within each section. For still-open questions see `OPEN-QUESTIONS.md`.
 
 ---
 
+## Session 9 — total dominion, review fixes, and the Great Works ladder (2026-08-30→31)
+
+- **Total dominion drives the camps from the land (Chandra's call).** Claiming
+  the whole map used to let the camp SQUAT inside the realm's borders and keep
+  raiding forever (`findCampSite` had an explicit squat-anywhere tier for a
+  fully-claimed world). Now: no unclaimed, reachable plains/forest anywhere →
+  **no site, no camp**. An existing camp whose ground is swallowed with nowhere
+  left to re-pitch **disbands entirely** — and the warlord takes his hoard WITH
+  him: driving him out by the border forfeits the ledger; taking it still
+  requires the march. No camp → no warlord waves, no tribute riders. A wave
+  mid-gathering scatters by the Session-8 invariant (never re-homes on an
+  edge). The **avenger DEFERS, never dissolves**: massacre ashes keep their
+  place and he returns only if the wilds ever reopen — so "one survivor always
+  returns" holds unless the player holds literally the whole map, which is the
+  earned exception. **Opportunist edge bands still slip in at full coverage** —
+  the 70/30 rule's 30% is load-bearing and was deliberately left untouched;
+  making total dominion mean total quiet is a separate decision nobody has made.
+- **The Ladder of Great Works SHIPPED — ENDGAME §4 built as drafted; the Last
+  Muster / rally banner deliberately NOT included** (the Session-5 army-as-
+  victory deferral stands: that half still needs its design session and must
+  not be patched in piecemeal). What shipped, and the calls made inside the
+  drafted shape:
+  - **Three tiers, ladder-gated** (`canPlace` refuses tier N+1 until tier N is
+    COMPLETE): Guildhall (500g total, 2 master slots, ~1 yr), Great Temple
+    (2,050g + all materials, 4 slots, ~2.3 yr clean), the High Seat (7,500g +
+    five-hoard draught incl. 1,200 bread, 6 slots, ~5 yr). `cost` is the
+    foundation paid at placement; `greatWork.stage` is the DRAUGHT hauled to
+    the site over the build (3× ahead of the burn rate) and sits there staged,
+    visible in the inspector, and lootable.
+  - **Masters staff the scaffold right after the watch**: towers first (the
+    sim2 rule stands), then the Work takes the realm's best hands before any
+    workshop — the economy visibly dips. Journeymen fill empty slots at half
+    pace; a no-master scaffold logs its ache once per stall.
+  - **A sack is a real wound with honest books**: 15% of built progress
+    undone, the sacker crams a DOUBLE pack from the staged piles (typed
+    lootBag — kill him on the way out and the gold comes back), and the haul
+    ledger backs off by everything destroyed so the realm hauls and pays for
+    it AGAIN. (First cut didn't back the ledger off — a sacked temple stalled
+    forever at 94%, measured; the fix is load-bearing.)
+  - **Collapse-safety, measured (ENDGAME §6 checks run):** a hungry realm does
+    not feed its stones — nothing is hauled while starving, and food/bread
+    stage only past a 4-food-eq-per-head larder floor. The UNDEFENDED
+    wonder-rush stays lethal by design: seed 7's bot (zero soldiers all run)
+    opted in and fell pop 851→1 to the waves it invited — that is the
+    jeopardy working, not a bug; the harness bot now opts in only when
+    defended (soldiers ≥ 4), and all four sweep seeds run healthy
+    (851/737/765/780 at 25 yrs; works-vs-control on seed 42: 737 vs 721).
+    Full ladder validated live under raids: Crown of Ages lands with 14 raids
+    weathered and 3 scaffold sacks re-hauled and overcome.
+  - **The Crown of Ages is the FOURTH crown, and victory still needs only the
+    original three** — "extends, not reopens": the victory scroll fires on
+    dominion+plenty+people as before; crowns keep landing after victory (the
+    Ages crown is usually won by a realm that already reigns), and the crown
+    panel shows the High Seat rising as its progress bar.
+  - **Rewards are prestige, never army power**: Guildhall — 1.5× skill-gain
+    aura within 9 tiles; Temple — +10 morale target while standing unsacked,
+    and each spring's festival clears raid-shock; High Seat — the Crown.
+    Provocation: staged piles count into prosperity (raid size follows the
+    wealth in the open) plus a per-tier `menace` weight (150/450/1000), and
+    an unfinished scaffold is the highest-value raid target on the field (6).
+  - **Kill gate unchanged (W1):** Chandra's playtest answers "did you feel
+    pull?" — the sim validated balance safety only; it cannot measure want.
+- **First-principles review fixes (batch, behavior corrections — they enforce
+  already-ratified rules, not new design):** "Dismiss soldier" can no longer
+  silently release a mercenary (refuses when no subject is eligible); unmanned
+  and battered-silent towers grant NO cover to soldiers (the sim2 "unstaffed
+  towers are inert" rule now applies to the wound roll, not just arrows);
+  stragglers wiped by the next wave's spawn pay their loot to the hoard
+  (nothing stolen is silently destroyed); a soldier falling at the camp counts
+  `veteransFallen`, and a fallen master counts `mastersLost` on both
+  battlefields; the `_veinHills` cascade instrumentation survives save/load;
+  `growthAcc` carries overflow; a raid that finds no target resets quietly
+  without a false "not a thing was lost" reckoning and keeps the last raid's
+  rubber-band mercy.
+
 ## Session 8 — loot justice, the warlord's retinue, and the depletion data (2026-08-17→18)
 
 - **March mid-massing and you fight the gathering at its TRUE size** (design

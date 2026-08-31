@@ -1,8 +1,8 @@
 import { MAP, T, TERRAIN_INFO, CAMP, COMBAT, SOLDIER, RAIDER, SKILL, ROAD_SPEED_MULT } from '../config.js';
 import { idx, inBounds } from './state.js';
 import { logEvent, emit } from './events.js';
-import { findPath, roadTiles, soldierSkill, quietGap } from './raids.js';
-import { makeVillager, killVillager } from './villagers.js';
+import { findPath, roadTiles, soldierSkill, soldierMaxHp, quietGap } from './raids.js';
+import { makeVillager, killVillager, isMaster } from './villagers.js';
 
 // ── The warlord's camp ─────────────────────────────────────────────
 // The warlord gets an ADDRESS: tents in the far wilds, folk who live there,
@@ -55,7 +55,9 @@ function claimedNear(state, x, y, r) {
 // REACHABLE ground — and never on ground the realm has claimed. No warlord
 // pitches tents inside another man's fence. Strictness relaxes in tiers:
 // ideally far enough out that his shadow doesn't even lap the border, then
-// merely-unclaimed, and only a fully-claimed world lets him squat anywhere.
+// merely-unclaimed. A world with NO wild ground left yields no site at all
+// (null): total dominion drives the camps from the land — callers disband,
+// defer, or simply found nothing until the wilds reopen.
 function findCampSite(state, keep, avoid) {
   const N = MAP.size;
   const corners = [[10, 10], [N - 11, 10], [10, N - 11], [N - 11, N - 11]];
@@ -67,11 +69,10 @@ function findCampSite(state, keep, avoid) {
     const d = Math.hypot(cx - keep.x, cy - keep.y);
     if (d > bd) { bd = d; best = [cx, cy]; }
   }
-  for (const buffer of [CAMP.shadowRadius, 0, -1]) {
+  for (const buffer of [CAMP.shadowRadius, 0]) {
     const siteOk = (x, y) => {
       const t = state.terrain[idx(x, y)];
       if (t !== T.PLAINS && t !== T.FOREST) return false;
-      if (buffer < 0) return true;
       if (state.claimed[idx(x, y)]) return false;
       return buffer === 0 || !claimedNear(state, x, y, buffer);
     };
@@ -98,7 +99,7 @@ function findCampSite(state, keep, avoid) {
     }
     if (anchor) return anchor;
   }
-  return { x: keep.x, y: keep.y - 8 };   // absolute last resort
+  return null;   // every wild corner lies inside the realm's fence
 }
 
 // tents ring the hall
@@ -125,6 +126,8 @@ export function ensureCamp(state, rand, opts = {}) {
   if (!keep) return null;
 
   const anchor = findCampSite(state, keep, opts.avoidXY);
+  // total dominion: no wild ground left anywhere — no camp can form
+  if (!anchor) return null;
 
   const name = opts.campName ||
     CAMP_NAMES[Math.floor(rand() * CAMP_NAMES.length)];
@@ -369,10 +372,10 @@ function campLife(state, c, rand) {
 function timers(state, c, rand) {
   // a camp standing on ground the realm has claimed strikes its tents and
   // moves deeper into the wilds (the site was claimed before the camp was
-  // founded, or the save predates the claim check). Never mid-expedition —
+  // founded, or the save predates the claim check) — or, when no wild ground
+  // is left anywhere, is driven from the land entirely. Never mid-expedition —
   // the host is marching on the old address. Ashes stay where they burned.
   if (!c.gone && !state.expedition && state.tick % 64 === 0 &&
-      state.tick >= (c.nextRelocateAt || 0) &&
       state.claimed[idx(Math.round(c.x), Math.round(c.y))]) {
     relocateCamp(state, c, rand);
   }
@@ -406,11 +409,20 @@ function timers(state, c, rand) {
     ensureCamp(state, rand, {
       warlordName: `Warlord ${name}`, avenger: true, avoidXY: burned,
     });
+    if (!state.camp) {
+      // total dominion: no wild ground to raise his banner on. The ashes keep
+      // their place and the avenger bides his time beyond the border — he
+      // comes only if the wilds ever reopen.
+      state.camp = c;
+      c.avengerAt = state.tick + 2000;
+      return;
+    }
     logEvent(state, `${name.toUpperCase()} HAS COME. He remembers the burning. He will take no gold.`, 'raid');
     emit('avenger-come', state.camp);
   }
-  // spared folk drift to your gates in the years after a punitive burning
-  if (c.settlersLeft > 0 && state.tick >= c.nextSettlerAt) {
+  // spared folk drift to your gates in the years after a punitive burning —
+  // but not from ashes: a later massacre ends the drift with everything else
+  if (!c.gone && c.settlersLeft > 0 && state.tick >= c.nextSettlerAt) {
     c.settlersLeft--;
     c.nextSettlerAt = state.tick + Math.floor(CAMP.settlerGapTicks * (1 + rand()));
     const v = makeVillager(state);
@@ -433,9 +445,12 @@ function relocateCamp(state, c, rand) {
   const keep = state.buildings.find((b) => b.type === 'keep');
   if (!keep) return;
   const site = findCampSite(state, keep, { x: c.x, y: c.y });
-  if (!site || state.claimed[idx(site.x, site.y)]) {
-    // no open ground left anywhere — don't rescan the whole map every check
-    c.nextRelocateAt = state.tick + 2000;
+  if (!site) {
+    // TOTAL DOMINION: the realm has swallowed every wild corner, and a camp
+    // cannot stand inside the fence. Driven from the land entirely — hoard
+    // and all. No new camp can form until the wilds reopen (findCampSite
+    // gates every founding), so raids fall back to opportunist edge bands.
+    disbandCamp(state, c);
     return;
   }
   const from = c.name;
@@ -467,6 +482,22 @@ function relocateCamp(state, c, rand) {
       : `Your border has swallowed the ground at ${from} — ${c.warlord.name} strikes his tents and raises them again, deeper in the wilds.`,
     'raid');
   emit('camp-moved', c);
+}
+
+// The realm owns every wild corner: there is no ground left to pitch tents on.
+// The camp is struck for good and its people quit the land — the warlord takes
+// his hoard with him (you drove him out; you did not take it). A wave that was
+// gathering here scatters by the standing invariant in raidTick (a camp gone
+// mid-gathering never re-homes on a map edge).
+function disbandCamp(state, c) {
+  state.camp = null;
+  state.campDirty = true;
+  logEvent(state,
+    c.unclaimed || !c.warlord.name
+      ? `The brigands of ${c.name} find no wild ground left in all the realm. They scatter and quit the land.`
+      : `${c.warlord.name} finds no wild ground left in all the realm. He strikes his tents and quits the land — hoard and all.`,
+    'good');
+  emit('camp-disbanded', c);
 }
 
 // ── The expedition ─────────────────────────────────────────────────
@@ -731,7 +762,7 @@ function battleTick(state, rand) {
       woundChance *= (1 - COMBAT.woundSkillReduce * skill);
       if (rand() < woundChance) {
         s.hp -= COMBAT.woundHp;
-        if (s.hp <= SOLDIER.hp * COMBAT.killWoundedFrac) {
+        if (s.hp <= soldierMaxHp(s) * COMBAT.killWoundedFrac) {
           let killChance = COMBAT.killChanceGood +
             (COMBAT.killChanceBad - COMBAT.killChanceGood) * forceRatio;
           killChance *= (1 - COMBAT.veteranKillResist * skill);
@@ -758,7 +789,11 @@ function battleTick(state, rand) {
     }
     const v = state.villagers.find((vl) => vl.id === s.villagerId);
     if (v) {
+      // the same reckoning as a death at home: a veteran counts as a veteran
+      // fallen, and a master's craft dies with them wherever they fall
+      const wasMaster = isMaster(v);
       state.stats.soldiersFallen++;
+      if (wasMaster) { state.stats.veteransFallen++; state.stats.mastersLost++; }
       killVillager(state, v);
       logEvent(state, `${v.name} falls before the tents of ${c.name}, far from home.`, 'bad');
     }

@@ -1,4 +1,4 @@
-import { SKILL, VILLAGER } from '../config.js';
+import { SKILL, VILLAGER, BUILDINGS } from '../config.js';
 import { roadTiles, marchOrStep, clearRoute } from './pathing.js';
 
 // Villagers are discrete agents: a job, a skill per craft, a stomach.
@@ -188,6 +188,11 @@ export function skillsTick(state) {
       }
     }
   }
+  // the Guildhall's shadow: a finished hall quickens the learning of every
+  // hand at work near it (the Great Work's prestige reward — never army power)
+  const gwHall = BUILDINGS.guildhall.greatWork;
+  const halls = state.buildings.filter(
+    (b) => b.type === 'guildhall' && b.greatWorkDone && b.hp > 0 && !b.sacked);
   for (const v of state.villagers) {
     if (v.job === 'idle') {
       for (const k of Object.keys(v.skills)) {
@@ -201,7 +206,12 @@ export function skillsTick(state) {
       if (masterTypes.has(v.workType)) v.skills[k] = Math.max(v.skills[k], SKILL.apprenticeFloor);
       else if (state.guilds.includes(v.workType)) v.skills[k] = Math.max(v.skills[k], SKILL.guildFloor);
     }
-    v.skills[k] = Math.min(SKILL.max, v.skills[k] + SKILL.gainPerTick);
+    let gain = SKILL.gainPerTick;
+    if (halls.length && v.x != null &&
+        halls.some((h) => Math.hypot(h.x - v.x, h.y - v.y) <= gwHall.auraRadius)) {
+      gain *= gwHall.auraSkillMult;
+    }
+    v.skills[k] = Math.min(SKILL.max, v.skills[k] + gain);
   }
 }
 

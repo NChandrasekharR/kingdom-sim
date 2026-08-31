@@ -151,7 +151,9 @@ function followRoute(state, u, tx, ty, baseSpeed, roads, budget) {
     const ogx = u.routeGoal % N, ogy = (u.routeGoal / N) | 0;
     if (Math.abs(ogx - gx) + Math.abs(ogy - gy) > REROUTE_GOAL_DRIFT) ok = false;
   }
-  // a wall thrown up across the next step (or a bridge burned) invalidates it
+  // a bridge burned out from under the next step invalidates the route. Your
+  // own walls never bar your own folk — they pass as if through gates
+  // (findPath only PENALIZES wall tiles, steering fresh routes around them).
   if (ok && !walkableTile(state, roads, u.route[u.routeI])) ok = false;
 
   if (!ok) {

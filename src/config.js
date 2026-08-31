@@ -102,6 +102,56 @@ export const BUILDINGS = {
     name: 'Barracks', desc: 'Trains soldiers (4 per barracks).',
     cost: { wood: 30, stone: 20, iron: 8 }, hp: 90, workers: 0, influence: 3,
   },
+  // ── The Ladder of Great Works (design/ENDGAME.md §4) ─────────────
+  // The pull: an ambition the player authors. `cost` is the FOUNDATION, paid
+  // at placement; the DRAUGHT (`greatWork.stage`) is hauled to the site over
+  // the build and sits there, lootable. Masters raise it — their workshops go
+  // quiet, the visible dip — and journeymen fill empty slots at half pace.
+  // Rewards are prestige-forward, never army power; the rising Work is a
+  // provocation by design (`menace` feeds prosperity, which feeds raid size).
+  // Costs calibrated against the post-boom economy (seed 42 yr 12: pop 375,
+  // gold 18k) — total gold per tier: 500 / 2,050 / 7,500.
+  guildhall: {
+    name: 'Guildhall', desc: 'The first Great Work. Masters raise it, and skill quickens for all who work in its shadow. A beacon to rebuild by.',
+    cost: { wood: 80, stone: 60, gold: 100 }, hp: 120, workers: 0, unique: true, influence: 6,
+    greatWork: {
+      tier: 1, masterSlots: 2, workTicks: 480,
+      stage: { gold: 400, wood: 220, stone: 140 },
+      menace: 150, auraRadius: 9, auraSkillMult: 1.5,
+      completeLog: 'THE GUILDHALL STANDS. The crafts have a home — skill quickens in its shadow.',
+    },
+  },
+  temple: {
+    name: 'Great Temple', desc: 'A wonder in stone and gold. Festivals lift the realm’s heart — and word of what is piled here travels far.',
+    cost: { wood: 120, stone: 150, gold: 250 }, hp: 160, workers: 0, unique: true, influence: 9,
+    greatWork: {
+      tier: 2, requires: 'guildhall', masterSlots: 4, workTicks: 1100,
+      stage: { gold: 1800, wood: 600, stone: 900, iron: 120, bread: 250 },
+      menace: 450, moraleBonus: 10,
+      completeLog: 'THE GREAT TEMPLE STANDS. Bells ring across the realm.',
+    },
+  },
+  highseat: {
+    name: 'The High Seat', desc: 'A throne to outlast its kings. Its completion is the Crown of Ages — and every warlord alive will know what it cost.',
+    cost: { wood: 200, stone: 300, gold: 500 }, hp: 220, workers: 0, unique: true, influence: 12,
+    greatWork: {
+      tier: 3, requires: 'temple', masterSlots: 6, workTicks: 2400,
+      stage: { gold: 7000, wood: 1500, stone: 2500, iron: 500, bread: 1200 },
+      menace: 1000,
+      completeLog: 'THE HIGH SEAT STANDS. Kings will sit it long after the chronicles forget their names.',
+    },
+  },
+};
+
+// ── Great Works shared knobs ───────────────────────────────────────
+export const GREAT_WORK = {
+  stageLead: 3,           // hauling runs this multiple ahead of the build's burn rate
+  journeymanRate: 0.5,    // a non-master on the scaffold works at half a master's pace
+  sackSetbackFrac: 0.15,  // share of built progress undone when the scaffold is sacked
+  // collapse-safety (ENDGAME §6, measured: unguarded staging starved seed 7
+  // from pop 851 to FALLEN): food and bread flow to the scaffold only past
+  // this per-head comfort floor — the famine reserve is not building material
+  larderFloorPerPop: 4,   // food-eq per head kept back from the scaffold (~100 ticks' eating)
 };
 
 // watchmen are posted before the fields are filled (sim2: unstaffed towers are

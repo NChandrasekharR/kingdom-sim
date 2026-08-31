@@ -1,4 +1,4 @@
-import { MAP, T, TERRAIN_INFO, BUILDINGS, RAIDER, RAID, SOLDIER, ROAD_SPEED_MULT, KEEP, COMBAT, SKILL, MERCENARY, HUNT, TRIBUTE, CAMP } from '../config.js';
+import { MAP, T, TERRAIN_INFO, BUILDINGS, RAIDER, RAID, SOLDIER, ROAD_SPEED_MULT, KEEP, COMBAT, SKILL, MERCENARY, HUNT, TRIBUTE, CAMP, GREAT_WORK } from '../config.js';
 import { idx } from './state.js';
 import { prosperity } from './economy.js';
 import { logEvent, emit } from './events.js';
@@ -76,7 +76,9 @@ export function raidTick(state, rand) {
       if (wantWarlord) {
         ensureCamp(state, rand);
         if (state.camp?.unclaimed) claimCampByWarlord(state);
-        if (!warlordAvailable(state)) wantWarlord = false;   // camp broken/leaderless/ashes
+        // no camp could form (total dominion — no wild ground): no warlord
+        // marches; otherwise broken/leaderless/ashes downgrade the wave as before
+        if (!state.camp || !warlordAvailable(state)) wantWarlord = false;
       }
       raid.incomingWarlord = wantWarlord;
       if (wantWarlord && state.camp?.avenger) {
@@ -195,6 +197,11 @@ function spawnRaid(state, rand) {
   // a straggling warlord still walking home when the next wave forms simply
   // arrives (his body would be wiped with the old raider list)
   if (raid.raiders.some((rd) => rd.warlord)) warlordReturned(state);
+  // and stragglers slip away as the new wave forms: their plunder reaches the
+  // hoard like any escaped raider's — nothing stolen is ever silently destroyed
+  for (const rd of raid.raiders) {
+    if (rd.hp > 0 && rd.loot > 0) addPlunder(state, rd.loot);
+  }
 
   // spawn point: waves the camp was massing (and every warlord host) march
   // FROM THE CAMP — you can watch the road. The rest slip in from a random
@@ -263,7 +270,18 @@ function spawnRaid(state, rand) {
       }
     }
   }
-  if (!raid.raiders.length) { endRaid(state, rand); return; }
+  if (!raid.raiders.length) {
+    // nothing worth sacking, or no way in: no raid ever forms. Reset to quiet
+    // without the reckoning line ("not a thing was lost" for a raid that never
+    // was), and keep the LAST raid's rubber-band mercy instead of zeroing it.
+    raid.phase = 'quiet';
+    raid.stage = null;
+    raid.nextFromCamp = undefined;
+    raid.timer = quietGap(state, rand, raid.lastSacked || 0);
+    clearMassing(state);
+    logEvent(state, 'The raiders find nothing worth the taking and melt back into the wilds.', 'info');
+    return;
+  }
   raid.phase = 'active';
   state.stats.raids++;
   if (isWarlord) state.stats.warlords++;
@@ -277,6 +295,9 @@ function spawnRaid(state, rand) {
 
 function pickTarget(state, rand) {
   const value = (b) => {
+    // a Great Work is the richest prize on the field: a scaffold with its
+    // staged draught above all (loot AND setback), a finished wonder close behind
+    if (BUILDINGS[b.type].greatWork) return b.greatWorkDone ? 4 : 6;
     if (b.type === 'market') return 6;
     if (b.type === 'keep') return 5;
     if (b.type === 'smelter' || b.type === 'bakery') return 4;
@@ -337,6 +358,9 @@ function updateRaiders(state, rand) {
         // for home too rather than linger leaderless
         if (rd.sworn) { if (!warlord) startFlee(state, rd); continue; }
         rd.mode = 'loot';
+        // a raider spawned on his target's doorstep (empty path) still starts
+        // the pillaging clock — otherwise only the 3× backstop ends the raid
+        if (!raid.lootStartTick) raid.lootStartTick = state.tick;
         continue;
       }
       if (rd.mode === 'march' && rd.pathI >= rd.path.length - 1 && !raid.lootStartTick) {
@@ -410,6 +434,38 @@ function updateRaiders(state, rand) {
           if (target.type === 'keep') {
             state.stats.keepFalls++;
             keepDarkAge(state, rand);
+          } else if (BUILDINGS[target.type].greatWork && !target.greatWorkDone) {
+            // the scaffold burns: a share of the built work is undone, and the
+            // sacker crams his pack from the staged draught — typed, so killing
+            // him on the way out wins the very gold and stone back
+            const gw = BUILDINGS[target.type].greatWork;
+            const dP = (target.progress || 0) * GREAT_WORK.sackSetbackFrac;
+            const undone = Math.round((dP / gw.workTicks) * 100);
+            target.progress = (target.progress || 0) - dP;
+            // what burns must be BOUGHT AGAIN: the haul ledger backs off by the
+            // destroyed work's materials, or the build stalls forever a few
+            // percent short (hauling stops the moment the ledger reads \"delivered\")
+            target.stagedIn ||= {};
+            for (const [r, total] of Object.entries(gw.stage)) {
+              target.stagedIn[r] = Math.max(0, (target.stagedIn[r] || 0) - (total / gw.workTicks) * dP);
+            }
+            let room = Math.max(0, RAIDER.lootCap * 2 - rd.loot);   // the haul of a lifetime
+            for (const r of Object.keys(target.staged || {})) {
+              if (room <= 0) break;
+              const take = Math.min(target.staged[r], room);
+              if (take <= 0) continue;
+              target.staged[r] -= take;
+              target.stagedIn[r] = Math.max(0, (target.stagedIn[r] || 0) - take);
+              rd.loot += take; room -= take;
+              rd.lootBag[r] = (rd.lootBag[r] || 0) + take;
+              if (raid.tally) raid.tally.loot += take;
+            }
+            state.stats.worksSacked = (state.stats.worksSacked || 0) + 1;
+            logEvent(state, `The scaffold of the ${BUILDINGS[target.type].name} burns! ${undone > 0 ? `${undone}% of the work is undone` : 'The work is set back'} — and the staged draught is plundered.`, 'raid');
+            state.raidShock = Math.min(40, state.raidShock + 12);
+            // the unified death rule holds on the scaffold too: the crew
+            // scatters for the keep — nobody dies at their post
+            for (const v of [...(target.workers || [])]) ejectVillager(v);
           } else {
             const watchman = target.type === 'tower' ? target.workers?.[0] : null;
             logEvent(state, watchman
@@ -608,6 +664,11 @@ export function soldierSkill(state, s) {
   return v?.skills.soldier || 0;
 }
 
+// max HP of a fighter: a mercenary carries their own ceiling. Equal to a
+// soldier's today, but the retreat/heal/kill thresholds should not silently
+// skew if MERCENARY.hp is ever tuned apart from SOLDIER.hp.
+export function soldierMaxHp(s) { return s.merc ? MERCENARY.hp : SOLDIER.hp; }
+
 // at most this many fresh A* routes per tick, per unit class — routes are
 // cached, so steady state costs nothing and only reshuffles pay
 const SOLDIER_PATH_BUDGET = 6;
@@ -620,7 +681,12 @@ function updateSoldiers(state, rand) {
   for (const b of state.buildings) {
     if ((b.type === 'road' || b.type === 'bridge') && b.hp > 0) roads.add(idx(b.x, b.y));
     const def = BUILDINGS[b.type];
-    if (b.hp > 0 && def.range && def.arrowDmg) defenders.push(b);
+    if (b.hp <= 0 || !def.range || !def.arrowDmg) continue;
+    // cover comes only from towers that actually shoot (same gate as
+    // updateTowers): an unmanned or battered-silent tower shields nobody
+    if (def.workers > 0 && !(b.assigned > 0)) continue;
+    if (b.type === 'tower' && b.sacked) continue;
+    defenders.push(b);
   }
   const liveRaiders = state.raid.raiders.filter((r) => r.hp > 0);
   // the army HOLDS its ground: it only engages raiders on or near claimed land
@@ -683,14 +749,14 @@ function updateSoldiers(state, rand) {
     // the death.) This is how a veteran corps SURVIVES a long war of attrition.
     const sSkill = soldierSkill(state, s);
     const retreating = !state.raid.keepBesieged &&
-      s.hp < SOLDIER.hp * COMBAT.retreatBelowFrac && sSkill >= COMBAT.retreatSkillGate;
+      s.hp < soldierMaxHp(s) * COMBAT.retreatBelowFrac && sSkill >= COMBAT.retreatSkillGate;
     if (retreating && keep) {
       // a long fall-back is a march: take the road home
       marchOrStep(state, s, keep.x, keep.y + 3, SOLDIER.speed, roads, pathBudget);
       // mend faster once clear of the fray (out of local danger)
       let localGang = 0;
       for (const rd of engageable) { if (Math.hypot(rd.x - s.x, rd.y - s.y) < 1.6) localGang++; }
-      if (localGang === 0) s.hp = Math.min(SOLDIER.hp, s.hp + 0.8);
+      if (localGang === 0) s.hp = Math.min(soldierMaxHp(s), s.hp + 0.8);
       continue;
     }
 
@@ -744,7 +810,7 @@ function updateSoldiers(state, rand) {
           // KILL only a badly-wounded soldier, and the odds scale with conditions:
           // good ground (outnumbering, covered) → survivable; bad → lethal. A
           // veteran's experience makes them harder to finish off.
-          if (s.hp <= SOLDIER.hp * COMBAT.killWoundedFrac) {
+          if (s.hp <= soldierMaxHp(s) * COMBAT.killWoundedFrac) {
             let killChance = COMBAT.killChanceGood +
               (COMBAT.killChanceBad - COMBAT.killChanceGood) * forceRatio;
             killChance *= (1 - COMBAT.veteranKillResist * skill);
@@ -775,7 +841,7 @@ function updateSoldiers(state, rand) {
       // drift back to a rally point by the keep
       const rx = keep.x + (s.id % 3) - 1, ry = keep.y + 2 + ((s.id / 3) | 0) % 2;
       marchOrStep(state, s, rx, ry, SOLDIER.speed, roads, pathBudget);
-      s.hp = Math.min(SOLDIER.hp, s.hp + 0.4); // rest and mend wounds between raids
+      s.hp = Math.min(soldierMaxHp(s), s.hp + 0.4); // rest and mend wounds between raids
     }
   }
   // a fallen soldier is a fallen villager — their skills fall with them. A
@@ -792,6 +858,8 @@ function updateSoldiers(state, rand) {
       const wasMaster = isMaster(vet);
       state.stats.soldiersFallen++;
       if (wasMaster) state.stats.veteransFallen++;
+      // a fallen master is a master lost, same as starvation and the hunt
+      if (wasMaster) state.stats.mastersLost++;
       if (state.raid.tally) state.raid.tally.soldiersLost++;
       killVillager(state, vet);
       logEvent(state, wasMaster
@@ -946,18 +1014,15 @@ export function dismissSoldier(state) {
   // civilians — re-mustering them later costs nothing (the iron was paid once),
   // and they eat like a citizen until called again. Soldiers afield with the
   // expedition can't be reached — and a man marked by the burning REFUSES.
-  const home = [...state.soldiers].reverse().filter((so) => !so.exp);
+  const home = [...state.soldiers].reverse().filter((so) => !so.exp && !so.merc);
   const s = home.find((so) => {
-    if (so.merc) return false;
     const v = state.villagers.find((vl) => vl.id === so.villagerId);
     return !v?.marked;
-  }) || home[home.length - 1];
-  if (!s) return { ok: false, reason: 'No soldiers to dismiss' };
-  if (!s.merc) {
-    const mv = state.villagers.find((vl) => vl.id === s.villagerId);
-    if (mv?.marked) {
-      return { ok: false, reason: `${mv.name} will not stand down — not since the burning.` };
-    }
+  }) || home[home.length - 1];   // all marked: fall through so the refusal names the man
+  if (!s) return { ok: false, reason: 'No subject under arms to dismiss' };
+  const mv = state.villagers.find((vl) => vl.id === s.villagerId);
+  if (mv?.marked) {
+    return { ok: false, reason: `${mv.name} will not stand down — not since the burning.` };
   }
   const i = state.soldiers.indexOf(s);
   const vet = state.villagers.find((v) => v.id === s.villagerId);

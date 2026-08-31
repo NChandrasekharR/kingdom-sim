@@ -84,7 +84,7 @@ export function populationTick(state) {
         Math.max(0, GROWTH.surplusScale * (foodPerCap / GROWTH.surplusTarget - 1)));
       state.growthAcc += (GROWTH.base + state.morale / GROWTH.moraleBonus) * abundance;
       if (state.growthAcc >= 1) {
-        state.growthAcc = 0;
+        state.growthAcc -= 1;   // carry the overflow — boom-times shouldn't drop it
         const v = makeVillager(state);
         state.villagers.push(v);
         state.stats.villagersBorn++;
@@ -106,6 +106,10 @@ export function populationTick(state) {
   if (state.ateBread || state.res.bread * 2 >= state.pop) target += 8;
   const churches = state.buildings.filter((b) => b.type === 'church' && b.hp > 0).length;
   target += Math.min(churches * 6, 18);
+  // the Great Temple lifts the realm's heart while it stands unsacked
+  if (state.buildings.some((b) => b.type === 'temple' && b.greatWorkDone && b.hp > 0 && !b.sacked)) {
+    target += BUILDINGS.temple.greatWork.moraleBonus;
+  }
   const stock = state.res.food + state.res.bread * 2;
   if (stock > state.pop * 3) target += 5;
   if (state.starving) target -= 28;
