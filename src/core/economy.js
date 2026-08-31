@@ -189,10 +189,27 @@ export function economyTick(state) {
   }
   const pool = state.villagers.filter((v) => v.job !== 'soldier' && !v.fleeing);
 
-  // 1. builders: enough hands to work through everything below the threshold
+  // 1. builders: enough hands to work through everything below the threshold —
+  // but the draft is MATERIAL-GATED: repairs burn wood AND stone per HP, so
+  // with either stockpile empty a big draft is a phantom mob milling at the
+  // ruins while the farms stand empty (Aldermere fell to this: ~36 hands at
+  // 72 wrecks with stone at 0, 142 starved — OPEN-QUESTIONS Session 9).
+  // Conscript only as many hands as the stores can actually employ this tick.
   const needRepair = state.buildings.filter(
     (b) => b.hp > 0 && b.hp < b.maxHp * HP.maintenanceThreshold);
-  const buildersWanted = Math.min(pool.length, Math.ceil(needRepair.length / 2));
+  const materialHeal = Math.min(
+    state.res.wood / HP.repairWoodPerHp,
+    state.res.stone / HP.repairStonePerHp);
+  const employable = Math.floor(materialHeal / HP.repairPerBuilderTick);
+  const buildersWanted = Math.min(pool.length, Math.ceil(needRepair.length / 2), employable);
+  // practiced builders first (their repairs go furthest), then the LEAST
+  // skilled hands — never the master farmer for hod-carrying. (The old
+  // splice(0,N) drafted by creation order: the eldest, most-skilled first.)
+  if (buildersWanted > 0) {
+    pool.sort((a, b) =>
+      (b.skills.builder || 0) - (a.skills.builder || 0) ||
+      bestSkill(a) - bestSkill(b));
+  }
   const builders = pool.splice(0, buildersWanted);
   for (const v of builders) v.job = 'builder';
 
