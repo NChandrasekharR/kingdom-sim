@@ -1,7 +1,7 @@
 import { BUILDINGS, WORK_PRIORITY, WINTER_FARM_MULT, HP, SKILL, FOREST, DEPOSITS, T, MAP, GREAT_WORK } from '../config.js';
 import { idx, stoneTileStock, demolish } from './state.js';
 import { currentSeason } from './sim.js';
-import { logEvent, emit } from './events.js';
+import { logEvent, emit, journal } from './events.js';
 import { bestSkill, isMaster } from './villagers.js';
 
 // ── The ground is finite ───────────────────────────────────────────
@@ -351,7 +351,13 @@ export function greatWorksTick(state) {
     for (const [r, total] of Object.entries(gw.stage)) {
       b.staged[r] = Math.max(0, (b.staged[r] || 0) - (total / gw.workTicks) * rate);
     }
+    // quarter-marks in the journal: the Work's rise reads back as a story
+    const q0 = Math.floor(((b.progress) / gw.workTicks) * 4);
     b.progress += rate;
+    const q1 = Math.floor((b.progress / gw.workTicks) * 4);
+    if (q1 > q0 && q1 < 4) {
+      journal(state, `The ${BUILDINGS[b.type].name} rises — ${q1 * 25}% built.`, 'good');
+    }
 
     // half-a-tick tolerance: the staged draught totals EXACTLY the build's
     // consumption, so demanding the full count makes the last crumb of

@@ -1,6 +1,6 @@
 import { BUILDINGS, EAT_PER_POP, SOLDIER_EAT_MULT, GROWTH_FLOOR, STARVE_DEATH_HUNGER, GROWTH, FOOD } from '../config.js';
 import { idx } from './state.js';
-import { logEvent } from './events.js';
+import { logEvent, journal } from './events.js';
 import { makeVillager, killVillager, skillsTick } from './villagers.js';
 
 export function populationTick(state) {
@@ -88,6 +88,8 @@ export function populationTick(state) {
         const v = makeVillager(state);
         state.villagers.push(v);
         state.stats.villagersBorn++;
+        // every birth goes in the journal; the chronicle only marks milestones
+        journal(state, `${v.name} is born — ${state.villagers.length} souls now.`, 'people');
         if (state.villagers.length % 5 === 0) {
           logEvent(state, `The kingdom grows — ${state.villagers.length} souls now call it home.`, 'good');
         }

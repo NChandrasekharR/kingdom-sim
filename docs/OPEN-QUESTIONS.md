@@ -263,3 +263,64 @@ session or a call):
 5. **Typed camp hoard** — should the warlord's ledger hold typed goods the way
    raiders' bags now do, rather than an undifferentiated `plunder` number? A
    small call. **Pushed by Chandra this session.**
+
+---
+
+## Session 9 (2026-08-30→31) — what shipped and what the first real reign found
+
+*(Pickup point. Shipped on `main` (`c8f0feb`, `66652f9`): the first-principles
+review fixes, total dominion drives the camps from the land, and the Great
+Works ladder + Crown of Ages — full record in `DECISIONS.md` Session 9. NOT
+yet deployed. Then Chandra played the first human reign carrying Sessions 8-9:
+Aldermere, FALLEN year 11.4 — famine 142, hunted 3, Guildhall completed and
+never sacked. The telemetry produced these findings.)*
+
+**OPEN — from the Aldermere reign, in priority order:**
+
+1. **THE PHANTOM REPAIR DRAFT (bug, diagnosed, unfixed).** The builder draft
+   (`economy.js` economyTick) conscripts `ceil(damaged/2)` hands from damage
+   COUNT alone — but `maintenanceTick` heals `min(labor, wood, STONE)`, so at
+   stone 0 repairs are impossible while the draft keeps pulling workers every
+   tick. Aldermere end-state: 50 sacked buildings + 22 breached walls ≈ 36
+   villagers milling at ruins doing nothing, farms unstaffed, 142 starved.
+   Worse, the draft is `pool.splice(0, N)` — creation order, i.e. the OLDEST
+   (most-skilled) villagers first. Fix designed: material-gate the draft
+   (stone 0 → draft ~nobody) + take least-skilled first. Needs a before/after
+   collapse sweep before it lands.
+2. **WALLS — the Session-4 watch item is now CONFIRMED with a diagnosis**
+   (Ravensholt 38 breaches, Aldermere 22). What walls actually do: +30 path
+   cost (steering) and stall-time under arrows. What they don't do: anything
+   for soldiers — no cover, no positioning; the army always fights in the
+   open even on 'hold'. A perimeter circuit is the worst use (no way around →
+   every wave batters → breaches feed the repair draft above). Correct play
+   today: short chokepoint segments inside a MANNED tower's range + a
+   deliberate gate corridor into the kill-zone. The design gap is a soldiers×
+   walls interaction — candidate: a "battlements" wound-reduction beside an
+   intact wall, mirroring tower cover. **Take to the Great Works summit with
+   the banner post** (walls channel, towers kill, the banner anchors — the
+   missing third is positioning), per the no-piecemeal army rule.
+3. **Military pressure is invisible.** Raid size = base + prosperity/350 +
+   soldiers × 0.4 (mercs count; MILITIA DON'T). Standing the army down between
+   waves genuinely shrinks the next wave — a real strategic loop the game
+   never states. Candidate: one steward JIT line when the army first tops ~10.
+4. **Bakery throughput at scale.** Aldermere rotted 24,218 food with bread at
+   0 — a designer-player, post-eat-order-fix. Question: is conversion (0.4/
+   tick/bakery) simply too weak to matter at pop 150+, or did the incentive
+   (moldy chip, one steward line) fail to land? Sim-sweepable: bakeries
+   needed to convert a pop-150 surplus before it rots.
+5. **Great Works early read (n=1): pull confirmed at tier 1.** Guildhall
+   built unprompted, completed, never sacked, didn't cause the collapse.
+   Temple untested (reign ended first). Tribute, expeditions, massacre still
+   human-untested. `cascadeStone: 192` — first live evidence the ORE→HILLS
+   cascade gets quarried.
+
+**SHIPPED right after the reign (this session): the full-run journal +
+`kingdom.export()`** — every chronicle line of the whole reign plus journal-
+only detail (births, trades, death sites, Work milestones), exported as a
+text file grouped by year and season with the run summary appended. Built as
+the playtest-telemetry answer to "the Chronicle only remembers 120 lines."
+
+**STANDING (carried):** the long playtest continues (now with export
+telemetry), onboarding kill gate, Great Works summit (agenda grew: rally
+banner + Last Muster + battlements + steward military-pressure line),
+steward Q4, typed camp hoard, REAVING §11 questions.

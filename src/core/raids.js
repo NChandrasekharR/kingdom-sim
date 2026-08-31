@@ -641,7 +641,8 @@ function resolveHunt(state, rand) {
       state.raidShock = Math.min(40, state.raidShock + 4);
       logEvent(state, wasMaster
         ? `${prey.name}, a master of the craft, was run down by ${rd.name}. The knowledge dies too.`
-        : `${prey.name} was run down in the open by ${rd.name}.`, 'bad');
+        : `${prey.name} was run down in the open by ${rd.name}.`, 'bad',
+        `(at ${Math.round(prey.x)}, ${Math.round(prey.y)})`);
     } else {
       // escaped by a hair — a burst of terror-speed toward the keep
       ejectVillager(prey);
@@ -864,7 +865,8 @@ function updateSoldiers(state, rand) {
       killVillager(state, vet);
       logEvent(state, wasMaster
         ? `${vet.name}, a veteran of many battles, fell defending the realm.`
-        : `${vet.name} fell in battle.`, 'bad');
+        : `${vet.name} fell in battle.`, 'bad',
+        `(at ${Math.round(s.x)}, ${Math.round(s.y)})`);
     }
   }
   state.soldiers = state.soldiers.filter((s) => s.hp > 0);

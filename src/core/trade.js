@@ -1,5 +1,5 @@
 import { RES_INFO, MERCHANT, TRADE_CAP, ROAD_MERCHANT_FACTOR } from '../config.js';
-import { logEvent, emit } from './events.js';
+import { logEvent, emit, journal } from './events.js';
 
 const TRADABLE = ['food', 'wood', 'stone', 'ore', 'iron', 'bread'];
 
@@ -54,6 +54,7 @@ export function sell(state, r, qty) {
   const gain = sellPrice(state, r) * qty;
   state.res[r] -= qty;
   state.res.gold += gain;
+  journal(state, `Sold ${qty} ${r} to the caravan for ${Math.round(gain)} gold.`, 'trade');
   // flooding the market drops the price
   m.prices[r] *= Math.max(0.55, 1 - qty * 0.006);
   return true;
@@ -75,6 +76,7 @@ export function buy(state, r, qty) {
   state.res[r] += qty;
   m.bought = (m.bought || 0) + qty;
   state.stats.goodsBought = (state.stats.goodsBought || 0) + qty;
+  journal(state, `Bought ${qty} ${r} from the caravan for ${Math.round(cost)} gold.`, 'trade');
   m.prices[r] *= 1 + qty * 0.004;
   return true;
 }

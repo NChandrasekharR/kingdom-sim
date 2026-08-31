@@ -108,6 +108,7 @@ export function createState(seed = (Math.random() * 1e9) | 0) {
     // `bought` = goods bought THIS visit, against the caravan's cart capacity
     merchant: { status: 'away', timer: 160, prices: {}, visits: 0, bought: 0 },
     log: [],
+    journal: [],   // the full-run record behind kingdom.export() — see events.js
     // lifetime run stats — for the end-of-run summary (dumpStats)
     stats: {
       peakPop: 6, peakTerritory: 0,
@@ -371,6 +372,8 @@ export function loadGame() {
       }
     }
     s.guilds ||= [];
+    // saves from before the journal: the record starts from here
+    s.journal ||= [];
     // saves from before per-body loot: a mid-raid raider carries an empty bag
     if (s.raid?.raiders) for (const rd of s.raid.raiders) rd.lootBag ??= {};
     // saves from before the warlord's camp

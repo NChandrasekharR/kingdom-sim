@@ -83,9 +83,44 @@ export function makeSim(state) {
   };
 }
 
+// ── The full chronicle as a text file — kingdom.export() ──────────
+// Every journal entry of the reign, grouped by year and season, with the run
+// summary appended. Returns the text; main.js wraps it in a browser download.
+export function exportChronicle(state) {
+  const years = (state.tick / (SEASON_TICKS * 4)).toFixed(1);
+  const outcome = state.pop <= 1 ? 'FALLEN' : state.won ? 'VICTORIOUS' : 'reigning';
+  const lines = [
+    `⚜ THE CHRONICLE OF ${state.name.toUpperCase()}`,
+    `seed ${state.seed} · ${years} years reigned · ${outcome} · ${state.pop} souls · tick ${state.tick}`,
+  ];
+  if (state._journalLost) {
+    lines.push(`(the earliest pages are lost — the journal keeps the most recent entries only)`);
+  }
+  let head = '';
+  for (const e of state.journal || []) {
+    const h = `Year ${1 + Math.floor(e.tick / (SEASON_TICKS * 4))} · ${SEASONS[Math.floor(e.tick / SEASON_TICKS) % 4]}`;
+    if (h !== head) {
+      head = h;
+      lines.push('', `── ${h} ${'─'.repeat(Math.max(1, 42 - h.length))}`);
+    }
+    const tag = (e.kind === 'info' || e.kind === 'detail') ? '' : `[${e.kind}]`;
+    lines.push(`  t${String(e.tick).padStart(6)}  ${tag.padEnd(9)} ${e.text}`);
+  }
+  lines.push('', `── THE RECKONING ${'─'.repeat(26)}`, JSON.stringify(runSummary(state), null, 2), '');
+  return lines.join('\n');
+}
+
 // Console dump of the run so far — the playtest telemetry. Call kingdom.summary()
 // from the console (wired in main.js), or it fires automatically on collapse.
 export function dumpStats(state) {
+  const summary = runSummary(state);
+  // eslint-disable-next-line no-console
+  console.log('%c⚜ ' + state.name + ' — run summary', 'font-weight:bold;font-size:14px', summary);
+  return summary;
+}
+
+// the summary object itself, pure — shared by dumpStats and exportChronicle
+export function runSummary(state) {
   const s = state.stats;
   const years = (state.tick / (SEASON_TICKS * 4)).toFixed(1);
   const sizes = s.raidSizes;
@@ -138,7 +173,5 @@ export function dumpStats(state) {
     cascadeStone: Math.round(s.cascadeStone || 0),
     tribute: { paid: s.tributesPaid || 0, gold: Math.round(s.tributeGold || 0), appetite: state.tributeAppetite || 0 },
   };
-  // eslint-disable-next-line no-console
-  console.log('%c⚜ ' + state.name + ' — run summary', 'font-weight:bold;font-size:14px', summary);
   return summary;
 }
