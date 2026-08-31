@@ -106,7 +106,7 @@ Every post has an image. Re-render any of them with
 
 | Post | File | What it shows |
 |---|---|---|
-| 1 | `out/kingdom-teaser.mp4` | the teaser video (unchanged) |
+| 1 | `out/kingdom-teaser-music.mp4` | **the teaser WITH the chiptune soundtrack** (preferred); silent original at `out/kingdom-teaser.mp4` |
 | 2 | `post-02-souls.png` | named souls + two chronicle lines (teaser frame 270) |
 | 3 | `still-hp.png` | output IS hit points; sack-never-raze |
 | 4 | `post-04-enemy.png` | the host marching on the camp (teaser frame 1020) |
