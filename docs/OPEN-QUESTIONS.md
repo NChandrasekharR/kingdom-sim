@@ -343,7 +343,25 @@ only detail (births, trades, death sites, Work milestones), exported as a
 text file grouped by year and season with the run summary appended. Built as
 the playtest-telemetry answer to "the Chronicle only remembers 120 lines."
 
+**THE EASTWOLD REIGN (second human victory, on the live build — the
+findings harden):** all four crowns in 22.7 years (4 faster than Wolfsden),
+0 buildings sacked, 1 civilian hunted, K/D 10.63, ZERO mercenaries (a full
+levy doctrine — 284 musters/76 stand-downs, funded by 265 heriot iron and
+4,456g of ore imports through 35 spent veins). Confirmations: **masters
+inflation now has an inflection point** (census: 20→52 masters the year the
+Guildhall stood; ended 75% again — the aura is the lever); **tribute is at
+zero across THREE reigns** — certifiably dead content; **the provocation has
+never landed** (worksSacked 0 across two complete ladders); and the
+difficulty ceiling question is now sharp — this player beats the game
+faster each reign. All to the summit. Also: the journal caught the
+corner-massacre stall live (fixed + deployed same day — see DECISIONS), and
+the coprime names verified in production (52 true life arcs, 0 collisions
+vs Wolfsden's 89 phantoms). Six unplayed styles cataloged in the Session-9
+transcript — the **Danegeld King** first (the only run that would generate
+tribute data).
+
 **STANDING (carried):** the long playtest continues (now with export
 telemetry), onboarding kill gate, Great Works summit (agenda grew: rally
-banner + Last Muster + battlements + steward military-pressure line),
+banner + Last Muster + battlements + steward military-pressure line + the
+dead-tribute question + aura-vs-masters + the difficulty ceiling),
 steward Q4, typed camp hoard, REAVING §11 questions.

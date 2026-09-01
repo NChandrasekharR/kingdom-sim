@@ -7,6 +7,16 @@ first within each section. For still-open questions see `OPEN-QUESTIONS.md`.
 
 ## Session 9 — total dominion, review fixes, and the Great Works ladder (2026-08-30→09-01)
 
+- **Fate always finds a way — a massacre must ALWAYS resolve (bug→rule).**
+  The scripted survivor needed 13 tiles of flight, but positions clamp to the
+  map: Eastwold's corner camp at (10,117) pinned its survivor at ~12.7 tiles
+  and the whole 120-sword host stood at the ashes forever (found via the
+  journal — 8 deaths in 9 ticks, then 226 ticks of silence). Rules now: a
+  flee heading that would clamp short of the escape radius reflects inward;
+  fate's clock frees the survivor within ~60 ticks regardless (also
+  self-healing any save carried in mid-stall); and no garrison sword signs on
+  while a host stands at the tents. The survivor's escape is a design
+  invariant — never let a scripted certainty depend on open geometry.
 - **THE HERIOT: iron comes home from a held field (Chandra's ask, shipped).**
   A dead soldier's 5 iron used to vanish — historically wrong when the field
   is held (battlefield stripping was universal; the Anglo-Saxon heriot

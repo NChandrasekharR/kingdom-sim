@@ -847,3 +847,32 @@ with a stills-illustrated README. **The complete verbatim dialogue of this
 session — every message, both voices — is preserved in
 [CHATLOG-SESSION-9.md](CHATLOG-SESSION-9.md).** Decisions in DECISIONS.md
 Session 9; findings and the summit agenda in OPEN-QUESTIONS.md Session 9.
+
+---
+
+## Turn 26 — Eastwold, and the bug the journal caught (2026-09-01, Session 9 cont.)
+
+**User:** The Eastwold chronicle (second human victory — all four crowns in
+22.7 years, on the LIVE build): "Analyse this gameplay session similar to how
+we did previously"; "what can you infer about map geography and playstyle …
+what actual kingdom from history is this closest to"; "fix the massacre bug";
+"any other gameplay styles that suggest themselves?"; "deployed to gh also?";
+"update chat log and transcripts with recent data, and then upload all to gh."
+
+**Claude:** The new telemetry paid off end-to-end: the census series exposed
+the turtle decade (zero army until year 7), the all-levy doctrine (ZERO
+mercenaries — the reverse of Wolfsden's 67 companies), the masters-inflation
+inflection (+32 the year the Guildhall stood), and the heriot working (265
+iron off held fields). The breach map named the two tested fronts; the spawn
+coordinates put every camp at (10,117). And the journal caught a LIVE bug:
+the Wyrmditch massacre never resolved — the scripted survivor, fleeing
+radially from a corner camp, pinned against the map edge at hypot(9,9)≈12.7,
+just under the 13-tile escape radius, leaving all 120 swords standing at the
+ashes forever. Fixed same day (reflected flee headings + fate's 60-tick
+clock, which self-heals stalled saves; garrison recruiting gated while a host
+stands at the tents) and deployed. Historical reading: Eastwold is thematic
+Byzantium ending as Basil II — walls-as-identity, the bread annona, the
+soldier-farmer levy, extermination campaigns, the overflowing treasury —
+where Wolfsden was the condottieri republic. Six unplayed styles proposed,
+the Danegeld King first (three reigns, zero tribute data). Session closed by
+re-capturing this transcript and publishing the whole record.

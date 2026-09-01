@@ -2,11 +2,13 @@
 
 The complete dialogue of the Session 9 working session, captured verbatim from
 the session transcript: every message Chandra sent (blockquoted) and every
-visible reply from Claude (Fable 5), in order. Tool work (file edits, test
-runs, sims, deploys) happened between messages and is marked only by call
-counts — the outcomes are all described in the replies themselves. The
-decision record distilled from this session lives in DECISIONS.md Session 9;
-findings in OPEN-QUESTIONS.md Session 9.
+visible reply from Claude (Fable 5), in order — through the review, the Great
+Works build, the Aldermere and Wolfsden and Eastwold reigns and their
+post-mortems, and the fixes each one bred. Tool work (file edits, test runs,
+sims, deploys) happened between messages and is marked only by call counts —
+the outcomes are described in the replies themselves. The distilled decision
+record lives in DECISIONS.md Session 9; findings in OPEN-QUESTIONS.md
+Session 9. The record ends where the session did: with the order to publish it.
 
 
 ---
@@ -864,4 +866,180 @@ Two commits landed along the way: `2f17e9f` (names, heriot, telemetry) and `4c39
 **Claude:**
 
 Two tasks: capture this session's transcript verbatim into the repo docs, and bring DECISIONS.md up to date with everything decided since the Great Works entry. The truly verbatim source is the session's own transcript file — let me find it and check the CHATLOG convention:
+*[3 tool calls]*
+
+**Claude:**
+
+Clean extraction — all 21 exchanges, verbatim both ways. Now the CHATLOG turn entry and the DECISIONS.md updates:
 *[2 tool calls]*
+
+**Claude:**
+
+Now the DECISIONS.md additions — the four ratified calls from the back half of the session:
+*[2 tool calls]*
+
+**Claude:**
+
+Captured and committed locally — clean tree, commit `104e22d`:
+
+- **[docs/CHATLOG-SESSION-9.md](docs/CHATLOG-SESSION-9.md)** — the complete verbatim dialogue of this session, extracted straight from the session transcript file: all 21 of your messages word-for-word (blockquoted, screenshots noted) and every visible reply of mine in full, with tool work marked only by call counts. 87KB, spanning the first-principles review through this message.
+- **[docs/CHATLOG.md](docs/CHATLOG.md)** — Turn 25 added in the house format (your verbatim intents, my summary), pointing to the verbatim file.
+- **[docs/DECISIONS.md](docs/DECISIONS.md)** — Session 9 is now complete with the back half's four calls: the **heriot** (iron home from a held field; routed lines forfeit; both directions of the stripping rule now exist), the **material-gated builder draft** as a standing rule with its sweep ratification, the **journal + `kingdom.export()`** as the playtest-telemetry instrument, and the **coprime name-pool rule** so nobody reintroduces the lcm bug with a future pool.
+
+One deliberate hold: I did **not** push — you said "for local," and pushing would publish the full transcript of this working session on the public repo. The remote is now one commit behind; `git push` whenever you decide that's fine (or tell me and I'll do it). Session 9 is fully closed out either way: code shipped and deployed, decisions ratified, findings filed, and the record keeps both voices.
+
+---
+
+## 22. Chandra
+
+*[1 screenshot attached]*
+
+> @"/Users/chandraramanujan/Downloads/East/eastwold-chronicle.txt"
+> Analyse this gameplay session similar to how we did previously.
+
+**Claude:**
+
+A fresh reign on the live build — and this one carries the full new telemetry (census lines, coordinates, the heriot). Let me dig in the same way: reckoning first, then the story beats, then the data mining:
+*[4 tool calls]*
+
+**Claude:**
+
+Everything's confirmed, and the bug is *exactly* quantifiable. Here's the full analysis.
+
+## The headline: your army is trapped at Wyrmditch by 0.3 tiles
+
+The camp sits at **(10, 117)** — ten tiles from the left edge, ten from the bottom. The massacre's scripted survivor flees radially from the camp and needs to reach **distance > 13** to escape; `massacreTick` clamps positions to the map. A survivor whose flight points into the corner pins at (1, 126) — distance from camp: hypot(9,9) = **12.7**. Just under the threshold, forever. The other 8 souls died in 9 ticks; the survivor has been running in place for 230+ ticks; the massacre never resolves, so your **entire 120-sword host is standing at the ashes indefinitely** while "next raid threat ~29s" counts down at home. Rotmarsh and Red Hollow finished in 12–14 ticks only because those survivors happened to flee inward. Bonus symptom: `garrison: 1` — the camp's recruit timer fired mid-stuck-massacre and pitched a fresh sword at a camp that's supposed to be dying. Also explains your `-0.5` gold: market tax has nothing to do with it — that's the idle-army economy wobbling with the host away.
+
+**Immediate rescue** (console, in the running game):
+
+```js
+kingdom.state.camp.folk.find(f => f.survivor && !f.dead).escaped = true
+```
+
+One tick later the massacre resolves and the host turns home. The proper fix is small — fate should always find a way (escape after ~40 ticks regardless of distance, and/or flee directions biased away from map edges), plus gating the garrison-recruit timer during a massacre — say the word.
+
+## The census tells the whole strategy — this is the new telemetry earning its keep
+
+Year by year: **no army at all until year 7** (a pure turtle decade behind walls and towers while pop went 25→115), then a standing force held at 65–95 for a decade, surging to 120 for the final march. **Zero sellswords, all 22 years** — a complete doctrine reversal from Wolfsden's 67 merc companies, funded by the heriot: **265 iron gathered from the field across 21 reckonings** made an all-subject army self-arming (iron banked: 2,866). Morale locks at exactly 79 from year 13 (the Temple + a full larder) and never moves again. Gold climbs monotonically to 21k with no merc drain. And the masters curve is damning for the aura question: 20 masters in year 8, **52 in year 9 — +32 the year the Guildhall stood** — ending at 217/290 (75%). The aura-drives-inflation hypothesis now has a visible inflection point.
+
+## Fortress totalis — the walls conversation, applied at scale
+
+Wolfsden abandoned walls in year 8. Eastwold built **294 of them** — three times Wolfsden's total — plus **64 towers** and 30 barracks (capacity exactly 120). And under arrow cover, the doctrine is vindicated beyond argument: **zero buildings sacked in 22 years, one civilian hunted, ten breaches, K/D 10.63.** The towers weren't support — they were the army: **watchman Edmund the Gray killed 46 raiders**, Piers the Wakeful 33, Nella Stonewright 30, while your *top soldier* (Ragnhild Stoutheart) managed 11. The geography explains the layout in your screenshot: the keep sits northeast on the bay, **8 of 22 waves marched from (10,117)** — the southwest corner where every camp pitched — and the edge waves came from the east and south (127,67 · 127,109 · 42,127), which is exactly what that huge eastern walled compound and the southern wall lines were answering.
+
+## The saga, and the systems proving out
+
+Kettil Redknife slain at the walls → Rotmarsh massacred (Finn, a shepherd, escapes) → **Finn the Ash-Sworn returns and is cut down in open battle by Cwen of the Cliffs, a mighty blow** → the Red Hollow *punished* → the High Seat stands, Crown of Ages → the Red Hollow massacred on its second life (Hakon, a fisher, escapes) → **Hakon the Ash-Sworn** at Wyrmditch → the final march. Where Wolfsden's arc bent toward mercy, Eastwold went fire–mercy–fire–fire. Meanwhile: the name fix verified in production — **52 true life arcs, zero collisions** (Wolfsden had 89 phantom ones) — and the new pools are all over the leaderboards. The rot problem is *solved by play*: 1,218 spoiled versus Wolfsden's 33,642, raw food held at literally zero, the entire granary run as bread (5,830 loaves). And tribute: third consecutive reign at **0 paid** — it is now certifiably dead content.
+
+The uncomfortable ledger for the summit: this player beats the game in 22 years with zero sacks, the Great Works provocation has never once landed a scaffold hit across two full ladders, and masters-as-precious has fully collapsed twice. The pressure systems need their next gear — which is exactly what the Last Muster / rally banner / truce-market summit is for. Want the massacre fix now?
+
+---
+
+## 23. Chandra
+
+> what can you infer about map geography and playstyle from the logs. what actual kingdom from history in terms of geography / trade / history is this closest to
+
+**Claude:**
+
+Let me pull the remaining layers — expansion eras, trade profile, death geography, breach sites — then the synthesis:
+*[1 tool call]*
+
+**Claude:**
+
+Full picture assembled. Here's what the logs say — and this reign has a very different historical face than Wolfsden.
+
+## Geography, reconstructed
+
+- **The capital was founded at ~(69,41)** — center-north, on the bay you can see in the screenshot — and the first five builds (house, farm, two lumber camps, farm) cluster tight around it. Expansion ran **west and south** through the mid-game (centroid swinging to 49,58 in years 5–8, toward the lakes and the stone country), then whipped **east and north in the final years** (centroid 88,45, builds reaching x 113) — the late Dominion land-grab that pushed territory to 4,011 tiles and made Dominion the *last* crown, at year 22.7.
+- **The war had two fronts, and the breach map names them.** All ten wall breaches cluster in exactly two places: the **north wall line** (56–57,36 and 43,35) and the **west wall line** (35–38,58–62). The 82 located deaths center at (45,56) — west-southwest of the keep. That's the corridor from the enemy corner: every camp of this reign pitched at **(10,117)**, the southwest, and 8 of 22 waves marched from there, wrapping the lakes to hit your western and northern circuits. Meanwhile the big eastern walled compound — built against the east-edge waves from (127,67), (127,109) — **was never breached once**. You fortified both flanks; only one was ever seriously tested.
+- **No bridges, all one landmass** — unlike Wolfsden, this realm never crossed water; it ate its way around the lakes instead (70 forest tiles cleared, 56 hills flattened, 35 veins spent — the deepest depletion of any reign).
+
+## Playstyle — a different ruler entirely
+
+The census and placement eras describe a doctrine Wolfsden would not recognize:
+
+- **Walls in every era of the reign**: 27, 59, 46, 61, 101 — twenty years of continuous fortification (294 total, 3× Wolfsden) — while **roads came dead last** (123 of 143 in years 17–20, a late logistics boom for the High Seat and the Dominion push). Wolfsden was roads-first, walls-abandoned; Eastwold was walls-always, roads-eventually.
+- **A turtle decade, then a levy state.** Zero soldiers until year 7. Then an all-subject army — **zero mercenaries in 22 years** — cycled hard through the militia system: 284 musters against **76 stand-downs** (Wolfsden: 44), mustering for campaigns and sending men back to the fields after. The heriot funded it: 265 iron gathered off held fields.
+- **An industrial import economy.** Sold stone, bread, and wood for 9,243 gold — and spent **4,456 gold importing 470 ore**, nearly half of all trade income cycled into the one thing the ground stopped giving (35 spent veins). Fifteen docks made the cart capacity for it. This is the merchant buy-cap's "commerce state" scenario at full throttle: a realm smelting imported ore into a 2,866-iron war chest.
+- **The granary abolished**: raw food held at literally zero, the entire food supply stored as 5,830 loaves. Rot: 1,218 all reign, versus Wolfsden's 33,642.
+
+## The historical match: Byzantium in its thematic prime — ending as Basil II
+
+Wolfsden was a merchant republic that hired its wars. Eastwold is the other great medieval military-fiscal model, and the fit is striking:
+
+- **The walls are the state's identity.** A capital on an eastern bay whose answer to every threat was masonry, and which went **22 years without a single building sacked** — that is Constantinople behind the Theodosian Walls, unsacked for eight centuries while everything outside burned. Your towers-as-the-real-army (Edmund the Gray, 46 kills, versus a top soldier's 11) is the wall garrison doing what wall garrisons did.
+- **The bread is the annona.** Constantinople ran on the state bread supply — grain shipped in, baked, and distributed as the empire's social contract. A realm that holds raw grain at zero and banks its entire food supply as loaves has reinvented it exactly.
+- **The army is thematic, not mercenary.** The middle empire's *stratiotai* were soldier-farmers holding land for service — called up for the campaign, sent home after — precisely your 284-muster/76-stand-down levy with no sellsword ever hired. (Wolfsden's condottieri were the *later* Byzantine disease; you played the two eras in order, backwards.)
+- **The arc is the Macedonian dynasty's.** Centuries of turtling behind walls absorbing raids → the 10th-century turn to systematic offensives → and finally **Basil II**, who didn't defeat Bulgaria but *erased* it, campaign after campaign into the enemy's homeland until nothing remained to muster — your three massacres of the southwest nests, with the Ash-Sworn avengers playing the Bulgarian revolts that kept "remembering the burning" for a generation afterward. Even your treasury is his: Basil died with gold so far beyond spending that new vaults were dug — your census shows 10 gold in year 2 rising monotonically to 21,000, untouched by any Danegeld, ever.
+- **The Great Temple with its festivals** needs no footnote in this comparison.
+
+The one Ming-shaped rhyme worth noting — total wall systems plus punitive expeditions beyond them plus refused tribute — is real, but Ming lacks your sea-bay capital, bread state, and citizen levy. Eastwold is Byzantium around 1000 AD: the fortress empire at the moment it stopped absorbing the world's violence and started ending it at the source. Between two reigns you've now play-tested the entire medieval spectrum of how states buy their wars — and won both ways, four years faster the second time.
+
+---
+
+## 24. Chandra
+
+> fix the massacre bug
+
+**Claude:**
+
+On it — two fixes: the survivor's flight must never pin against the map edge (the geometric bug), plus a fate-timer backstop so a massacre *always* resolves (which also self-heals your currently-stuck Eastwold save on reload), and the garrison-recruit timer gated while a host is afield:
+*[3 tool calls]*
+
+**Claude:**
+
+Now reproducing the exact Wyrmditch scenario — corner camp at (10,117) — both through the fixed choice path and as a stalled old save:
+*[4 tool calls]*
+
+**Claude:**
+
+Deployed and verified — `massacreStart` is in the live bundle. Your stuck Eastwold: just **reload the tab** — fate's clock frees the survivor within ~60 ticks (about half a minute at 1×), the chronicle gets its "One slips through the reeds" line, Wyrmditch burns properly, and the host turns home. (The console one-liner still works if you want it instant.) Note: this went to Vercel only — GitHub is still holding your two local commits including the transcript, per "for local."
+
+Now the good question: **what other playstyles does the design space suggest?** Your two reigns were the merchant republic and the fortress empire — but the systems support at least six more rulers, and two of them would finally generate data no reign has produced:
+
+1. **The Danegeld King (Æthelred, played sincerely).** Pay every rider. Nobody has *ever* paid — three reigns, zero tribute — so the appetite spiral (×1.6 per payment) is completely untested by a human. And there's a sly viability trick hiding in the mechanics: the demand reads your **treasury at demand-time** (25% of gold), so a realm that holds its wealth in goods, works, and staged draughts — vault kept deliberately thin — pays pennies forever. The poor-vault appeaser: rich realm, empty purse, gold flowing out as protection money instead of merc wages. This is the reign that finally tells us whether tribute is a system or a corpse.
+
+2. **The Fyrd Purist (Alfred with no hearth-troop at all).** Eastwold accidentally proved years 1–7: *zero* standing army. Take it to the crown: never a permanent soldier — towers and walls do the killing, and you muster militia **only at the massing telegraph**, standing down after. Since wave size scales with soldiers under arms (+0.4 each) and militia don't count, this is the minimum-provocation build: the raids themselves stay small because you refuse to look dangerous. The heriot even arms the fyrd from the corpses of the waves it repels.
+
+3. **The Tall Cathedral-State.** Both your reigns went wide. Go tall: never expand past the starting blob plus one forest, forfeit Dominion, and rush the ladder — Guildhall, Temple, High Seat — from a tiny, perfectly-defended core. Menace scales against a small prosperity, so the scaffold is proportionally the most provocative thing you'll ever defend. This is the *defended* version of the wonder-rush the sim proved lethal for the careless — San Gimignano with a death wish.
+
+4. **The Wrecker Kingdom.** The heriot quietly made this viable: waves scale with visible wealth and army size, every corpse pays iron, and slain laden raiders drop their typed loot back. So invert the whole game — *want* the raids. Big standing army to inflate the waves, staged High Seat draught parked deliberately inside the kill-zone as bait, towers harvesting 40-raider crops of iron and recovered goods every season. War as the primary export industry. Historical face: a marcher lordship — the border houses that got rich *because* the raiding never stopped.
+
+5. **The Cistercian Nomad.** Chase depletion on purpose. Clear-cutting mints farmland (forest→plains), spent veins mint quarries, and the condition-scaled demolish refund makes relocation nearly free — so run a realm that's a moving frontier: strip a district, demolish, re-pitch deeper, let the border follow the roads. The assarting monks of the Ostsiedlung, playing the map's metabolism as the whole game.
+
+6. **The Merciful Shepherd.** Always march, never massacre. Punish farms *people*: spared folk drift to your gates for years (some arriving skilled), the hoard comes home, the quiet buys building seasons — and no Ash-Sworn ever rises, no soldier ever comes home marked. Across your two reigns you massacred five camps and bred four avengers; nobody has yet played the ruler who never breeds one.
+
+The style the game *can't* yet support is the one your roads-and-towers history kept pointing at: the true trader-with-the-enemy — peace by purchase, the Ming horse-market, the Chichimeca ending. That's the truce-market candidate waiting on the summit. If you play any of these next, my vote is the Danegeld King — it's the only reign that tests a shipped system still sitting at zero data.
+
+---
+
+## 25. Chandra
+
+> deployed to gh also?
+*[1 tool call]*
+
+**Claude:**
+
+No — GitHub is two commits behind on purpose. When you said "for local" on the transcript capture, I held the push, and the massacre fix has since stacked on top of it:
+
+```
+1a5a3f7  Fate always finds a way: the massacre can no longer stall at a map corner
+104e22d  Docs: Session 9 recorded — verbatim transcript, Turn 25, decisions complete   ← the holdback
+```
+
+Vercel deploys upload files directly, so the live game has everything — but the public repo doesn't, and pushing `main` as-is would publish **the full verbatim transcript of this working session** (`docs/CHATLOG-SESSION-9.md` — all your messages and mine) on a public repo. Your call, two clean options:
+
+1. **Push both** — the whole session record goes public along with the fix. Arguably in the spirit of the repo (the docs discipline is half the project's charm, and CHATLOG.md is already public up to Turn 24).
+2. **Push only the fix** — I reorder the two commits (quick rebase, safe since nothing else touches them) and push the massacre fix, keeping the transcript local until you decide.
+
+Say "push both" or "fix only" and it's done either way in a few seconds.
+
+---
+
+## 26. Chandra
+
+> update chat log and transcripts with recent data, and then upload all to gh.
+
+**Claude:**
+
+Three steps: re-extract the transcript (it now includes the whole Eastwold arc), add Turn 26 + the findings to the docs, then push everything. Extracting first:
+*[1 tool call]*
