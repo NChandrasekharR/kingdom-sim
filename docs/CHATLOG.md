@@ -809,3 +809,41 @@ all."; the stone-asymmetry question from a Year-40 Caer Bryn, three crowns won.
 full narrative, design rationale, numbers, and the complete pending register
 live in [SESSION-8.md](SESSION-8.md) — written as this session's record at
 Chandra's request.
+
+---
+
+## Turn 25 — Session 9, end to end (2026-08-30 → 2026-09-01)
+
+**User:** (across three days) "Review codebase from first principles"; "start
+making fixes. also, what are next steps in roadmap"; the total-dominion camp
+report ("I cover whole map, and then randomly the camp just keeps coming in");
+"do the decision md. now make the great works."; "commit all"; "launch"; the
+Aldermere collapse telemetry ("what can you infer"); the phantom-repair
+suspicion ("citizens went crazy on repair and got stuck in a loop") and the
+does-raid-size-scale-with-army question; the walls doctrine question ("whats a
+good practice for walls and towers? … historically what would happen");
+"can we maek it more user firendly … i make a command and it exports a text
+file"; the Wolfsden VICTORY chronicle (all four crowns, first human Crown of
+Ages) and its post-mortems ("what actual kingdom from history is this closest
+to", the roads-and-towers observation, "what can you infer about map geography
+and playstyle", iron economics and the mercenary switch, "any other insights");
+the name-pool and iron-recovery orders; "commit changes to local, and then push
+to vercel"; "create a github repo … generate sample images so that it looks
+good"; and this record.
+
+**Claude:** The first-principles review (7 verified bugs fixed, all
+sim-swept); total dominion drives the camps from the land; the GREAT WORKS
+LADDER built to the Crown of Ages (three tiers, staged lootable draughts,
+masters-on-scaffold, the larder gate, the sack ledger fix — collapse-safety
+measured, seed 7's undefended wonder-rush kept as designed jeopardy); the
+full-run journal + `kingdom.export()`; the phantom repair draft
+material-gated (improved every sweep seed and freed the masters for the
+scaffold); coprime name pools (the old ones were lcm-bound to 120 villagers);
+the HERIOT (iron home from a held field); census + coordinate telemetry;
+Wolfsden analyzed six ways (the Petya→Suvi avenger chain ended in mercy;
+Godwin of the Vale, 31 kills; the sortie-gamble raid found in the data);
+deployed to Vercel and published at github.com/NChandrasekharR/kingdom-sim
+with a stills-illustrated README. **The complete verbatim dialogue of this
+session — every message, both voices — is preserved in
+[CHATLOG-SESSION-9.md](CHATLOG-SESSION-9.md).** Decisions in DECISIONS.md
+Session 9; findings and the summit agenda in OPEN-QUESTIONS.md Session 9.

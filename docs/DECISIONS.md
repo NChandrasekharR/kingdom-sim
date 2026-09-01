@@ -5,8 +5,47 @@ first within each section. For still-open questions see `OPEN-QUESTIONS.md`.
 
 ---
 
-## Session 9 — total dominion, review fixes, and the Great Works ladder (2026-08-30→31)
+## Session 9 — total dominion, review fixes, and the Great Works ladder (2026-08-30→09-01)
 
+- **THE HERIOT: iron comes home from a held field (Chandra's ask, shipped).**
+  A dead soldier's 5 iron used to vanish — historically wrong when the field
+  is held (battlefield stripping was universal; the Anglo-Saxon heriot
+  formally returned a retainer's war-gear to his lord). Now a raid that ends
+  with the field held returns `HERIOT.ownFrac 0.8` × each fallen soldier's
+  iron plus `raiderIron 0.15` per raider corpse; a ROUTED line cedes the field
+  and the heriot with it; mercs' gear belongs to their company; expedition
+  dead are stripped by the enemy (camp spoils already covered the reverse via
+  `ironPerSword` — same rule, both directions). Side effect kept on purpose:
+  ore-poor maps gain a scavenger's path to an armory. Four-seed sweep healthy.
+- **The builder draft is MATERIAL-GATED and takes the least skilled
+  (bug→rule, measured).** Aldermere fell to a phantom repair mob: the draft
+  conscripted `ceil(damaged/2)` hands off the damage count while repairs were
+  impossible at stone 0 — ~36 villagers milling at ruins, farms empty, 142
+  starved. The draft now conscripts only as many hands as the wood AND stone
+  stores can employ this tick, and picks practiced builders first, then the
+  LEAST skilled (the old `splice(0,N)` took creation order — the eldest and
+  most masterful hands for hod-carrying). Ratified by sweep: every seed
+  improved (pop 851→940 / 737→773 / 765→822 / 780→780) and two seeds now
+  complete two ladder tiers because the masters reach the scaffold.
+- **The realm keeps a JOURNAL; the chronicle stays a sidebar (shipped).** The
+  Chronicle keeps its 120 lines for the eye; `state.journal` keeps the whole
+  reign (4,000-entry cap, oldest pages fall away, save-safe) and
+  `kingdom.export()` writes it as a text file grouped by year and season with
+  the run summary appended. Journal-only detail the sidebar never shows:
+  every birth by name, every caravan trade with prices, death SITES, Great
+  Work quarter-marks, a yearly CENSUS line (pop/masters/army+sellsword split/
+  morale/food-eq/gold/iron/territory), coordinates on sacks, breaches,
+  scaffold burns, spent sites, and raid spawns, wave+duration on reckonings,
+  and expedition subject/sellsword splits. This is the playtest-telemetry
+  instrument; the Wolfsden post-mortems were its proving run.
+- **Name pools are COPRIME by rule (bug→rule).** Names index by id, so
+  distinct names = lcm(|FIRST|, |EPITHET|) — the old 24×15 pools with a ×7
+  stride yielded only 120 unique villagers, and the Wolfsden chronicle
+  carried several identical "Doria the Steady"s the saga could not tell
+  apart. Pools are now 50×49 for villagers AND raiders (the full 2,450-name
+  cycle before any repeat, test-verified), 40 kingdoms, 24 camps, 24×20
+  warlords. Standing rule for future pools: keep the sizes coprime and never
+  add an index stride sharing a factor with the pool length.
 - **Total dominion drives the camps from the land (Chandra's call).** Claiming
   the whole map used to let the camp SQUAT inside the realm's borders and keep
   raiding forever (`findCampSite` had an explicit squat-anywhere tier for a
