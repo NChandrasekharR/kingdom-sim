@@ -389,8 +389,10 @@ function timers(state, c, rand) {
       state.claimed[idx(Math.round(c.x), Math.round(c.y))]) {
     relocateCamp(state, c, rand);
   }
-  // wealth attracts swords: the garrison trickles up toward what the hoard commands
-  if (!c.broken && !c.gone && state.tick % 200 === 0 &&
+  // wealth attracts swords: the garrison trickles up toward what the hoard
+  // commands — but no sword signs on while a host stands at the tents (the
+  // same gate relocation uses; a mid-massacre camp once recruited a man)
+  if (!c.broken && !c.gone && !state.expedition && state.tick % 200 === 0 &&
       c.garrison.length < garrisonTarget(c)) {
     addSword(state, c, rand);
   }
@@ -893,11 +895,20 @@ export function resolveCampChoice(state, choice) {
       const survivor = alive[Math.floor(alive.length / 2)];
       survivor.survivor = true;
     }
+    exp.massacreStart = state.tick;   // fate's clock — see massacreTick
     for (const f of alive) {
-      // flee radially away from the camp's heart
+      // flee radially away from the camp's heart…
       const dx = f.x - c.x || 0.5, dy = f.y - c.y || 0.3;
       const d = Math.hypot(dx, dy);
       f.fleeX = dx / d; f.fleeY = dy / d;
+      // …but never into a map corner. A heading that would clamp against the
+      // edge short of the escape distance is reflected inward — the Wyrmditch
+      // lesson: a camp at (10,117) pinned its survivor at hypot(9,9)≈12.7,
+      // just under the 13-tile escape radius, the massacre never resolved,
+      // and the whole host stood at the ashes forever.
+      const N = MAP.size;
+      if (c.x + f.fleeX * 15 < 2 || c.x + f.fleeX * 15 > N - 3) f.fleeX = -f.fleeX;
+      if (c.y + f.fleeY * 15 < 2 || c.y + f.fleeY * 15 > N - 3) f.fleeY = -f.fleeY;
     }
     logEvent(state, ledgerEmpty
       ? `The camp is stripped bare — arm-rings and weapons off the dead: ${takeGold} gold, ${takeGoods} goods.`
@@ -917,6 +928,11 @@ function massacreTick(state, rand) {
   const c = state.camp;
   const host = expSoldiers(state);
   const fleeing = c.folk.filter((f) => !f.dead && !f.escaped);
+  // fate's clock: the survivor ALWAYS gets away eventually, even where the
+  // map's edge leaves no room to run the full escape distance (a normal
+  // escape takes ~15 ticks; this also frees any save carried in mid-stall)
+  exp.massacreStart ??= state.tick;
+  const fateEscape = state.tick - exp.massacreStart > 60;
 
   for (const f of fleeing) {
     f.px = f.x; f.py = f.y;
@@ -924,7 +940,7 @@ function massacreTick(state, rand) {
     f.x += f.fleeX * speed; f.y += f.fleeY * speed;
     const N = MAP.size;
     f.x = Math.max(1, Math.min(N - 2, f.x)); f.y = Math.max(1, Math.min(N - 2, f.y));
-    if (f.survivor && Math.hypot(f.x - c.x, f.y - c.y) > 13) {
+    if (f.survivor && (Math.hypot(f.x - c.x, f.y - c.y) > 13 || fateEscape)) {
       f.escaped = true;
       const first = f.name.split(',')[0];
       logEvent(state, `One slips through the reeds — ${f.name}. Remember the name: ${first}.`, 'raid');
