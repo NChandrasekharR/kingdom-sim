@@ -7,6 +7,12 @@ import { initTutorial, seedTutorialForLoadedSave } from './tutorial.js';
 const KINGDOM_NAMES = [
   'Aldermere', 'Thornwick', 'Caer Bryn', 'Ravensholt', 'Duncastle',
   'Elmsworth', 'Greyfen', 'Harrowgate', 'Wolfsden', 'Ashbourne',
+  'Briarholm', 'Coldmere', 'Dunhollow', 'Eastwold', 'Fenwick',
+  'Glasmoor', 'Hartcliffe', 'Ivorden', 'Kingsmere', 'Lindenwold',
+  'Marchfield', 'Northolt', 'Oakenholt', 'Pennyford', 'Redmarch',
+  'Silverstrand', 'Thornmere', 'Underfell', 'Valebridge', 'Westmarch',
+  'Yarrowdale', 'Ashcombe', 'Blackmere', 'Caer Fyrn', 'Darrowfield',
+  'Elderstone', 'Foxhollow', 'Gorsebank', 'Hollowmere', 'Wrenfall',
 ];
 
 const SAVE_KEY = 'kingdom-sim-save-v1';
@@ -118,7 +124,7 @@ export function createState(seed = (Math.random() * 1e9) | 0) {
       soldiersRecruited: 0, soldiersFallen: 0, veteransFallen: 0,
       mastersLost: 0, foodSpoiled: 0, tributeGold: 0, tributesPaid: 0,
       forestCleared: 0, hillsFlattened: 0, veinsSpent: 0, deepVeinStruck: 0,
-      goodsBought: 0, buysBlocked: 0, worksSacked: 0,
+      goodsBought: 0, buysBlocked: 0, worksSacked: 0, ironGathered: 0,
     },
     // render dirty flags
     territoryDirty: true, buildingsDirty: true, campDirty: true,

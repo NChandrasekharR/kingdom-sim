@@ -1,4 +1,4 @@
-import { MAP, T, TERRAIN_INFO, BUILDINGS, RAIDER, RAID, SOLDIER, ROAD_SPEED_MULT, KEEP, COMBAT, SKILL, MERCENARY, HUNT, TRIBUTE, CAMP, GREAT_WORK } from '../config.js';
+import { MAP, T, TERRAIN_INFO, BUILDINGS, RAIDER, RAID, SOLDIER, ROAD_SPEED_MULT, KEEP, COMBAT, SKILL, MERCENARY, HUNT, TRIBUTE, CAMP, GREAT_WORK, HERIOT } from '../config.js';
 import { idx } from './state.js';
 import { prosperity } from './economy.js';
 import { logEvent, emit } from './events.js';
@@ -145,15 +145,29 @@ export function rallyToKeep(state) {
   return { ok: true };
 }
 
-// raiders have names too — it makes the Chronicle read like a saga
+// raiders have names too — it makes the Chronicle read like a saga.
+// Pool sizes are COPRIME (50 × 49) so id-indexing cycles through the full
+// 2,450 names before any brigand shares one (see villagers.js).
 const RAIDER_FIRST = [
   'Ulf', 'Grim', 'Skarde', 'Ragna', 'Toke', 'Bront', 'Halvar', 'Yrsa',
   'Kettil', 'Ash', 'Vragi', 'Sorka', 'Drust', 'Moira', 'Fenn', 'Orm',
+  'Gorm', 'Sigrun', 'Thorolf', 'Brenna', 'Eirik', 'Gunnar', 'Ranulf',
+  'Svala', 'Ingvar', 'Ulfhild', 'Bardi', 'Steinar', 'Hallgerd', 'Njal',
+  'Oddr', 'Geir', 'Thyra', 'Vandil', 'Skeggi', 'Aslak', 'Bera', 'Kolgrim',
+  'Drifa', 'Egil', 'Freydis', 'Glum', 'Hrafn', 'Jorund', 'Kari', 'Leif',
+  'Mord', 'Signy', 'Torvald', 'Vebjorn',
 ];
 const RAIDER_EPITHET = [
   'Redknife', 'the Cruel', 'Wolfjaw', 'Nine-Fingers', 'the Vulture',
   'Bloodbraid', 'the Lame', 'Ironmaw', 'the Quiet Blade', 'Corpsegrin',
   'the Burned', 'Longreach', 'Two-Axe', 'the Hollow', 'Ratbane',
+  'the Flayed', 'Ashtongue', 'Half-Hand', 'the Grinning', 'Crowfeeder',
+  'the Sallow', 'Blackfen', 'Skullring', 'the Whisper', 'Widowmaker',
+  'the Starved', 'Bogblood', 'Six-Teeth', 'the Unwashed', 'Adderfang',
+  'the Dour', 'Splitbrow', 'the Howler', 'Tarhand', 'the Gaunt', 'Rustaxe',
+  'the Whipscar', 'Frostbitten', 'the Eel', 'Gallowsborn', 'the Toothless',
+  'Cinderjaw', 'the Stray', 'Knucklebone', 'the Marrow', 'Sourmilk',
+  'the Shrike', 'Peatface', 'the Halt',
 ];
 
 function spawnRaid(state, rand) {
@@ -235,7 +249,7 @@ function spawnRaid(state, rand) {
       x: sx + (rand() - 0.5), y: sy + (rand() - 0.5), px: sx, py: sy,
       hp: (RAIDER.hp + raid.wave * 2) * (isWarlord ? RAID.warlordHpMult : 1),
       loot: 0, lootBag: {},
-      name: `${RAIDER_FIRST[rid % RAIDER_FIRST.length]} ${RAIDER_EPITHET[(rid * 11) % RAIDER_EPITHET.length]}`,
+      name: `${RAIDER_FIRST[rid % RAIDER_FIRST.length]} ${RAIDER_EPITHET[rid % RAIDER_EPITHET.length]}`,
       path, pathI: 0, mode: 'march', targetId: target.id,
       spawn: { x: sx, y: sy },
     });
@@ -290,7 +304,8 @@ function spawnRaid(state, rand) {
     ? `${fromCamp ? state.camp.warlord.name.toUpperCase() : 'A WARLORD'} marches on ${state.name} with ${raid.raiders.length} raiders!`
     : fromCamp
       ? `${raid.raiders.length} raiders march out from ${state.camp.name}!`
-      : `${raid.raiders.length} raiders storm in from the wilds!`, 'raid');
+      : `${raid.raiders.length} raiders storm in from the wilds!`, 'raid',
+    `(from ${sx}, ${sy})`);
 }
 
 function pickTarget(state, rand) {
@@ -382,7 +397,8 @@ function updateRaiders(state, rand) {
           wall.breached = true;
           state.stats.wallsBreached++;
           if (raid.tally) raid.tally.walls++;
-          logEvent(state, 'A wall is breached! Raiders pour through the gap!', 'raid');
+          logEvent(state, 'A wall is breached! Raiders pour through the gap!', 'raid',
+            `(at ${wall.x}, ${wall.y})`);
         }
         continue;
       }
@@ -461,7 +477,8 @@ function updateRaiders(state, rand) {
               if (raid.tally) raid.tally.loot += take;
             }
             state.stats.worksSacked = (state.stats.worksSacked || 0) + 1;
-            logEvent(state, `The scaffold of the ${BUILDINGS[target.type].name} burns! ${undone > 0 ? `${undone}% of the work is undone` : 'The work is set back'} — and the staged draught is plundered.`, 'raid');
+            logEvent(state, `The scaffold of the ${BUILDINGS[target.type].name} burns! ${undone > 0 ? `${undone}% of the work is undone` : 'The work is set back'} — and the staged draught is plundered.`, 'raid',
+              `(at ${target.x}, ${target.y})`);
             state.raidShock = Math.min(40, state.raidShock + 12);
             // the unified death rule holds on the scaffold too: the crew
             // scatters for the keep — nobody dies at their post
@@ -470,7 +487,8 @@ function updateRaiders(state, rand) {
             const watchman = target.type === 'tower' ? target.workers?.[0] : null;
             logEvent(state, watchman
               ? `The watchtower is battered down! ${watchman.name} scrambles from the rubble — its arrows fall silent.`
-              : `${BUILDINGS[target.type].name} has been sacked!`, 'raid');
+              : `${BUILDINGS[target.type].name} has been sacked!`, 'raid',
+              `(at ${target.x}, ${target.y})`);
             state.raidShock = Math.min(40, state.raidShock + 8);
             // the unified death rule: nobody dies at their post. The sacked
             // building EJECTS its crew — they run for the keep, and the only
@@ -934,9 +952,23 @@ function endRaid(state, rand, fled = false) {
   raid.lastSacked = raid.sackedThisRaid || 0;
   raid.timer = quietGap(state, rand, raid.lastSacked);
 
+  // the heriot: iron comes home off a held field. Your fallen's arms are
+  // gathered again (unless the line BROKE and the field was ceded mid-fight),
+  // and the raider dead are stripped of their crude iron where they lie.
+  const t = raid.tally || {};
+  let ironBack = 0;
+  if (!raid.routed && (t.soldiersLost || 0) > 0) {
+    ironBack += t.soldiersLost * (SOLDIER.cost.iron || 0) * HERIOT.ownFrac;
+  }
+  ironBack += (t.killed || 0) * HERIOT.raiderIron;
+  ironBack = Math.floor(ironBack);
+  if (ironBack > 0) {
+    state.res.iron += ironBack;
+    state.stats.ironGathered = (state.stats.ironGathered || 0) + ironBack;
+  }
+
   // the reckoning: one Chronicle line that tells you what the raid cost —
   // and the raw ledger in the console for tuning (kingdom.summary()'s sibling)
-  const t = raid.tally || {};
   const parts = [];
   if (t.killed) parts.push(`${t.killed} raider${t.killed > 1 ? 's' : ''} slain`);
   const lost = (t.soldiersLost || 0) + (t.hunted || 0);
@@ -951,10 +983,12 @@ function endRaid(state, rand, fled = false) {
   if (t.walls) parts.push(`${t.walls} wall${t.walls > 1 ? 's' : ''} breached`);
   if (t.loot >= 1) parts.push(`${Math.round(t.loot)} goods carried off`);
   if (t.recovered >= 1) parts.push(`${Math.round(t.recovered)} goods won back from the slain`);
+  if (ironBack > 0) parts.push(`${ironBack} iron gathered from the field`);
   const head = fled ? 'The raiders break and flee!' : 'The raid is over.';
   logEvent(state, parts.length
     ? `${head} The reckoning: ${parts.join(' · ')}.`
-    : `${head} The kingdom breathes again — not a thing was lost.`, 'info');
+    : `${head} The kingdom breathes again — not a thing was lost.`, 'info',
+    `(wave ${raid.wave} · ${state.tick - (raid.startTick || state.tick)} ticks)`);
   // browser-only so headless CSV runs stay clean
   if (typeof window !== 'undefined') {
     // eslint-disable-next-line no-console

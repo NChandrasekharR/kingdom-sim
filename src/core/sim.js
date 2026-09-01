@@ -8,7 +8,7 @@ import { campTick } from './camp.js';
 import { claimTick, recedeTick, claimEnclaves, territorySize } from './territory.js';
 import { winTick } from './win.js';
 import { saveGame } from './state.js';
-import { logEvent, emit } from './events.js';
+import { logEvent, emit, journal } from './events.js';
 import { countMasters, villagersMoveTick } from './villagers.js';
 import { tutorialTick } from './tutorial.js';
 
@@ -33,6 +33,13 @@ export function makeSim(state) {
         if (s === 'Winter') logEvent(state, 'Winter sets in. The fields lie fallow.', 'bad');
         if (s === 'Spring') {
           logEvent(state, `Spring returns — Year ${currentYear(state)} of ${state.name}.`, 'good');
+          // the yearly census, journal-only: the time series every post-reign
+          // analysis wished it had (pop/masters/army/morale/stores/land)
+          journal(state, `Census: ${state.pop} souls (${countMasters(state)} masters), `
+            + `${state.soldiers.length} under arms (${state.soldiers.filter((so) => so.merc).length} sellswords), `
+            + `morale ${Math.round(state.morale)}, food-eq ${Math.round(state.res.food + state.res.bread * 2)}, `
+            + `gold ${Math.round(state.res.gold)}, iron ${Math.round(state.res.iron)}, `
+            + `territory ${territorySize(state)} tiles.`);
           // a standing Great Temple keeps the festival calendar: the fears of
           // the old year are sung away with the first thaw
           if (state.buildings.some((b) => b.type === 'temple' && b.greatWorkDone && b.hp > 0 && !b.sacked)) {
@@ -141,7 +148,7 @@ export function runSummary(state) {
       avgRaidSize: +avgRaid, biggestRaid: maxRaid,
       raidersKilled: s.raidersKilled,
       buildingsSacked: s.buildingsSacked, wallsBreached: s.wallsBreached, keepFalls: s.keepFalls,
-      lootRecovered: s.lootRecovered || 0,
+      lootRecovered: s.lootRecovered || 0, ironGathered: s.ironGathered || 0,
       expeditions: s.expeditions || 0, campsBroken: s.campsBroken || 0,
       massacres: s.massacres || 0, campFolkSlain: s.folkSlain || 0,
     },

@@ -4,22 +4,38 @@ import { roadTiles, marchOrStep, clearRoute } from './pathing.js';
 // Villagers are discrete agents: a job, a skill per craft, a stomach.
 // "15 pop" is 15 little lives — which is what makes losing one mean something.
 
+// Pool sizes are deliberately COPRIME (50 × 49): names index by id, so the
+// distinct-name count is lcm(|FIRST|, |EPITHET|) — coprime sizes give the
+// full 2,450-name cycle before any soul shares a name. (The old 24×15 pools
+// with a ×7 stride yielded only 120 distinct names; the Wolfsden chronicle
+// carried multiple Doria the Steadys and the saga couldn't tell them apart.)
 const FIRST = [
   'Aldric', 'Berta', 'Cedric', 'Doria', 'Edmund', 'Freya', 'Godwin', 'Hilda',
   'Ivo', 'Jorunn', 'Kell', 'Lisbet', 'Magnus', 'Nella', 'Osric', 'Petra',
   'Quentin', 'Rowena', 'Sten', 'Thora', 'Ulric', 'Vera', 'Wystan', 'Ysolde',
+  'Aebbe', 'Baldric', 'Cwen', 'Dunstan', 'Eadgyth', 'Folcard', 'Gisela',
+  'Hereward', 'Ingrid', 'Jocelin', 'Kenric', 'Leofric', 'Maida', 'Noll',
+  'Ottar', 'Piers', 'Quenild', 'Ragnhild', 'Sunniva', 'Tancred', 'Una',
+  'Vigdis', 'Walter', 'Ymma', 'Alditha', 'Botolf',
 ];
 const EPITHET = [
   'the Younger', 'the Elder', 'of the Mill', 'Longstride', 'the Quiet',
   'Redhand', 'of the Vale', 'Stoutheart', 'the Gray', 'Swiftfoot',
   'of the Ford', 'Ironbrow', 'the Steady', 'Fairhair', 'of the Glen',
+  'of the Weald', 'the Tall', 'Brightmane', 'of the Hollow', 'Keeneye',
+  'the Patient', 'Stonewright', 'of the Marsh', 'the Merry', 'Barleyborn',
+  'of the Downs', 'Greenmantle', 'the Sparrow', 'Hartswift', 'of the Heath',
+  'Emberwise', 'the Unbowed', 'Saltbeard', 'of the Reeds', 'Winterborn',
+  'the Kindly', 'Thistlewick', 'of the Cliffs', 'Rushlight', 'the Wry',
+  'Nettleford', 'the Plain', 'of the Orchard', 'Copperbraid', 'the Sure',
+  'Honeywell', 'the Wakeful', 'Millward', 'of the Brook',
 ];
 
 export function makeVillager(state, job = 'idle') {
   const id = state.nextId++;
   return {
     id,
-    name: `${FIRST[id % FIRST.length]} ${EPITHET[(id * 7) % EPITHET.length]}`,
+    name: `${FIRST[id % FIRST.length]} ${EPITHET[id % EPITHET.length]}`,
     job,                 // 'idle' | 'producer' | 'builder' | 'soldier'
     workplaceId: null,   // building id while producing
     skills: {},          // craft (building type, 'builder', 'soldier') → 0..1

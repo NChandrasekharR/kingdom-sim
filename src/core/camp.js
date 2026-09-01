@@ -13,6 +13,10 @@ import { makeVillager, killVillager, isMaster } from './villagers.js';
 const CAMP_NAMES = [
   "Wolf's Rest", 'Crowsfoot', 'the Black Fen', 'Ravenmoor',
   'Grimswallow', 'the Red Hollow', 'Ashvale', 'the Broken Tooth',
+  'the Hanged Grove', 'Rotmarsh', 'the Skinned Hill', "Adder's Nest",
+  'the Sunken Court', 'Gallowmere', 'the Whetstone', 'Old Scarrow',
+  'the Weeping Stones', 'Kraghollow', 'the Salt Scar', 'Mirefast',
+  'the Cold Hearth', 'Wyrmditch', 'the Low Door', 'Hungerpit',
 ];
 const FOLK_FIRST = [
   'Hakon', 'Aldith', 'Sana', 'Ebba', 'Tam', 'Wren', 'Bo', 'Ida',
@@ -24,11 +28,15 @@ const FOLK_TRADE = [
 ];
 const WARLORD_FIRST = [
   'Ulf', 'Grim', 'Skarde', 'Ragna', 'Toke', 'Bront', 'Halvar', 'Yrsa',
-  'Kettil', 'Vragi', 'Drust', 'Orm',
+  'Kettil', 'Vragi', 'Drust', 'Orm', 'Gorm', 'Ingvar', 'Steinar',
+  'Hallgerd', 'Njal', 'Thyra', 'Aslak', 'Kolgrim', 'Egil', 'Hrafn',
+  'Mord', 'Torvald',
 ];
 const WARLORD_EPITHET = [
   'Redknife', 'the Cruel', 'Wolfjaw', 'Ironmaw', 'Bloodbraid',
   'the Vulture', 'Two-Axe', 'Corpsegrin', 'the Hollow', 'Longreach',
+  'the Flayed', 'Skullring', 'Widowmaker', 'Crowfeeder', 'the Grinning',
+  'Blackfen', 'Adderfang', 'the Dour', 'Gallowsborn', 'the Shrike',
 ];
 
 function mintWarlordName(state) {
@@ -328,7 +336,9 @@ export function marchOnCamp(state) {
     startTick: state.tick, battleLogged: false,
   };
   state.stats.expeditions = (state.stats.expeditions || 0) + 1;
-  logEvent(state, `The host marches on ${c.name} — ${host.length} swords. The kingdom stands thinner behind them.`, 'info');
+  const mercCount = host.filter((so) => so.merc).length;
+  logEvent(state, `The host marches on ${c.name} — ${host.length} swords. The kingdom stands thinner behind them.`, 'info',
+    `(${host.length - mercCount} subjects, ${mercCount} sellswords)`);
   emit('expedition-marched', { camp: c, count: host.length });
   return { ok: true };
 }

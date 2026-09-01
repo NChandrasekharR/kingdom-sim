@@ -314,6 +314,29 @@ never sacked. The telemetry produced these findings.)*
    human-untested. `cascadeStone: 192` — first live evidence the ORE→HILLS
    cascade gets quarried.
 
+6. **HEROES DESERVE A SURFACE.** Kill attribution already keeps score — the
+   Wolfsden journal shows Godwin of the Vale with 31 kills and watchman Nella
+   Fairhair with 20 arrow kills — but the game never surfaces it. Candidate:
+   a "heroes of the realm" panel or end-of-reign honors, built entirely from
+   data that already exists. Small build; pairs naturally with the
+   `kingdom.export()` telemetry.
+
+**SHIPPED after the findings (this session, second batch):** name pools
+expanded AND made mathematically sound — the old id-indexed pools yielded only
+lcm-bound combinations (villagers: 120 distinct names, not the 360 the pool
+sizes implied; Wolfsden carried multiple identical "Doria the Steady"s).
+Villager and raider pools are now 50 first × 49 epithets, sizes deliberately
+COPRIME for a full 2,450-name cycle before any repeat; 40 kingdom names, 24
+camp names, 24×20 warlords. THE HERIOT shipped (`HERIOT` in config): a raid
+ending on a held field returns 0.8× a fallen soldier's iron and 0.15 per
+raider corpse (a broken line cedes the field and the heriot; mercs' gear is
+their company's) — mirrors CAMP.spoils.ironPerSword, and gives ore-poor maps
+a scavenger's path to an armory. And the journal grew analysis telemetry: a
+yearly Census line (pop/masters/army/morale/food-eq/gold/iron/territory),
+coordinates on sacks, breaches, scaffold burns, and spent sites, raid spawn
+origins and wave/duration on reckonings, and expedition subject/sellsword
+splits.
+
 **SHIPPED right after the reign (this session): the full-run journal +
 `kingdom.export()`** — every chronicle line of the whole reign plus journal-
 only detail (births, trades, death sites, Work milestones), exported as a

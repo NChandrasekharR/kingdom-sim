@@ -281,6 +281,20 @@ export const SKILL = {
 // Iron arms them once; from then on they eat 3× (food, not gold, limits armies).
 export const SOLDIER = { cost: { iron: 5 }, hp: 60, dmg: 8, speed: 1.1, perBarracks: 4 };
 
+// ── The heriot: iron comes home from a held field (Session 9) ──────
+// Historically universal — battlefield stripping was standard practice, and
+// the Anglo-Saxon heriot formally returned a dead retainer's war-gear to his
+// lord. When a raid ends with the field HELD, your fallen's arms are gathered
+// again; the raider dead are stripped of their crude iron where they lie. A
+// BROKEN line cedes the field, and the heriot with it. Mercs' gear belongs to
+// their company. Mirrors CAMP.spoils.ironPerSword, which already strips dead
+// garrisons — the same rule, pointed home. Gives ore-poor realms a scavenger's
+// path to an armory, the way poor realms have always armed themselves.
+export const HERIOT = {
+  ownFrac: 0.8,       // share of a fallen soldier's iron reclaimed off a held field
+  raiderIron: 0.15,   // iron scavenged per raider corpse — brigand gear is poor stuff
+};
+
 // ── Combat: probabilistic per-exchange model (sim2-validated) ──────
 // Each soldier↔raider exchange is a ROLL, not flat damage. Veterans crit more
 // and get hit less; outnumbering raiders is near-bloodless (force-ratio); fighting

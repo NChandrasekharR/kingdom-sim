@@ -89,7 +89,7 @@ function drawDeposit(state, b, amt, spec) {
         b.depositI = null;
         if (!b.depleted) {
           b.depleted = true;
-          logEvent(state, spec.spentLog, 'info');
+          logEvent(state, spec.spentLog, 'info', `(at ${b.x}, ${b.y})`);
         }
         break;
       }
