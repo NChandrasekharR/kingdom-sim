@@ -25,6 +25,7 @@ open questions, and pointers to the design docs and models.
 | [`PLAN-DEFECT-FIXES.md`](PLAN-DEFECT-FIXES.md) | The Phase 0.1–0.2 playbook: exact code, test, sweep, and commit per defect, written for a smaller model. |
 | [`PLAN-PHASES.md`](PLAN-PHASES.md) | Phases 0–3: ground-clearing, legibility, the summit, and what is gated on it. |
 | [`NEXT-SESSION-PROMPT.md`](NEXT-SESSION-PROMPT.md) | The prompt to paste into the next session. |
+| [`WHAT-IS-INTERESTING.md`](WHAT-IS-INTERESTING.md) | An opinion piece from the Session 10 read: what is interesting, what is not, and eleven directions not yet explored (memory that runs both ways, an offstage polity, the mortal ruler, the unreached dark age, map archetypes, the historian as a feature, vows). |
 | `README.md` | This index. |
 
 ## The design docs (`../design/`) — forward-looking
