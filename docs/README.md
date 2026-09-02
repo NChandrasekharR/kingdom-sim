@@ -21,6 +21,10 @@ open questions, and pointers to the design docs and models.
 | [`CHANGELOG.md`](CHANGELOG.md) | Commit-level record of what shipped, per session. |
 | [`OPEN-QUESTIONS.md`](OPEN-QUESTIONS.md) | Consolidated register of unresolved questions — **start here to pick up the work** (Session 4 section). |
 | [`SIMULATIONS.md`](SIMULATIONS.md) | Register of every simulation campaign — question, command, numbers (~8,300 Monte Carlo runs + harness trials + 3 playtests). |
+| [`REVIEW-SESSION-10.md`](REVIEW-SESSION-10.md) | **Session 10 first-principles review** (2026-09-02): what works, verified defects, the roadmap read against the Wolfsden/Eastwold telemetry, and the phased plan. **Start here to pick up the work.** |
+| [`PLAN-DEFECT-FIXES.md`](PLAN-DEFECT-FIXES.md) | The Phase 0.1–0.2 playbook: exact code, test, sweep, and commit per defect, written for a smaller model. |
+| [`PLAN-PHASES.md`](PLAN-PHASES.md) | Phases 0–3: ground-clearing, legibility, the summit, and what is gated on it. |
+| [`NEXT-SESSION-PROMPT.md`](NEXT-SESSION-PROMPT.md) | The prompt to paste into the next session. |
 | `README.md` | This index. |
 
 ## The design docs (`../design/`) — forward-looking
