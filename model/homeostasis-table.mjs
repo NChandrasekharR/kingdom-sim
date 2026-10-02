@@ -4,7 +4,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 const DIR = new URL('./out/homeostasis/', import.meta.url);
 const runs = readdirSync(DIR).filter((f) => f.endsWith('.json'))
   .map((f) => JSON.parse(readFileSync(new URL(f, DIR))));
-const ORDER = ['baseline', 'sqrt', 'sqrtsoft', 'leanfood', 'taperfood', 'charcoal', 'combined', 'combined2'];
+const ORDER = ['baseline', 'shipped', 'sqrt', 'sqrtsoft', 'sqrtA', 'sqrtB', 'leanfood', 'taperfood', 'charcoal', 'combined', 'combined2'];
 const med = (a) => { const s = a.filter(Number.isFinite).sort((x, y) => x - y); return s.length ? s[Math.floor(s.length / 2)] : NaN; };
 const r0 = (x) => (Number.isFinite(x) ? Math.round(x) : '—');
 const r1 = (x) => (Number.isFinite(x) ? x.toFixed(1) : '—');

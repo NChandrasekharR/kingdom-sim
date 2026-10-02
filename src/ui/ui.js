@@ -11,6 +11,7 @@ import { outputMult, depositInReach } from '../core/economy.js';
 import { sell, buy, sellPrice, buyPrice, buyCapacity, buyRemaining } from '../core/trade.js';
 import { getProgress, CROWN_NAMES } from '../core/win.js';
 import { activeCounsel, dismissTutorial } from '../core/tutorial.js';
+import { pron } from '../core/names.js';
 
 const TRADABLE = ['food', 'wood', 'stone', 'ore', 'iron', 'bread'];
 const MINI_COLORS = {
@@ -108,7 +109,7 @@ export function buildUI(root, ctx) {
     render();
   };
   on('tribute-demand', (d) => {
-    tributeText.innerHTML = `☠ ${d.name} demands <b>${d.gold} gold</b> — pay, or he marches. `;
+    tributeText.innerHTML = `☠ ${d.name} demands <b>${d.gold} gold</b> — pay, or ${pron(d.name).he} marches. `;
   });
   const toast = el('div', 'toast hidden');
   const selPanel = el('div', 'sel-panel hidden');
@@ -480,8 +481,8 @@ export function buildUI(root, ctx) {
         <img class="bicon" src="${iconDataURL('warlord')}" alt="">
         <div class="sel-info">
           <div class="sel-name"><span class="bad">${unit.name}</span></div>
-          <div class="sel-hp">HP ${Math.ceil(unit.hp)} · ${inRaid ? 'AT THE HEAD OF HIS HOST' : `at his hall in ${c.name}`}</div>
-          <div class="sel-desc">${c?.avenger ? 'The avenger. He remembers the burning. He will take no gold.' : 'The warlord himself. Kill him and his line breaks — for a while.'}</div>
+          <div class="sel-hp">HP ${Math.ceil(unit.hp)} · ${inRaid ? `AT THE HEAD OF ${pron(unit.name).His.toUpperCase()} HOST` : `at ${pron(unit.name).his} hall in ${c.name}`}</div>
+          <div class="sel-desc">${c?.avenger ? `The avenger. ${pron(unit.name).He} remembers the burning. ${pron(unit.name).He} will take no gold.` : `The warlord. Kill ${pron(unit.name).him} and ${pron(unit.name).his} line breaks — for a while.`}</div>
         </div>`;
     } else if (kind === 'garrison') {
       const c = state.camp;
@@ -564,7 +565,7 @@ export function buildUI(root, ctx) {
     choiceOverlay.innerHTML = `
       <div class="victory-scroll choice-scroll">
         <h2>${info.camp.name} is taken</h2>
-        <p>The garrison is slain.${info.warlordSlain ? ` <b>${info.camp.warlord.name} fell at his own hall.</b>` : info.unclaimed ? ' No warlord had yet claimed this nest — now none ever will.' : info.leaderless ? ' The camp stood leaderless — its chief already dead at your walls.' : info.wasHome === false ? ' The warlord was away — he will return to what you leave behind.' : ''}</p>
+        <p>The garrison is slain.${info.warlordSlain ? ` <b>${info.camp.warlord.name} fell at ${pron(info.camp.warlord.name).his} own hall.</b>` : info.unclaimed ? ' No warlord had yet claimed this nest — now none ever will.' : info.leaderless ? ' The camp stood leaderless — its chief already dead at your walls.' : info.wasHome === false ? ` The warlord was away — ${pron(info.camp.warlord.name).he} will return to what you leave behind.` : ''}</p>
         <p>His people cower among the tents — <b>${info.folk}</b> souls, none of them fighters.</p>
         <p>${(info.gold > 0 || info.plunder > 0)
           ? `The hoard: <b>${info.gold} gold</b> and <b>${info.plunder} goods</b> in plunder, much of it yours already — and the camp itself yields arm-rings and weapons off the dead.`
@@ -607,7 +608,7 @@ export function buildUI(root, ctx) {
     emit('goto', { x: c.x, y: c.y });
   });
   on('avenger-come', (c) => {
-    showToast(`☠ ${c.warlord.name} has come. He will take no gold.`);
+    showToast(`☠ ${c.warlord.name} has come. ${pron(c.warlord.name).He} will take no gold.`);
   });
 
   // ── Raid horn ────────────────────────────────────────────────────
@@ -695,10 +696,16 @@ export function buildUI(root, ctx) {
     }
     popChip.querySelector('.amt').textContent = `${state.pop}/${state.popCap}`;
     popChip.classList.toggle('warn', state.starving);
+    // 300/300 reads as a ceiling — say what raises it
+    popChip.title = state.pop >= state.popCap
+      ? `Population ${state.pop} / housing ${state.popCap} — every bed is taken. Each house shelters 5 more.`
+      : `Population ${state.pop} / housing ${state.popCap}`;
     // surplus grain is rotting — the food chip goes moldy until it's baked away
     resEls.food.chip.classList.toggle('rot', !!state.spoiling);
     resEls.food.chip.title = state.spoiling
-      ? 'Food — the surplus is ROTTING. Bake it into bread: bread keeps.'
+      ? (state.pop >= state.popCap
+        ? 'Food — the surplus is ROTTING and every bed is taken. Raise houses, or bake it into bread.'
+        : 'Food — the surplus is ROTTING. Bake it into bread: bread keeps.')
       : RES_INFO.food.name;
     moraleChip.querySelector('.amt').textContent = Math.round(state.morale);
     moraleChip.classList.toggle('warn', state.morale < 30);
@@ -776,7 +783,7 @@ export function buildUI(root, ctx) {
       } else if (c.unclaimed) {
         line = `<b>${c.name}</b> — a nest of brigands in the wilds, no warlord yet. ~${c.garrison.length} swords, hoard ~<b>${hoard}</b>. Break it before one claims it.`;
       } else {
-        line = `<b>${c.name}</b> festers in the wilds — ${c.warlord.name}${c.avenger ? ' <span class="bad">(the avenger — he takes no gold)</span>' : ''}, ~${c.garrison.length} swords, hoard ~<b>${hoard}</b>.`;
+        line = `<b>${c.name}</b> festers in the wilds — ${c.warlord.name}${c.avenger ? ` <span class="bad">(the avenger — ${pron(c.warlord.name).he} takes no gold)</span>` : ''}, ~${c.garrison.length} swords, hoard ~<b>${hoard}</b>.`;
       }
       campInfo.innerHTML = line;
       marchBtn.classList.toggle('disabled', !!exp || c.gone || c.broken);

@@ -2,6 +2,7 @@ import { MAP, T, TERRAIN_INFO, BUILDINGS, RAIDER, RAID, SOLDIER, ROAD_SPEED_MULT
 import { idx } from './state.js';
 import { prosperity } from './economy.js';
 import { logEvent, emit } from './events.js';
+import { pron, theName } from './names.js';
 import { killVillager, isMaster, ejectVillager, isSheltered, bestSkill } from './villagers.js';
 import { ensureCamp, claimCampByWarlord, warlordAvailable, warlordFell, warlordReturned, addPlunder, addTributeGold, massingUnderAssault, clearMassing } from './camp.js';
 
@@ -82,7 +83,7 @@ export function raidTick(state, rand) {
       raid.incomingWarlord = wantWarlord;
       if (wantWarlord && state.camp?.avenger) {
         // the avenger cannot be bought — no rider, no demand, only the horn
-        logEvent(state, `${state.camp.warlord.name} marches. No rider comes. He wants no gold.`, 'raid');
+        logEvent(state, `${state.camp.warlord.name} marches. No rider comes. ${pron(state.camp.warlord.name).He} wants no gold.`, 'raid');
       } else if (wantWarlord && TRIBUTE.enabled) {
         const name = state.camp.warlord.name;
         const gold = Math.max(TRIBUTE.demandMin, Math.round(
@@ -306,16 +307,14 @@ function spawnRaid(state, rand) {
     `(from ${sx}, ${sy})`);
 }
 
-// the wave's raw size before warlord multipliers and the cap. 'linear' is the
-// shipped curve; 'sqrt' is the HOMEOSTASIS.md candidate — wealth keeps costing
-// you raiders, but each extra thousand costs fewer (harness-only until tuned)
+// the wave's raw size before warlord multipliers and the cap (RAID.sizeCurve)
 export function raidSizeF(state) {
-  const soldiers = state.soldiers.length * RAID.militaryPressure;
   if (RAID.sizeCurve === 'sqrt') {
     const c = RAID.sqrtCurve;
     return c.base + c.mult * Math.sqrt(prosperity(state) / 1000) + state.soldiers.length * c.military;
   }
-  return RAID.sizeBase + prosperity(state) / RAID.prosperityDivisor + soldiers;
+  return RAID.sizeBase + prosperity(state) / RAID.prosperityDivisor
+    + state.soldiers.length * RAID.militaryPressure;
 }
 
 function pickTarget(state, rand) {
@@ -487,7 +486,7 @@ function updateRaiders(state, rand) {
               if (raid.tally) raid.tally.loot += take;
             }
             state.stats.worksSacked = (state.stats.worksSacked || 0) + 1;
-            logEvent(state, `The scaffold of the ${BUILDINGS[target.type].name} burns! ${undone > 0 ? `${undone}% of the work is undone` : 'The work is set back'} — and the staged draught is plundered.`, 'raid',
+            logEvent(state, `The scaffold of ${theName(BUILDINGS[target.type].name)} burns! ${undone > 0 ? `${undone}% of the work is undone` : 'The work is set back'} — and the staged draught is plundered.`, 'raid',
               `(at ${target.x}, ${target.y})`);
             state.raidShock = Math.min(40, state.raidShock + 12);
             // the unified death rule holds on the scaffold too: the crew
@@ -612,7 +611,7 @@ function updateTowers(state) {
           ? `${nearest.name} falls to the keep's archers.`
           : watchman
             ? `${nearest.name} falls to watchman ${watchman.name}'s arrow.`
-            : `${nearest.name} falls to tower arrows.`, 'good');
+            : `${nearest.name} falls to tower arrows.`, 'good', null, true);
       }
     }
   }
@@ -859,7 +858,7 @@ function updateSoldiers(state, rand) {
           state.stats.raidersKilled++;
           if (state.raid.tally) state.raid.tally.killed++;
           const killer = s.merc ? 'a mercenary blade' : (vet ? vet.name : 'your soldiers');
-          logEvent(state, `${nearest.name} is cut down by ${killer}${crit ? ' — a mighty blow!' : '.'}`, 'good');
+          logEvent(state, `${nearest.name} is cut down by ${killer}${crit ? ' — a mighty blow!' : '.'}`, 'good', null, true);
         }
       } else {
         // closing on a distant raider is a march (road it); inside four tiles
@@ -1050,7 +1049,7 @@ export function recruitSoldier(state) {
   });
   logEvent(state, reserve
     ? `${recruit.name} takes up the sword once more${wasVeteran ? ' — a veteran returns to the line' : ''}.`
-    : `${recruit.name} takes up arms.`, 'good');
+    : `${recruit.name} takes up arms.`, 'good', null, true);
   return { ok: true };
 }
 

@@ -10,6 +10,30 @@ redeployed 2026-08-18 at Chandra's word, the full Session-8 stack included.
 
 ---
 
+## Session 10 — homeostasis: the √ raid curve and the chronicle's honesty (2026-10-02)
+
+Prompted by the Thornmere playthrough. Design and numbers are in
+`design/HOMEOSTASIS.md`; measurements are Campaign 15 in `SIMULATIONS.md`.
+
+**The raid curve.** Waves now grow on `2 + 4.5√(prosperity/1000) +
+0.15·soldiers` (`RAID.sizeCurve: 'sqrt'`, `raidSizeF`), cap 90, warlord ×1.8.
+The old linear curve was pinned at 40 from about Year 10 while its own
+formula asked for about 300. The opening and the early warlord waves are
+unchanged. Late raids grow to about 58.
+
+**The chronicle.**
+- Camp folk names never repeat across camps, and an avenger's name is
+  retired (42-name pool).
+- Warlords and avengers get the right pronouns (`names.js`).
+- No more "the The High Seat".
+- Each caravan visit writes one line per resource ("Sold 300 stone to the
+  caravan for 689 gold (4.9 → 0.8 each)").
+- When the journal runs long it drops births, trades and single blows first,
+  so the founding years survive.
+
+**Housing hints.** The population tooltip and the grain-rot message now say
+when every bed is taken.
+
 ## Session 8 — loot justice, the boss, the ladder, and the Reaving (2026-08-17→18)
 
 The session's arc, in merge order: an old broken promise paid off (loot

@@ -1,10 +1,13 @@
 # Homeostasis: why a winning realm stops playing, and what pulls it back
 
-**Status: DESIGN + FIRST MEASUREMENTS.** One shipped change: a default-off raid
-size-curve knob (`RAID.sizeCurve`, `raidSizeF` in `src/core/raids.js`). The
-live game behaves exactly as before. Everything else here is a proposal. §10
-gives the harness numbers for the levers that could be tested without new
-systems.
+**Status: DESIGN + MEASUREMENTS. Two items shipped:**
+- **The √ raid curve** (§2.4, §10.6): `2 + 4.5√p + 0.15 × soldiers`, warlord
+  ×1.8, cap 90.
+- **The text fixes** (§11): names, pronouns, articles, trade lines, journal
+  trimming, housing hints.
+
+Everything else is a proposal. §10 gives the harness numbers for the levers
+that could be tested without new systems.
 
 Source material: the Thornmere playthrough (seed 144155786, 39.8 years,
 victorious, chronicle Years 18–40) and a 40-run harness batch against the
@@ -134,9 +137,12 @@ raiders aren't a better fight than 60. Alongside a headcount curve:
 
 ### 2.4 Recommendation
 
-- **A √ curve for headcount, with a softer constant than first proposed (see
-  §10.2):** `8 + 4√p + 0.15 × soldiers`, capped at 90 as a performance
-  ceiling only.
+- **A √ curve for headcount. SHIPPED** as `2 + 4.5√p + 0.15 × soldiers`, with
+  the warlord multiplier cut from 2.5 to 1.8 and the cap raised to 90 as a
+  performance ceiling only. The base of 2 keeps the opening at today's raid
+  sizes. The lighter warlord multiplier keeps early dread waves at about 45,
+  now that no cap swallows it. See §10.6. (§10.2's `sqrtsoft` used base 8: it
+  made Year 1 raids 12 instead of 5 and Year 7 warlord waves about 69.)
 - **Composition tiers keyed to milestones.**
 - **Two simultaneous bands after the Temple.**
 - **Keep the army term small.** Defence must be something you can win.
@@ -513,9 +519,54 @@ series and a per-raid ledger for each run.
   population. It stands in for fertility per tile and is not a mechanic.
 - **Five seeds, with a bistable army.** Treat medians as directional.
 
+### 10.6 The shipping tune (sqrtA, sqrtB → shipped)
+
+`sqrtsoft` looked right late but was wrong early. With a base of 8:
+- Year 1–3 raids were 14 against today's 10;
+- warlord waves at Years 4–12 reached about 69, because the ×2.5 multiplier
+  was no longer swallowed by a cap of 40.
+
+Two retunes, 5 seeds × 30 years each. "Lost" is the median soldiers lost per
+raid.
+
+| Variant | Curve | Y1–3 | Y4–9 (lost) | Y10–19 (lost) | Y20+ (lost) | Warlord waves Y4–12 (lost) | Masters lost |
+|---|---|---|---|---|---|---|---|
+| baseline (linear, cap 40, warlord ×2.5) | — | 10 | 32 (13) | 40 (10) | 40 (2) | 45 (21) | 29 |
+| sqrtsoft | `8 + 4√p + 0.15s` | 14 | 22 (7) | 42 (6) | 60 (8) | 69 (28) | 48 |
+| sqrtA | `2 + 4√p + 0.15s` | 9 | 20 (5) | 41 (5) | 56 (6) | 55 (31) | 68 |
+| **sqrtB, shipped** | `2 + 4.5√p + 0.15s`, warlord ×1.8 | **9** | 22 (4) | 44 (6) | **58 (6)** | **45 (19)** | 57 |
+
+What changes with the shipped curve:
+- **The opening and the first dread waves match today's game.**
+- **Years 4–9 are slightly lighter** (22 against 32). The linear curve climbed
+  faster there.
+- **The late game finally moves:** raids grow to about 58 and cost about
+  6 soldiers each instead of 2.
+- **Late warlord waves reach the cap of 90** (95 with the warlord and his
+  sworn men).
+- **Masters lost roughly double** (29 to 57). Remote extraction now costs
+  something, which is the pressure §3's garrisons and refuges are meant to
+  answer. Until those ship, expect players to feel it at outlying mines.
+- **Army bistability is unchanged:** 3 of 5 seeds sustain about 105 soldiers,
+  as in baseline.
+
+`node model/homeostasis-run.mjs shipped <years> <seed>` runs the live config.
+Every other variant first resets the raid settings to the pre-Campaign-15
+curve, so the tables above stay reproducible.
+
 ---
 
 ## 11. Text and UX fixes (cheap, independent)
+
+**Shipped:** all but the last two rows.
+- **Names:** `mintFolkName` in `camp.js`, 42 names, retired avenger names.
+- **Pronouns and articles:** `src/core/names.js` (`pron`, `theName`).
+- **Trade lines:** `ledgerLine` in `trade.js`, one line per resource per
+  visit, rewritten in place.
+- **Journal trimming:** `trimJournal` in `events.js`. Births, trades, single
+  blows and recruitments are dropped first, so the founding years survive.
+- **Housing hints:** the population tooltip and the "every bed is taken"
+  rot message.
 
 | Issue | Where | Fix |
 |---|---|---|
@@ -524,15 +575,14 @@ series and a per-raid ledger for each run.
 | "The The High Seat" | `state.js:227`, `economy.js:376` | Drop the added article when the name already starts with "The" |
 | Journal drops Years 0–17 (cap of 4,000 lines); 1,650 trade lines and 435 births crowd it | `events.js:19` | One line per caravan visit ("Sold 310 stone, 721 gold, 49→8"). Keep lines by importance, not recency. |
 | The 300/300 counter reads as a hard ceiling | `ui.js:696` | Show what raises it: "300/300 — raise houses" |
-| No mercenary prompt when the army marches | expedition start | "The kingdom stands thinner. Hire sellswords to hold the walls?" |
-| Selling has no stop-loss | trade UI | §6.3.4 |
+| No mercenary prompt when the army marches (open) | expedition start | "The kingdom stands thinner. Hire sellswords to hold the walls?" |
+| Selling has no stop-loss (open) | trade UI | §6.3.4 |
 
 ---
 
 ## 12. Sequencing
 
-1. **Cheap and independent now:** the §11 text fixes, and adopting `sqrtsoft`
-   (one config line, already implemented behind the knob).
+1. **Done:** the §11 text fixes and the √ raid curve (§10.6).
 2. **Food as a constraint:** fertility per tile with tapering yields (§4.2.1),
    farms and docks as different bets (§4.2.2). Before shipping, re-run §10 with
    the fertility mechanic in place of the harness taper.

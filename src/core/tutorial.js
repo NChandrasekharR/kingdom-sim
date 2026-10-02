@@ -1,5 +1,6 @@
 import { BUILDINGS } from '../config.js';
 import { logEvent, emit } from './events.js';
+import { pron } from './names.js';
 
 // ── The Steward's Counsel (design/ONBOARDING.md) ───────────────────
 // A named advisor offers ONE suggestion at a time in the game's voice.
@@ -108,7 +109,7 @@ const JIT = [
   {
     key: 'tribute',
     when: (s) => !!s.raid.demand && s.raid.phase === 'warning',
-    text: () => 'Danegeld. Pay, and he leaves — and returns hungrier. Refuse, and he comes now. There is no third rider.',
+    text: () => 'Danegeld. Pay, and the warlord leaves — and returns hungrier. Refuse, and he comes now. There is no third rider.',
   },
   {
     key: 'camp',
@@ -118,7 +119,7 @@ const JIT = [
   {
     key: 'warlord',
     when: (s) => !!s.camp && !s.camp.gone && !s.camp.unclaimed && !s.camp.leaderless && !!s.camp.warlord,
-    text: (s) => `${s.camp.warlord.name} has claimed the nest. His raids will march from there — you can watch that road now.`,
+    text: (s) => `${s.camp.warlord.name} has claimed the nest. ${pron(s.camp.warlord.name).His} raids will march from there — you can watch that road now.`,
   },
   {
     key: 'massing',
@@ -143,7 +144,7 @@ const JIT = [
     key: 'march',
     when: (s) => !!s.camp && !s.camp.gone && !s.camp.broken &&
       s.soldiers.filter((x) => x.hp > 0 && !x.exp).length >= 3,
-    text: () => 'You have swords enough to answer him at his own tents, sire — if you dare leave home thin.',
+    text: () => 'You have swords enough to answer the warlord at the tents, sire — if you dare leave home thin.',
   },
   {
     key: 'greatwork',

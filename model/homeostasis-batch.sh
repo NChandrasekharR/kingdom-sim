@@ -8,7 +8,7 @@ SEEDS="$*"
 [ -z "$SEEDS" ] && SEEDS="42 7 123 99 2024"
 OUT="$ROOT/model/out/homeostasis"
 mkdir -p "$OUT"
-VARIANTS="${VARIANTS:-baseline sqrt leanfood charcoal combined sqrtsoft taperfood combined2}"
+VARIANTS="${VARIANTS:-baseline shipped sqrt sqrtsoft sqrtA sqrtB leanfood taperfood charcoal combined combined2}"
 for v in $VARIANTS; do
   for s in $SEEDS; do echo "$v $s"; done
 done | xargs -P 4 -n 2 sh -c 'node "'"$ROOT"'/model/homeostasis-run.mjs" "$0" "'"$YEARS"'" "$1" > "'"$OUT"'/$0-$1.json" 2> "'"$OUT"'/$0-$1.err"'

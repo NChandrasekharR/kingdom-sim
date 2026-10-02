@@ -3,6 +3,7 @@ import { idx, inBounds } from './state.js';
 import { logEvent, emit } from './events.js';
 import { findPath, roadTiles, soldierSkill, soldierMaxHp, quietGap } from './raids.js';
 import { makeVillager, killVillager, isMaster } from './villagers.js';
+import { pron, firstName } from './names.js';
 
 // ── The warlord's camp ─────────────────────────────────────────────
 // The warlord gets an ADDRESS: tents in the far wilds, folk who live there,
@@ -18,9 +19,15 @@ const CAMP_NAMES = [
   'the Weeping Stones', 'Kraghollow', 'the Salt Scar', 'Mirefast',
   'the Cold Hearth', 'Wyrmditch', 'the Low Door', 'Hungerpit',
 ];
+// Camp folk are never renamed across camps: the Chronicle promises to keep
+// their names, so the same Wren cannot die at two burnings (see mintFolkName).
 const FOLK_FIRST = [
   'Hakon', 'Aldith', 'Sana', 'Ebba', 'Tam', 'Wren', 'Bo', 'Ida',
   'Finn', 'Mara', 'Olen', 'Suvi', 'Petya', 'Runa', 'Cob', 'Liv',
+  'Tova', 'Arne', 'Hild', 'Kale', 'Asa', 'Bjorn', 'Inga', 'Leif',
+  'Bera', 'Odd', 'Edda', 'Rolf', 'Saga', 'Ivar', 'Una', 'Sten',
+  'Frida', 'Hauk', 'Gyda', 'Toki', 'Oda', 'Brand', 'Rana', 'Ketil',
+  'Kelda', 'Vali',
 ];
 const FOLK_TRADE = [
   'a shepherd', 'a weaver', 'a potter', 'a fowler', 'a tanner',
@@ -38,6 +45,30 @@ const WARLORD_EPITHET = [
   'the Flayed', 'Skullring', 'Widowmaker', 'Crowfeeder', 'the Grinning',
   'Blackfen', 'Adderfang', 'the Dour', 'Gallowsborn', 'the Shrike',
 ];
+
+// A camp-folk name no earlier camp has used. When every name has been spent
+// (a very long reign), names may return — but never an avenger's: that one
+// belongs to the Chronicle.
+function mintFolkName(state, id) {
+  const used = (state.folkNamesUsed ||= []);
+  const n = FOLK_FIRST.length;
+  const pick = () => {
+    for (let k = 0; k < n; k++) {
+      const cand = FOLK_FIRST[(id + k * 5) % n];   // 5 is coprime to n: visits every name
+      if (!used.includes(cand)) return cand;
+    }
+    return null;
+  };
+  let first = pick();
+  if (!first) {
+    // the pool is spent: start over, keeping the avengers' names retired
+    used.length = 0;
+    used.push(...(state.avengerNames || []));
+    first = pick() || FOLK_FIRST[id % n];
+  }
+  used.push(first);
+  return `${first}, ${FOLK_TRADE[(id * 7) % FOLK_TRADE.length]}`;
+}
 
 function mintWarlordName(state) {
   const id = state.nextId++;
@@ -167,7 +198,7 @@ export function ensureCamp(state, rand, opts = {}) {
     const id = state.nextId++;
     const t = tents[1 + (i % Math.max(1, tents.length - 1))] || tents[0];
     camp.folk.push({
-      id, name: `${FOLK_FIRST[id % FOLK_FIRST.length]}, ${FOLK_TRADE[(id * 7) % FOLK_TRADE.length]}`,
+      id, name: mintFolkName(state, id),
       x: t.x + (rand() - 0.5), y: t.y + 0.8 + (rand() - 0.5) * 0.5,
       px: 0, py: 0, dead: false, survivor: false, escaped: false,
     });
@@ -180,7 +211,7 @@ export function ensureCamp(state, rand, opts = {}) {
   state.camp = camp;
   state.campDirty = true;
   logEvent(state, opts.avenger
-    ? `${warlordName} raises his banner at ${name}. He sends no riders. He wants no gold.`
+    ? `${warlordName} raises ${pron(warlordName).his} banner at ${name}. ${pron(warlordName).He} sends no riders. ${pron(warlordName).He} wants no gold.`
     : unclaimed
       ? `The raiders have set up camp in the wilds — ${name}. For now, it is only a nest of brigands.`
       : `Scouts bring word: a warlord has made camp in the wilds — ${name}, under ${warlordName}.`, 'raid');
@@ -198,7 +229,7 @@ export function claimCampByWarlord(state) {
     name: mintWarlordName(state), hp: CAMP.warlordHp, maxHp: CAMP.warlordHp,
     home: true, x: c.x, y: c.y - 0.6, px: c.x, py: c.y - 0.6,
   };
-  logEvent(state, `A warlord has claimed ${c.name}: ${c.warlord.name}. His banner rises over the tents.`, 'raid');
+  logEvent(state, `A warlord has claimed ${c.name}: ${c.warlord.name}. ${pron(c.warlord.name).His} banner rises over the tents.`, 'raid');
   emit('warlord-claimed', c);
 }
 
@@ -278,7 +309,7 @@ export function warlordFell(state) {
   if (!c || c.gone || c.leaderless || c.unclaimed || !c.warlord?.name) return;
   c.leaderless = true;
   c.successorAt = state.tick + CAMP.successorTicks;
-  logEvent(state, `${c.warlord.name.toUpperCase()} IS SLAIN! His host breaks and scatters.`, 'good');
+  logEvent(state, `${c.warlord.name.toUpperCase()} IS SLAIN! ${pron(c.warlord.name).His} host breaks and scatters.`, 'good');
   emit('warlord-slain');
 }
 
@@ -288,9 +319,12 @@ export function warlordReturned(state) {
   if (!c) return;
   if (c.gone) {
     // he marched out with his warband and came home to ashes and silence
-    logEvent(state, `${c.warlord.name} returns to what was ${c.name}. Ashes. Silence. Something in him breaks.`, 'raid');
+    logEvent(state, `${c.warlord.name} returns to what was ${c.name}. Ashes. Silence. Something in ${pron(c.warlord.name).him} breaks.`, 'raid');
     c.avengerAt = Math.min(c.avengerAt || Infinity, state.tick + Math.floor(CAMP.avengerTicks / 2));
-    c.avengerName = c.avengerName || `${c.warlord.name.replace('Warlord ', '')} the Ash-Sworn`;
+    if (!c.avengerName) {
+      c.avengerName = `${c.warlord.name.replace('Warlord ', '')} the Ash-Sworn`;
+      (state.avengerNames ||= []).push(firstName(c.warlord.name));
+    }
     return;
   }
   c.warlord.home = true;
@@ -429,7 +463,7 @@ function timers(state, c, rand) {
       c.avengerAt = state.tick + 2000;
       return;
     }
-    logEvent(state, `${name.toUpperCase()} HAS COME. He remembers the burning. He will take no gold.`, 'raid');
+    logEvent(state, `${name.toUpperCase()} HAS COME. ${pron(name).He} remembers the burning. ${pron(name).He} will take no gold.`, 'raid');
     emit('avenger-come', state.camp);
   }
   // spared folk drift to your gates in the years after a punitive burning —
@@ -491,7 +525,7 @@ function relocateCamp(state, c, rand) {
   logEvent(state,
     c.unclaimed || !c.warlord.name
       ? `Your border has swallowed the ground at ${from} — the brigands strike their tents and make camp deeper in the wilds.`
-      : `Your border has swallowed the ground at ${from} — ${c.warlord.name} strikes his tents and raises them again, deeper in the wilds.`,
+      : `Your border has swallowed the ground at ${from} — ${c.warlord.name} strikes ${pron(c.warlord.name).his} tents and raises them again, deeper in the wilds.`,
     'raid');
   emit('camp-moved', c);
 }
@@ -507,7 +541,7 @@ function disbandCamp(state, c) {
   logEvent(state,
     c.unclaimed || !c.warlord.name
       ? `The brigands of ${c.name} find no wild ground left in all the realm. They scatter and quit the land.`
-      : `${c.warlord.name} finds no wild ground left in all the realm. He strikes his tents and quits the land — hoard and all.`,
+      : `${c.warlord.name} finds no wild ground left in all the realm. ${pron(c.warlord.name).He} strikes ${pron(c.warlord.name).his} tents and quits the land — hoard and all.`,
     'good');
   emit('camp-disbanded', c);
 }
@@ -694,7 +728,7 @@ function battleTick(state, rand) {
   // victory: the camp is taken — the choice is yours, sovereign
   if (!defenders.length) {
     exp.phase = 'choice';
-    logEvent(state, `${c.name} is TAKEN. The garrison is slain. His people cower among the tents.`, 'good');
+    logEvent(state, `${c.name} is TAKEN. The garrison is slain. ${c.warlord?.name && !c.unclaimed ? pron(c.warlord.name).His : 'Its'} people cower among the tents.`, 'good');
     cancelGatheredWave(state, rand);
     emit('camp-victory', {
       camp: c, warlordSlain: exp.warlordSlain, wasHome: exp.warlordWasHome,
@@ -762,7 +796,7 @@ function battleTick(state, rand) {
         exp.slain++;
         if (target === c.warlord) {
           exp.warlordSlain = true;
-          logEvent(state, `${c.warlord.name.toUpperCase()} FALLS at his own hall${crit ? ' — a mighty blow' : ''}!`, 'good');
+          logEvent(state, `${c.warlord.name.toUpperCase()} FALLS at ${pron(c.warlord.name).his} own hall${crit ? ' — a mighty blow' : ''}!`, 'good');
         }
       }
 
@@ -945,6 +979,7 @@ function massacreTick(state, rand) {
       const first = f.name.split(',')[0];
       logEvent(state, `One slips through the reeds — ${f.name}. Remember the name: ${first}.`, 'raid');
       c.avengerName = `${first} the Ash-Sworn`;
+      (state.avengerNames ||= []).push(first);
     }
   }
 

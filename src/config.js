@@ -383,16 +383,22 @@ export const RAID = {
   abandonHpFrac: 0.15,         // below this fraction a building is sacked: raiders move on, it survives gutted
   // (the old sackDeathChance die-at-your-post roll is gone — a sacked building
   // EJECTS its crew, and the only way a civilian dies is caught in the open: HUNT)
-  sizeBase: 2, prosperityDivisor: 350, militaryPressure: 0.4, sizeCap: 40,
-  sizeCurve: 'linear',         // 'linear' (shipped) | 'sqrt' (design/HOMEOSTASIS.md §2, harness-only)
-  sqrtCurve: { base: 8, mult: 6, military: 0.25 },
+  // wave size: base + mult·√(prosperity/1000) + military·soldiers (HOMEOSTASIS.md
+  // §2, Campaign 15). Wealth keeps costing you raiders but each thousand costs
+  // fewer; the cap is a performance ceiling, no longer the curve. The old
+  // linear curve (2 + prosperity/350 + 0.4·soldiers, cap 40) pinned every
+  // wave at 40 from ~Year 10 while its own wish ran to ~300.
+  sizeCurve: 'sqrt',           // 'sqrt' | 'linear' (the pre-Campaign-15 curve)
+  sqrtCurve: { base: 2, mult: 4.5, military: 0.15 },
+  sizeBase: 2, prosperityDivisor: 350, militaryPressure: 0.4,   // 'linear' only
+  sizeCap: 90,
   easeAfterSack: 0.04,         // rubber-band: each building sacked last raid shrinks the next wave...
   minSizeMult: 0.5,
   mercyPerSack: 4,             // ...and buys this many extra quiet ticks to recover
   maxRaidTicks: 200,           // raiders don't winter over — they withdraw when the season's looting is done
   warlordEveryWaves: 6,        // ≈ every 4 years at typical gaps
   warlordMinPop: 25,           // warlords only bother once the kingdom is worth it
-  warlordSizeMult: 2.5, warlordHpMult: 1.5,
+  warlordSizeMult: 1.8, warlordHpMult: 1.5,   // 2.5 under the old cap of 40, which swallowed it
 };
 
 // ── Tribute (Danegeld) — sim2-validated 2026-07-16 ─────────────────

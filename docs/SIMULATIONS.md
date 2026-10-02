@@ -576,6 +576,13 @@ sells iron. The raid curve is switched with the new default-off knob
   bypass the smelter.
 - **Armies are bistable** in every variant: around 105 with near-zero losses,
   or 0–15 bleeding about 10 a raid with 25–70k gold they can't spend.
+- **Addendum, the shipping tune:** `sqrtsoft` made the opening harsher
+  (Year 1 raids 12 against 5) and early warlord waves about 69. Shipped
+  instead: `2 + 4.5√p + 0.15·soldiers`, warlord ×1.8, cap 90. Raids run 9 in
+  Years 1–3, early warlord waves 45, and late raids 58 costing about 6
+  soldiers each. Masters lost go from 29 to 57. Every non-`shipped` harness
+  variant resets to the old curve, so the tables reproduce (HOMEOSTASIS.md
+  §10.6).
 
 ---
 

@@ -24,6 +24,12 @@ const YEAR_TICKS = SEASON_TICKS * 4;
 
 // ── the levers (HOMEOSTASIS.md §2, §4, §5) ─────────────────────────
 const LEVERS = {
+  // the pre-Campaign-15 raid curve: every variant but 'shipped' starts from it,
+  // so the §10 tables stay reproducible after the √ curve shipped
+  legacy: () => {
+    RAID.sizeCurve = 'linear'; RAID.sizeCap = 40; RAID.warlordSizeMult = 2.5;
+    RAID.sqrtCurve = { base: 8, mult: 6, military: 0.25 };
+  },
   // §2: raid size on √prosperity; the cap stays only as a performance ceiling
   sqrt: () => { RAID.sizeCurve = 'sqrt'; RAID.sizeCap = 90; },
   // §4: farming at roughly half today's yield per worker
@@ -36,6 +42,10 @@ const LEVERS = {
   // tapering to half by 200 souls (the best land is farmed first) — applied
   // per policy tick in the run loop below, a stand-in for per-tile fertility
   taperfood: () => { TAPER = true; },
+  // the shipping candidates: a low base so the opening matches today's raids,
+  // and (B) a lighter warlord multiplier now that no cap swallows it
+  sqrtA: () => { RAID.sizeCurve = 'sqrt'; RAID.sizeCap = 90; RAID.sqrtCurve = { base: 2, mult: 4, military: 0.15 }; },
+  sqrtB: () => { RAID.sizeCurve = 'sqrt'; RAID.sizeCap = 90; RAID.sqrtCurve = { base: 2, mult: 4.5, military: 0.15 }; RAID.warlordSizeMult = 1.8; },
 };
 let TAPER = false;
 const FARM0 = BUILDINGS.farm.prod.food, DOCK0 = BUILDINGS.dock.prod.food;
@@ -53,8 +63,12 @@ const VARIANTS = {
   sqrtsoft: ['sqrtsoft'],
   taperfood: ['taperfood'],
   combined2: ['sqrtsoft', 'taperfood', 'charcoal'],
+  sqrtA: ['sqrtA'],
+  sqrtB: ['sqrtB'],
 };
+VARIANTS.shipped = [];   // the live config as it stands, no reset
 if (!VARIANTS[VARIANT]) throw new Error(`unknown variant ${VARIANT}`);
+if (VARIANT !== 'shipped') LEVERS.legacy();
 for (const l of VARIANTS[VARIANT]) LEVERS[l]();
 
 const state = createState(SEED);
