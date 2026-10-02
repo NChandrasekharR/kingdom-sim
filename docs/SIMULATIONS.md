@@ -549,6 +549,36 @@ the wood deadlock kills it first.
 
 ---
 
+## Campaign 15 — Homeostasis: the raid curve, lean food, charcoal (2026-10-02, `model/`)
+
+**Question:** after the Thornmere playthrough (pop pinned at 300 for 14 years,
+55k gold idle, 20 raids of exactly 40), which levers bring back late-game
+pressure without breaking the opening?
+
+**Method:** `sh model/homeostasis-batch.sh 30` → `node model/homeostasis-table.mjs`.
+8 variants × 5 seeds × 30 years against the real core. The bot is shaped like
+Thornmere: it stops housing at 300, keeps 35% under arms, buys iron, and never
+sells iron. The raid curve is switched with the new default-off knob
+`RAID.sizeCurve` (`raidSizeF`, `raids.js`). The live game is byte-identical:
+`simulate.mjs 12 42` matches before and after.
+
+**Findings** (full tables in `design/HOMEOSTASIS.md` §10):
+- **The shipped cap pins raids at 40 from Year 10.** The formula's own wish
+  reaches a median of 298 by Year 20.
+- **The √ curve at `6√p` is too harsh:** the army collapses to 8 and masters
+  lost nearly triple. **`4√p + 0.15·soldiers` holds:** raids grow from 42 to
+  60, armies past critical mass keep 105, losses are about 8 a raid.
+- **Halving farm and dock yield flat is a poverty trap:** 5/5 seeds stuck at
+  10 people. **Tapering to half by 200 people works:** 53–81% of people on the
+  land, spoilage halved, gold at Year 30 down 64%, stone exports down 67%, and
+  homeostasis moves from Year 13 to Year 17. One seed never reaches it.
+- **Charcoal ×3 alone has no measurable effect**, because direct iron imports
+  bypass the smelter.
+- **Armies are bistable** in every variant: around 105 with near-zero losses,
+  or 0–15 bleeding about 10 a raid with 25–70k gold they can't spend.
+
+---
+
 ## Cumulative totals
 
 ~8,300 Monte Carlo runs across eleven `sim2` campaigns, plus the two Session-8

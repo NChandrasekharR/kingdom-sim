@@ -34,8 +34,7 @@ export function raidTick(state, rand) {
           (raid.wave + 1) % RAID.warlordEveryWaves === 0 && !c.unclaimed;
         raid.nextFromCamp = willBeWarlord || rand() < CAMP.raidFromCampChance;
         if (raid.nextFromCamp) {
-          let predicted = RAID.sizeBase + prosperity(state) / RAID.prosperityDivisor
-            + state.soldiers.length * RAID.militaryPressure;
+          let predicted = raidSizeF(state);
           if (willBeWarlord) predicted *= RAID.warlordSizeMult;
           predicted = Math.min(RAID.sizeCap, Math.max(1, Math.round(predicted)));
           // the TRUE size of the gathering (the props below are capped for the
@@ -182,8 +181,7 @@ function spawnRaid(state, rand) {
 
   // wave size rides prosperity and your army; a raid that hurt last time
   // eases this one (rubber-band mercy), a fat unscathed kingdom gets none
-  let sizeF = RAID.sizeBase + prosperity(state) / RAID.prosperityDivisor
-    + state.soldiers.length * RAID.militaryPressure;
+  let sizeF = raidSizeF(state);
   const ease = 1 - (raid.lastSacked || 0) * RAID.easeAfterSack;
   sizeF *= Math.max(RAID.minSizeMult, Math.min(1.2, ease));
 
@@ -306,6 +304,18 @@ function spawnRaid(state, rand) {
       ? `${raid.raiders.length} raiders march out from ${state.camp.name}!`
       : `${raid.raiders.length} raiders storm in from the wilds!`, 'raid',
     `(from ${sx}, ${sy})`);
+}
+
+// the wave's raw size before warlord multipliers and the cap. 'linear' is the
+// shipped curve; 'sqrt' is the HOMEOSTASIS.md candidate — wealth keeps costing
+// you raiders, but each extra thousand costs fewer (harness-only until tuned)
+export function raidSizeF(state) {
+  const soldiers = state.soldiers.length * RAID.militaryPressure;
+  if (RAID.sizeCurve === 'sqrt') {
+    const c = RAID.sqrtCurve;
+    return c.base + c.mult * Math.sqrt(prosperity(state) / 1000) + state.soldiers.length * c.military;
+  }
+  return RAID.sizeBase + prosperity(state) / RAID.prosperityDivisor + soldiers;
 }
 
 function pickTarget(state, rand) {

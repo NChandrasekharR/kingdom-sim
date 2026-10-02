@@ -384,6 +384,8 @@ export const RAID = {
   // (the old sackDeathChance die-at-your-post roll is gone — a sacked building
   // EJECTS its crew, and the only way a civilian dies is caught in the open: HUNT)
   sizeBase: 2, prosperityDivisor: 350, militaryPressure: 0.4, sizeCap: 40,
+  sizeCurve: 'linear',         // 'linear' (shipped) | 'sqrt' (design/HOMEOSTASIS.md §2, harness-only)
+  sqrtCurve: { base: 8, mult: 6, military: 0.25 },
   easeAfterSack: 0.04,         // rubber-band: each building sacked last raid shrinks the next wave...
   minSizeMult: 0.5,
   mercyPerSack: 4,             // ...and buys this many extra quiet ticks to recover
