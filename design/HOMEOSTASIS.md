@@ -1,10 +1,11 @@
 # Homeostasis: why a winning realm stops playing, and what pulls it back
 
-**Status: DESIGN + MEASUREMENTS. Two items shipped:**
+**Status: DESIGN + MEASUREMENTS. Three items shipped:**
 - **The √ raid curve** (§2.4, §10.6): `2 + 4.5√p + 0.15 × soldiers`, warlord
   ×1.8, cap 90.
 - **The text fixes** (§11): names, pronouns, articles, trade lines, journal
   trimming, housing hints.
+- **Garrisons and refuges** (§3.4).
 
 Everything else is a proposal. §10 gives the harness numbers for the levers
 that could be tested without new systems.
@@ -210,6 +211,67 @@ Spread too thin, and a warlord wave beats garrisons one at a time. That makes
 
 **Smallest useful slice:** barracks garrisons with a response radius, plus
 refuges.
+
+### 3.4 Shipped: garrisons and refuges (Campaign 16)
+
+**Garrisons** (`GARRISON` in config; `assignGarrisons`, `garrisonPost` in `raids.js`)
+- A barracks placed more than 10 tiles from the keep starts as a **post**;
+  closer ones muster the **field army**. A toggle in the inspector flips
+  either, and a ring shows the ground a post holds.
+- Between raids, posts are filled from the field army (nearest soldiers first,
+  up to 4 per post, never mercenaries, never the host afield).
+- Posted soldiers live, mend and idle at their barracks, and fight only within
+  9 tiles of it, whatever the field army's stance.
+- A post **sallies only at even odds** (`sallyOdds: 1`, no more raiders inside
+  its radius than swords). Otherwise it shuts its gates and holds the
+  doorstep. A routed post holds the doorstep too.
+- Posts stay home when the host marches on a camp.
+- Only posts with raiders inside their radius count toward a fight's force
+  ratio.
+
+**Refuges** (`REFUGE`; `refugeBoard`, `takeRefuge` in `villagers.js`)
+- Fleeing workers run to the nearest intact, unsacked strongpoint with room:
+  a tower (6), a barracks (10) or the keep (everyone). Any with a raider
+  within 3 tiles is passed over.
+- Inside one (within 1.5 tiles) they count as sheltered from the hunt.
+- If the refuge falls they run on.
+
+**Measurements.** Paired probes (`model/defence-probe.mjs`): grow a realm with
+the bot to Year 15, snapshot it, then replay 3 years 20 times, each pair
+sharing a sim seed, with the feature on and off.
+
+| Probe | Off | On | Pairs better / worse / same |
+|---|---|---|---|
+| Refuges, seed 123: workers hunted · craft masters lost | 79 · 44 | 74 · 38 | 5 / 1 / 14 |
+| Refuges, seed 7: workers hunted · craft masters lost | 55 · 35 | 54 · 29 | 6 / 8 / 6 (on hunted) |
+| Garrisons at 3:1 odds, seed 42: soldiers fallen | 241 | 261 | 9 / 9 / 2 |
+| Garrisons at 3:1 odds, seed 99: soldiers fallen | 130 | 169 | 5 / 11 / 4 |
+| **Garrisons at even odds (shipped), seed 42:** soldiers fallen · veterans fallen | 509 · 118 | 517 · 86 | 10 / 9 / 1 |
+| **Garrisons at even odds (shipped), seed 99:** soldiers fallen · veterans fallen | 130 · 69 | 164 · 63 | 7 / 12 / 1 |
+
+(Seed 42's even-odds snapshot differs from its 3:1 one, because the bot grew it
+under the new setting.)
+
+What this says:
+- **Refuges are a modest, real gain:** about 15% fewer craft masters lost
+  where workers are hunted.
+- **Garrisons, in these realms, are a cost, softened by even odds.** Posting
+  soldiers takes them out of the main fights, and in the bot's realms there
+  is no remote hunting for posts to prevent. The bot's realms are bistable
+  (§10.3). Big-army realms have no remote hunting, because their mines sit
+  near the keep. Small-army realms have the hunting (54–79 hunted per
+  60 raids) but no soldiers left to post (seed 7: no change at all).
+- So **the harness can't show the case garrisons exist for:** a realm with an
+  army *and* exposed outlying sites, which is what Thornmere was (16 craft
+  masters run down at remote mines). Treat the shipped tuning as "least harm
+  where unneeded", not "proven benefit". The next playtest is the real
+  measurement.
+- **The 10-tile auto-default is a judgement call.** A barracks raised far out
+  usually means the player wants that ground held. If playtests show players
+  posting by accident, default every barracks to the field army instead.
+
+Not in this slice: beacon chains, militia, intercepting raiders on the way out,
+and raiders reading defences (§3.3).
 
 ---
 

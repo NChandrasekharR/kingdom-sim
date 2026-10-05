@@ -10,6 +10,22 @@ redeployed 2026-08-18 at Chandra's word, the full Session-8 stack included.
 
 ---
 
+## Session 10b — garrisons and refuges (2026-10-05)
+
+**Garrisons.** A barracks more than 10 tiles from the keep is a garrison post
+(toggle in the inspector, with a ring on the map).
+- Its 4 soldiers live there and hold 9 tiles around it.
+- It sallies only at even odds; otherwise it shuts its gates.
+- It stays home when the host marches.
+
+**Refuges.** Fleeing workers run to the nearest tower, barracks or keep with
+room, not always the keep.
+
+Measured in Campaign 16. Refuges save about 15% of craft masters where
+workers are hunted. Garrisons are neutral-to-costly in the bot's realms,
+which never pair an army with exposed outlying sites; the playtest is the
+real test (HOMEOSTASIS.md §3.4).
+
 ## Session 10 — homeostasis: the √ raid curve and the chronicle's honesty (2026-10-02)
 
 Prompted by the Thornmere playthrough. Design and numbers are in

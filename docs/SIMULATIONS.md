@@ -587,6 +587,30 @@ sells iron. The raid curve is switched with the new default-off knob
 
 ---
 
+## Campaign 16 — Garrisons and refuges (2026-10-05, `model/`)
+
+**Question:** do the §3 garrison posts and refuges cut losses at outlying
+sites, and what do they cost?
+
+**Method:**
+- 30-year batch: `VARIANTS="preslice refuges garrisons" sh model/homeostasis-batch.sh 30`.
+  `preslice` reproduces the previous build exactly (checked on seeds 42 and 7).
+- Paired probes: `node model/defence-probe.mjs <refuges|garrisons> <seed> 15 20 3`.
+  Grow a realm to Year 15, snapshot it, then replay 3 years 20 times with
+  the feature on and off, each pair sharing a sim seed.
+
+**Findings** (tables in `design/HOMEOSTASIS.md` §3.4):
+- **Refuges:** craft masters lost 44 → 38 and 35 → 29. Workers hunted barely move.
+- **Garrisons charging at 3:1 odds:** soldiers fallen +8% and +30%. Even odds
+  (shipped) is neutral on seed 42 (509 → 517, veterans 118 → 86) and still
+  +26% on seed 99.
+- **The bot never builds the case garrisons exist for.** Big-army realms have
+  no remote hunting; small-army realms have the hunting but no soldiers to post.
+- **Correction:** `stats.mastersLost` counts veteran soldiers as well as craft
+  masters. Campaign 15's "masters lost doubled" was veterans.
+
+---
+
 ## Cumulative totals
 
 ~8,300 Monte Carlo runs across eleven `sim2` campaigns, plus the two Session-8

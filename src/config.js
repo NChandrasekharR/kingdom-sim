@@ -295,7 +295,8 @@ export const GARRISON = {
   // a post sallies only when the odds inside its radius are bearable — more
   // than this many raiders per posted sword and it SHUTS THE GATES: it holds
   // the doorstep (routHold), shelters whoever ran there, and waits. Four men
-  // do not charge sixty (measured: charging posts raised soldiers fallen ~30%)
+  // do not charge sixty (Campaign 16: at 3:1 posts raised soldiers fallen
+  // 8–30%; at even odds the cost is smaller, and veterans fallen drop)
   sallyOdds: 1,
 };
 // Fleeing workers run for the NEAREST strongpoint — a manned-or-not tower, a
