@@ -296,7 +296,7 @@ export const GARRISON = {
   // than this many raiders per posted sword and it SHUTS THE GATES: it holds
   // the doorstep (routHold), shelters whoever ran there, and waits. Four men
   // do not charge sixty (measured: charging posts raised soldiers fallen ~30%)
-  sallyOdds: 3,
+  sallyOdds: 1,
 };
 // Fleeing workers run for the NEAREST strongpoint — a manned-or-not tower, a
 // barracks, the keep — not always the keep across the map (the burh lesson:
