@@ -580,7 +580,8 @@ sells iron. The raid curve is switched with the new default-off knob
   (Year 1 raids 12 against 5) and early warlord waves about 69. Shipped
   instead: `2 + 4.5√p + 0.15·soldiers`, warlord ×1.8, cap 90. Raids run 9 in
   Years 1–3, early warlord waves 45, and late raids 58 costing about 6
-  soldiers each. Masters lost go from 29 to 57. Every non-`shipped` harness
+  soldiers each. Masters lost go from 29 to 57, almost all of them veteran
+  soldiers (corrected in Campaign 16: `stats.mastersLost` counts both). Every non-`shipped` harness
   variant resets to the old curve, so the tables reproduce (HOMEOSTASIS.md
   §10.6).
 

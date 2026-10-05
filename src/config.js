@@ -99,7 +99,7 @@ export const BUILDINGS = {
     cost: { wood: 6, stone: 4 }, hp: 60, workers: 0, influence: 2, unbuildable: true,
   },
   barracks: {
-    name: 'Barracks', desc: 'Trains soldiers (4 per barracks).',
+    name: 'Barracks', desc: 'Trains soldiers (4 per barracks). Out on the frontier it is a garrison post; by the keep it musters the field army.',
     cost: { wood: 30, stone: 20, iron: 8 }, hp: 90, workers: 0, influence: 3,
   },
   // ── The Ladder of Great Works (design/ENDGAME.md §4) ─────────────
@@ -280,6 +280,33 @@ export const SKILL = {
 // ── Soldiers ───────────────────────────────────────────────────────
 // Iron arms them once; from then on they eat 3× (food, not gold, limits armies).
 export const SOLDIER = { cost: { iron: 5 }, hp: 60, dmg: 8, speed: 1.1, perBarracks: 4 };
+
+// ── Garrisons and refuges (design/HOMEOSTASIS.md §3) ──────────────
+// No pre-modern state defended its frontier from the capital. A barracks is
+// either a GARRISON POST — its soldiers (up to perBarracks) live there, mend
+// there, and fight only inside its radius, the legion at León over the Spanish
+// mines — or part of the FIELD ARMY, which musters at the keep and answers
+// every horn as before. Garrisons are filled first, from the field army; they
+// hold their posts when the host marches on a camp.
+export const GARRISON = {
+  radius: 9,                   // a garrison fights raiders this close to its barracks
+  autoDistance: 10,            // a barracks raised farther than this from the keep starts as a post
+  routHold: 2.5,               // a broken garrison holds only its own doorstep
+  // a post sallies only when the odds inside its radius are bearable — more
+  // than this many raiders per posted sword and it SHUTS THE GATES: it holds
+  // the doorstep (routHold), shelters whoever ran there, and waits. Four men
+  // do not charge sixty (measured: charging posts raised soldiers fallen ~30%)
+  sallyOdds: 3,
+};
+// Fleeing workers run for the NEAREST strongpoint — a manned-or-not tower, a
+// barracks, the keep — not always the keep across the map (the burh lesson:
+// nobody more than a short run from refuge). Towers and barracks hold a few;
+// the keep takes everyone. A refuge with raiders at its door is passed over.
+export const REFUGE = {
+  radius: 1.5,                 // huddled this close to a refuge, you're inside
+  capacity: { tower: 6, barracks: 10 },
+  unsafeRadius: 3,             // a refuge with a live raider this close is no refuge
+};
 
 // ── The heriot: iron comes home from a held field (Session 9) ──────
 // Historically universal — battlefield stripping was standard practice, and

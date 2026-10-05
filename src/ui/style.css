@@ -215,6 +215,15 @@ button {
 .sel-name { font-family: 'Pirata One', serif; font-size: 17px; }
 .sel-hp { font-size: 12px; color: var(--ink-soft); }
 .sel-desc { font-size: 12px; font-style: italic; color: var(--ink-soft); }
+.post-toggle {
+  background: #6b5a3a;
+  color: #ffe9c8;
+  border: 1px solid #3e321d;
+  border-radius: 3px;
+  padding: 4px 8px;
+  font-size: 12px;
+  margin-right: 4px;
+}
 .demolish {
   background: var(--crimson);
   color: #ffe9c8;

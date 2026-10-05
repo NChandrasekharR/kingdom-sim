@@ -13,7 +13,7 @@ const { makeSim } = await import('../src/core/sim.js');
 const { recruitSoldier, raidSizeF } = await import('../src/core/raids.js');
 const { sell, buy } = await import('../src/core/trade.js');
 const { territorySize } = await import('../src/core/territory.js');
-const { MAP, SEASON_TICKS, BUILDINGS, RAID, EAT_PER_POP, SOLDIER_EAT_MULT, WINTER_FARM_MULT } =
+const { MAP, SEASON_TICKS, BUILDINGS, RAID, EAT_PER_POP, SOLDIER_EAT_MULT, WINTER_FARM_MULT, GARRISON, REFUGE } =
   await import('../src/config.js');
 
 const VARIANT = process.argv[2] || 'baseline';
@@ -23,13 +23,23 @@ const N = MAP.size;
 const YEAR_TICKS = SEASON_TICKS * 4;
 
 // ── the levers (HOMEOSTASIS.md §2, §4, §5) ─────────────────────────
+const DEFENCE0 = { autoDistance: GARRISON.autoDistance, capacity: { ...REFUGE.capacity } };
 const LEVERS = {
   // the pre-Campaign-15 raid curve: every variant but 'shipped' starts from it,
   // so the §10 tables stay reproducible after the √ curve shipped
   legacy: () => {
     RAID.sizeCurve = 'linear'; RAID.sizeCap = 40; RAID.warlordSizeMult = 2.5;
     RAID.sqrtCurve = { base: 8, mult: 6, military: 0.25 };
+    LEVERS.noDefence();
   },
+  // no garrison posts (every barracks musters the field army) and no refuges
+  // but the keep: the realm as it stood before the §3 slice
+  noDefence: () => { GARRISON.autoDistance = Infinity; REFUGE.capacity = {}; },
+  // and back again (the legacy reset turns them off for the older variants)
+  defence: () => { GARRISON.autoDistance = DEFENCE0.autoDistance; REFUGE.capacity = { ...DEFENCE0.capacity }; },
+  noGarrison: () => { LEVERS.defence(); GARRISON.autoDistance = Infinity; },
+  // the bot posts a garrison barracks beside each outlying extraction site
+  postSites: () => { POST_SITES = true; },
   // §2: raid size on √prosperity; the cap stays only as a performance ceiling
   sqrt: () => { RAID.sizeCurve = 'sqrt'; RAID.sizeCap = 90; },
   // §4: farming at roughly half today's yield per worker
@@ -48,6 +58,7 @@ const LEVERS = {
   sqrtB: () => { RAID.sizeCurve = 'sqrt'; RAID.sizeCap = 90; RAID.sqrtCurve = { base: 2, mult: 4.5, military: 0.15 }; RAID.warlordSizeMult = 1.8; },
 };
 let TAPER = false;
+let POST_SITES = false;
 const FARM0 = BUILDINGS.farm.prod.food, DOCK0 = BUILDINGS.dock.prod.food;
 function applyTaper(pop) {
   const m = Math.max(0.5, Math.min(1, 1 - 0.5 * (pop - 60) / 140));
@@ -65,6 +76,10 @@ const VARIANTS = {
   combined2: ['sqrtsoft', 'taperfood', 'charcoal'],
   sqrtA: ['sqrtA'],
   sqrtB: ['sqrtB'],
+  // Campaign 16 — the §3 slice, all on the shipped raid curve (sqrtB):
+  preslice: ['sqrtB', 'noDefence'],             // == the build before garrisons
+  refuges: ['sqrtB', 'noGarrison'],             // refuges only
+  garrisons: ['sqrtB', 'defence', 'postSites'], // refuges + posts at the mines
 };
 VARIANTS.shipped = [];   // the live config as it stands, no reset
 if (!VARIANTS[VARIANT]) throw new Error(`unknown variant ${VARIANT}`);
@@ -95,6 +110,19 @@ function findSpot(type) {
       }
     }
     if (r > 40) break;
+  }
+  return null;
+}
+function findSpotNear(type, cx, cy, maxR) {
+  for (let r = 1; r <= maxR; r++) {
+    for (let dy = -r; dy <= r; dy++) {
+      for (let dx = -r; dx <= r; dx++) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+        const x = cx + dx, y = cy + dy;
+        if (x < 0 || y < 0 || x >= N || y >= N) continue;
+        if (canPlace(state, type, x, y).ok) return { x, y };
+      }
+    }
   }
   return null;
 }
@@ -134,6 +162,23 @@ function playerPolicy() {
   if (count('market') < 1 && state.res.wood > 60 && tryBuild('market')) return;
   const terr = territorySize(state);
   if (count('tower') < Math.floor(terr / 120) && tryBuild('tower')) return;
+  // §3: a garrison barracks beside every outlying mine, quarry and camp
+  // (iron permitting) — the legion over the Spanish mines
+  if (POST_SITES && state.res.iron >= 8) {
+    const keep = state.buildings.find((b) => b.type === 'keep');
+    const posts = state.buildings.filter((b) => b.type === 'barracks' && b.hp > 0 && b.garrison);
+    for (const site of state.buildings) {
+      if (!['mine', 'quarry', 'lumber'].includes(site.type) || site.hp <= 0 || site.depleted) continue;
+      if (Math.hypot(site.x - keep.x, site.y - keep.y) <= GARRISON.autoDistance) continue;
+      if (posts.some((p) => Math.hypot(p.x - site.x, p.y - site.y) <= GARRISON.radius - 2)) continue;
+      const spot = findSpotNear('barracks', site.x, site.y, 5);
+      if (spot && place(state, 'barracks', spot.x, spot.y).ok) {
+        const b = state.buildings[state.buildings.length - 1];
+        b.garrison = true;
+        return;
+      }
+    }
+  }
   const armyTarget = Math.max(8, Math.round(pop * ARMY_SHARE));
   if (state.soldiers.length < armyTarget) {
     const r = recruitSoldier(state);
@@ -224,6 +269,15 @@ for (let t = 0; t < TICKS; t++) {
   }
 }
 
+// KSIM_SNAPSHOT=<file>: write the end state as a game save, for the probes
+// (model/defence-probe.mjs replays controlled raids on copies of it)
+if (process.env.KSIM_SNAPSHOT) {
+  const { writeFileSync } = await import('node:fs');
+  const { saveGame } = await import('../src/core/state.js');
+  globalThis.localStorage = { setItem: (k, v) => writeFileSync(process.env.KSIM_SNAPSHOT, v), getItem: () => null, removeItem: () => {} };
+  saveGame(state);
+}
+
 console.log(JSON.stringify({
   variant: VARIANT, seed: SEED, years: YEARS,
   final: {
@@ -232,6 +286,12 @@ console.log(JSON.stringify({
     bread: Math.round(state.res.bread), foodSpoiled: Math.round(state.stats.foodSpoiled || 0),
     starved: state.stats.villagersStarved || 0, soldiersFallen: state.stats.soldiersFallen || 0,
     mastersLost: state.stats.mastersLost || 0, keepFalls: state.stats.keepFalls || 0,
+    hunted: state.stats.villagersHunted || 0,
+    // stats.mastersLost counts veteran SOLDIERS who fall too: split them out
+    veteransFallen: state.stats.veteransFallen || 0,
+    craftMastersLost: (state.stats.mastersLost || 0) - (state.stats.veteransFallen || 0),
+    posts: state.buildings.filter((b) => b.type === 'barracks' && b.hp > 0 && b.garrison).length,
+    barracks: state.buildings.filter((b) => b.type === 'barracks' && b.hp > 0).length,
     won: !!state.won, crownYear,
   },
   traded, yearly, raids,

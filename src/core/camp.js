@@ -1,7 +1,7 @@
 import { MAP, T, TERRAIN_INFO, CAMP, COMBAT, SOLDIER, RAIDER, SKILL, ROAD_SPEED_MULT } from '../config.js';
 import { idx, inBounds } from './state.js';
 import { logEvent, emit } from './events.js';
-import { findPath, roadTiles, soldierSkill, soldierMaxHp, quietGap } from './raids.js';
+import { findPath, roadTiles, soldierSkill, soldierMaxHp, quietGap, garrisonPost } from './raids.js';
 import { makeVillager, killVillager, isMaster } from './villagers.js';
 import { pron, firstName } from './names.js';
 
@@ -342,8 +342,13 @@ export function marchOnCamp(state) {
   if (c.broken) return { ok: false, reason: `${c.name} already lies broken` };
   if (state.expedition) return { ok: false, reason: 'The host is already afield' };
   if (state.raid.keepBesieged) return { ok: false, reason: 'The keep is under assault!' };
-  const host = state.soldiers.filter((s) => s.hp > 0);
-  if (host.length < 3) return { ok: false, reason: 'Too few swords to march (3 or more)' };
+  // garrisons hold their posts: the host is the field army (and any sellswords)
+  const host = state.soldiers.filter((s) => s.hp > 0 && !garrisonPost(state, s));
+  if (host.length < 3) {
+    return { ok: false, reason: state.soldiers.some((s) => garrisonPost(state, s))
+      ? 'Too few swords to march (3 or more) — garrisons hold their posts'
+      : 'Too few swords to march (3 or more)' };
+  }
 
   const foodCost = host.length * CAMP.provisionFood;
   const goldCost = CAMP.provisionGold;

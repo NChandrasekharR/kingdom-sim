@@ -1,4 +1,4 @@
-import { MAP, T, BUILDINGS, TERRAIN_INFO, FOREST, DEPOSITS } from '../config.js';
+import { MAP, T, BUILDINGS, TERRAIN_INFO, FOREST, DEPOSITS, GARRISON } from '../config.js';
 import { generateMap } from './mapgen.js';
 import { logEvent } from './events.js';
 import { makeVillager } from './villagers.js';
@@ -232,10 +232,17 @@ export function place(state, type, x, y) {
 
 function addBuilding(state, type, x, y) {
   const def = BUILDINGS[type];
-  state.buildings.push({
+  const b = {
     id: state.nextId++, type, x, y,
     hp: def.hp, maxHp: def.hp, assigned: 0,
-  });
+  };
+  // a barracks out on the frontier starts as a garrison post; one by the keep
+  // musters the field army (the player can flip either in the inspector)
+  if (type === 'barracks') {
+    const keep = state.buildings.find((k) => k.type === 'keep');
+    b.garrison = !!keep && Math.hypot(keep.x - x, keep.y - y) > GARRISON.autoDistance;
+  }
+  state.buildings.push(b);
   recomputeInfluence(state);
   state.buildingsDirty = true;
   state.territoryDirty = true;

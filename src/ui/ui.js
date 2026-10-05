@@ -1,10 +1,10 @@
-import { BUILDINGS, RESOURCES, RES_INFO, TICK_MS, SOLDIER, T, MAP, MERCENARY } from '../config.js';
+import { BUILDINGS, RESOURCES, RES_INFO, TICK_MS, SOLDIER, T, MAP, MERCENARY, GARRISON } from '../config.js';
 import { iconDataURL, buildingIconURL, PALETTE } from '../game/sprites.js';
 import { on, emit } from '../core/events.js';
 import { currentSeason, currentYear, makeSim } from '../core/sim.js';
 import { territorySize } from '../core/territory.js';
 import { demolish, clearSave, saveGame, createState } from '../core/state.js';
-import { recruitSoldier, dismissSoldier, hireMercenaries, dismissMercenaries, mercCount, mercUpkeepRate, rallyToKeep, payTribute, refuseTribute, armedReserve } from '../core/raids.js';
+import { recruitSoldier, dismissSoldier, hireMercenaries, dismissMercenaries, mercCount, mercUpkeepRate, rallyToKeep, payTribute, refuseTribute, armedReserve, garrisonPost, assignGarrisons } from '../core/raids.js';
 import { marchOnCamp, resolveCampChoice } from '../core/camp.js';
 import { countMasters, isMaster } from '../core/villagers.js';
 import { outputMult, depositInReach } from '../core/economy.js';
@@ -399,6 +399,13 @@ export function buildUI(root, ctx) {
         if (staged) crewLine += ` · staged on site: ${staged}`;
       }
     }
+    // a barracks is a garrison post or part of the field army
+    if (selected.type === 'barracks') {
+      const held = state.soldiers.filter((so) => so.postId === selected.id && garrisonPost(state, so)).length;
+      crewLine += selected.garrison
+        ? ` · <b>garrison post</b> — ${held}/${SOLDIER.perBarracks} posted, holding ${GARRISON.radius} tiles around it`
+        : ' · <b>field army</b> — its soldiers muster at the keep';
+    }
     selPanel.innerHTML = `
       <img class="bicon" src="${buildingIconURL(selected.type)}" alt="">
       <div class="sel-info">
@@ -406,6 +413,19 @@ export function buildUI(root, ctx) {
         <div class="sel-hp">HP ${Math.ceil(selected.hp)}/${def.hp} · output ${out}%${crewLine}</div>
         <div class="sel-desc">${def.desc}</div>
       </div>`;
+    if (selected.type === 'barracks') {
+      const g = el('button', 'post-toggle', selected.garrison ? 'Send to the field army' : 'Post a garrison here');
+      g.title = selected.garrison
+        ? 'Its soldiers rejoin the field army at the keep, answer every horn, and march with the host.'
+        : `Four of the field army come to live here and hold the ground within ${GARRISON.radius} tiles. They stay when the host marches.`;
+      g.onclick = () => {
+        selected.garrison = !selected.garrison;
+        if (state.raid.phase !== 'active') assignGarrisons(state);
+        renderSelection();
+        render();
+      };
+      selPanel.appendChild(g);
+    }
     if (selected.type !== 'keep') {
       const d = el('button', 'demolish', 'Demolish');
       d.onclick = () => {
@@ -440,7 +460,7 @@ export function buildUI(root, ctx) {
         <img class="bicon" src="${iconDataURL('soldier')}" alt="">
         <div class="sel-info">
           <div class="sel-name">${v.name} <span class="good">— soldier</span>${v.marked ? ' <span class="bad">· marked</span>' : ''}</div>
-          <div class="sel-hp">HP ${Math.ceil(unit.hp)}/${SOLDIER.hp} (${hpPct}%) · skills: ${skills}${unit.exp ? ' · <b>afield with the host</b>' : ''}</div>
+          <div class="sel-hp">HP ${Math.ceil(unit.hp)}/${SOLDIER.hp} (${hpPct}%) · skills: ${skills}${unit.exp ? ' · <b>afield with the host</b>' : (() => { const p = garrisonPost(state, unit); return p ? ` · garrison at (${p.x}, ${p.y})` : ' · field army'; })()}</div>
           <div class="sel-desc">${v.marked ? 'Marked by the burning. Nothing frightens them now — and they will never lay down the sword.' : `A subject of ${state.name} under arms.`}</div>
         </div>`;
     } else if (kind === 'merc') {
@@ -492,7 +512,7 @@ export function buildUI(root, ctx) {
         <div class="sel-info">
           <div class="sel-name"><span class="bad">${unit.name}</span></div>
           <div class="sel-hp">HP ${Math.ceil(unit.hp)} · guarding the camp</div>
-          <div class="sel-desc">A sword sworn to ${c.warlord.name}. He stands between you and the hoard.</div>
+          <div class="sel-desc">A sword sworn to ${c.warlord.name}. ${pron(unit.name).He} stands between you and the hoard.</div>
         </div>`;
     } else if (kind === 'folk') {
       const c = state.camp;
@@ -697,7 +717,7 @@ export function buildUI(root, ctx) {
     popChip.querySelector('.amt').textContent = `${state.pop}/${state.popCap}`;
     popChip.classList.toggle('warn', state.starving);
     // 300/300 reads as a ceiling — say what raises it
-    popChip.title = state.pop >= state.popCap
+    popChip.title = state.popCap > 0 && state.pop >= state.popCap
       ? `Population ${state.pop} / housing ${state.popCap} — every bed is taken. Each house shelters 5 more.`
       : `Population ${state.pop} / housing ${state.popCap}`;
     // surplus grain is rotting — the food chip goes moldy until it's baked away

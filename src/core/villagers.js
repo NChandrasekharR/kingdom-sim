@@ -1,4 +1,4 @@
-import { SKILL, VILLAGER, BUILDINGS } from '../config.js';
+import { SKILL, VILLAGER, BUILDINGS, REFUGE } from '../config.js';
 import { roadTiles, marchOrStep, clearRoute } from './pathing.js';
 
 // Villagers are discrete agents: a job, a skill per craft, a stomach.
@@ -86,6 +86,8 @@ export function villagersMoveTick(state) {
     if (f < worstFrac) { worstFrac = f; worst = b; }
   }
 
+  const refuges = raidActive ? refugeBoard(state, keep, raiders) : null;
+
   for (const v of state.villagers) {
     if (v.job === 'soldier') continue;      // the soldier body is its own unit
     if (v.x == null) {                      // first breath: at the keep's gate
@@ -111,7 +113,13 @@ export function villagersMoveTick(state) {
     let tx, ty, commute = false, key = null;
     if (v.fleeing) {
       // terror does not follow roads: a fleeing civilian runs the shortest line
-      tx = keep.x + offset(v, 37); ty = keep.y + 1.5 + Math.abs(offset(v, 53));
+      // — to the nearest strongpoint with room and no raider at its door
+      const r = refuges ? takeRefuge(refuges, v) : null;
+      if (r && r.b !== keep) {
+        tx = r.b.x + offset(v, 37) * 0.6; ty = r.b.y + 0.8 + offset(v, 53) * 0.3;
+      } else {
+        tx = keep.x + offset(v, 37); ty = keep.y + 1.5 + Math.abs(offset(v, 53));
+      }
     } else if (v.job === 'producer' && byId.get(v.workplaceId)) {
       const b = byId.get(v.workplaceId);
       tx = b.x + offset(v, 37); ty = b.y + 0.8 + offset(v, 53) * 0.5;
@@ -142,6 +150,42 @@ export function villagersMoveTick(state) {
   }
 }
 
+// ── Refuges (HOMEOSTASIS.md §3) ─────────────────────────────────────
+// The strongpoints a fleeing worker can run for this tick: the keep (room for
+// all), and every intact, unsacked tower and barracks (a few each). A refuge
+// with a raider at its door is passed over. Occupancy counts the fleeing who
+// already hold a place there, so a tower fills and the next runner goes on.
+function refugeBoard(state, keep, raiders) {
+  const list = [];
+  for (const b of state.buildings) {
+    if (b.hp <= 0) continue;
+    const cap = b === keep ? Infinity : REFUGE.capacity[b.type];
+    if (!cap || b.sacked) continue;
+    if (b !== keep && raiders.some((rd) => Math.hypot(rd.x - b.x, rd.y - b.y) < REFUGE.unsafeRadius)) continue;
+    list.push({ b, cap, used: 0 });
+  }
+  const byId = new Map(list.map((r) => [r.b.id, r]));
+  for (const v of state.villagers) {
+    const r = v.fleeing && v.refugeId != null ? byId.get(v.refugeId) : null;
+    if (r) r.used++;
+    else if (v.refugeId != null) v.refugeId = null;   // fallen, sacked, or overrun: run on
+  }
+  return { list, byId };
+}
+
+function takeRefuge(board, v) {
+  const held = v.refugeId != null ? board.byId.get(v.refugeId) : null;
+  if (held) return held;
+  let best = null, bd = Infinity;
+  for (const r of board.list) {
+    if (r.used >= r.cap) continue;
+    const d = Math.hypot(r.b.x - v.x, r.b.y - v.y);
+    if (d < bd) { bd = d; best = r; }
+  }
+  if (best) { best.used++; v.refugeId = best.b.id; }
+  return best;
+}
+
 // Eject a worker from a sacked/falling building: they drop everything and run.
 // Nobody dies at their post — death happens only in the open (the hunt).
 export function ejectVillager(v) {
@@ -165,6 +209,11 @@ export function isInsideTower(state, v) {
 export function isSheltered(state, v) {
   if (v.x == null) return true;
   if (isInsideTower(state, v)) return true;
+  // inside a refuge: a tower or barracks that took them in, still standing
+  if (v.fleeing && v.refugeId != null) {
+    const r = state.buildings.find((b) => b.id === v.refugeId);
+    if (r && r.hp > 0 && !r.sacked && Math.hypot(r.x - v.x, r.y - v.y) <= REFUGE.radius) return true;
+  }
   for (const b of state.buildings) {
     if (b.hp <= 0) continue;
     if (b.type === 'keep') {

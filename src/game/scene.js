@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { MAP, T, TICK_MS, BUILDINGS, VILLAGER, FOREST } from '../config.js';
+import { MAP, T, TICK_MS, BUILDINGS, VILLAGER, FOREST, GARRISON } from '../config.js';
 import { canPlace, place, idx } from '../core/state.js';
 import { makeTextures } from './sprites.js';
 import { on, emit } from '../core/events.js';
@@ -488,12 +488,20 @@ export class KingdomScene extends Phaser.Scene {
       } else if (def?.range) {
         this.selGfx.lineStyle(1, 0xe9dfc8, 0.7);
         this.selGfx.strokeCircle(cx, cy, def.range * TILE);
+      } else if (this.ctx.placement === 'barracks') {
+        // the ground a garrison would hold, if it's raised out here
+        this.selGfx.lineStyle(1, 0xd9785a, 0.6);
+        this.selGfx.strokeCircle(cx, cy, GARRISON.radius * TILE);
       }
     }
     const sel = this.ctx.selected;
     if (sel && sel.hp > 0) {
       this.selGfx.lineStyle(1, 0xe0b04c, 1);
       this.selGfx.strokeRect(sel.x * TILE - 1, sel.y * TILE - 1, TILE + 2, TILE + 2);
+      if (sel.type === 'barracks' && sel.garrison) {
+        this.selGfx.lineStyle(1, 0xd9785a, 0.8);
+        this.selGfx.strokeCircle(sel.x * TILE + TILE / 2, sel.y * TILE + TILE / 2, GARRISON.radius * TILE);
+      }
     }
   }
 }

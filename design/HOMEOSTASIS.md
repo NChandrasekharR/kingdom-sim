@@ -58,7 +58,7 @@ Final reckoning:
 | Bread | 16,537 |
 | Food spoiled | 20,039 |
 | Kill/death ratio | 12.9 |
-| Masters lost | 34, mostly run down at remote extraction sites |
+| Masters lost | 34: 18 veteran soldiers fallen in battle, 16 craft masters run down at remote extraction sites |
 | Veins spent | 35 |
 | Hills flattened | 104 |
 | Raid size, wave 16 onward | 40–45 every time |
@@ -454,13 +454,14 @@ The variants:
 1. **The shipped curve is pinned at 40 for 20 years.** The formula's own wish
    reaches about 300 by Year 20. The cap does all the work. Confirms §2.1.
 2. **The first √ curve is too harsh for a wall-less defender.** The army
-   bleeds 16 soldiers a raid and collapses to 8. Masters lost nearly triple.
+   bleeds 16 soldiers a raid and collapses to 8. Masters lost (almost all
+   veteran soldiers, see the correction in §10.6) nearly triple.
    **`sqrtsoft` holds:**
    - raids grow from 42 to 60 across the game;
    - the three seeds whose army reached critical mass keep 105 soldiers;
    - losses settle at about 8 a raid;
-   - masters lost rise from 29 to 48. Remote extraction now costs something,
-     which is §3's argument made in numbers.
+   - masters lost rise from 29 to 48. *Corrected:* this is veteran soldiers
+     falling in bigger raids, not craft masters at remote sites (§10.6).
 3. **A flat cut to food yield is a poverty trap.** Every seed stalls at
    10 people with 6 farming: no wood, no houses, no growth, forever. *The
    opening depends on today's yield.*
@@ -544,9 +545,13 @@ What changes with the shipped curve:
   6 soldiers each instead of 2.
 - **Late warlord waves reach the cap of 90** (95 with the warlord and his
   sworn men).
-- **Masters lost roughly double** (29 to 57). Remote extraction now costs
-  something, which is the pressure §3's garrisons and refuges are meant to
-  answer. Until those ship, expect players to feel it at outlying mines.
+- **Masters lost roughly double** (29 to 57). **Correction (Campaign 16):**
+  `stats.mastersLost` also counts veteran soldiers who fall in battle, and in
+  these runs that is almost all of it. Craft masters actually run down in the
+  open number 0–8 per 30-year run. So this row measures veterans dying in
+  bigger raids, not remote extraction. The bot's mines sit close to the keep,
+  so it barely exercises the hunt; §3.4 measures remote losses with a
+  controlled probe instead.
 - **Army bistability is unchanged:** 3 of 5 seeds sustain about 105 soldiers,
   as in baseline.
 
@@ -586,9 +591,7 @@ curve, so the tables above stay reproducible.
 2. **Food as a constraint:** fertility per tile with tapering yields (§4.2.1),
    farms and docks as different bets (§4.2.2). Before shipping, re-run §10 with
    the fertility mechanic in place of the harness taper.
-3. **Regional defence slice:** barracks garrisons plus refuges (§3.3). Re-run
-   with the bot assigning garrisons to its extraction sites, and expect
-   masters lost to fall.
+3. **Done: regional defence slice.** Barracks garrisons plus refuges (§3.4).
 4. **Trade and gold sinks:** a second caravan, transport by weight, a road
    that can be cut, soldier wages (§6.3, §7). Charcoal (§5) only after these.
 5. **Late-game politics:** marked men as an internal actor, consequences
