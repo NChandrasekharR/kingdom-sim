@@ -25,6 +25,7 @@ export function tradeTick(state, rand) {
     m.visits++;
     m.bought = 0;        // fresh carts: the per-visit buy allowance resets
     m.prices = {};
+    m.ledger = {};       // this visit's trades, one journal line per resource and side
     for (const r of TRADABLE) {
       m.prices[r] = RES_INFO[r].base * (0.65 + rand());
     }
@@ -46,6 +47,30 @@ export function tradeTick(state, rand) {
 export function sellPrice(state, r) { return state.merchant.prices[r] || 0; }
 export function buyPrice(state, r) { return (state.merchant.prices[r] || 0) * MERCHANT.markup; }
 
+// One journal line per resource per side per visit, rewritten in place as the
+// lots go through: "Sold 310 stone to the caravan for 721 gold (4.9 → 0.8
+// each)." — not thirty "Sold 10 stone" lines (the Thornmere chronicle was
+// 1,650 of them, and they pushed the founding years out of the journal).
+function ledgerLine(state, side, r, qty, gold) {
+  const m = state.merchant;
+  const book = (m.ledger ||= {});
+  const key = `${side}:${r}`;
+  const each = gold / qty;
+  let e = book[key];
+  if (!e || !state.journal?.includes(e.entry)) {
+    e = book[key] = { qty: 0, gold: 0, first: each, entry: null };
+    journal(state, '', 'trade');
+    e.entry = state.journal[state.journal.length - 1];
+  }
+  e.qty += qty;
+  e.gold += gold;
+  const fmt = (x) => (x >= 10 ? Math.round(x) : x.toFixed(1));
+  const range = fmt(each) === fmt(e.first) ? `${fmt(each)} each` : `${fmt(e.first)} → ${fmt(each)} each`;
+  e.entry.text = side === 'sold'
+    ? `Sold ${e.qty} ${r} to the caravan for ${Math.round(e.gold)} gold (${range}).`
+    : `Bought ${e.qty} ${r} from the caravan for ${Math.round(e.gold)} gold (${range}).`;
+}
+
 export function sell(state, r, qty) {
   const m = state.merchant;
   if (m.status !== 'here' || !TRADABLE.includes(r)) return false;
@@ -54,7 +79,7 @@ export function sell(state, r, qty) {
   const gain = sellPrice(state, r) * qty;
   state.res[r] -= qty;
   state.res.gold += gain;
-  journal(state, `Sold ${qty} ${r} to the caravan for ${Math.round(gain)} gold.`, 'trade');
+  ledgerLine(state, 'sold', r, qty, gain);
   // flooding the market drops the price
   m.prices[r] *= Math.max(0.55, 1 - qty * 0.006);
   return true;
@@ -76,7 +101,7 @@ export function buy(state, r, qty) {
   state.res[r] += qty;
   m.bought = (m.bought || 0) + qty;
   state.stats.goodsBought = (state.stats.goodsBought || 0) + qty;
-  journal(state, `Bought ${qty} ${r} from the caravan for ${Math.round(cost)} gold.`, 'trade');
+  ledgerLine(state, 'bought', r, qty, cost);
   m.prices[r] *= 1 + qty * 0.004;
   return true;
 }

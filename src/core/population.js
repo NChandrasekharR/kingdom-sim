@@ -48,7 +48,12 @@ export function populationTick(state) {
     state.stats.foodSpoiled = (state.stats.foodSpoiled || 0) + spoiled;
   }
   if (spoiling && !state.spoiling) {
-    logEvent(state, 'Grain rots in the overflowing stores. Bake it into bread — bread keeps.', 'bad');
+    // name the binding constraint: a full realm's surplus rots because every
+    // bed is taken, not for want of a bakery (Thornmere: ten of these nags at
+    // 300/300, and the real answer was houses)
+    logEvent(state, state.pop >= state.popCap
+      ? 'Grain rots in the overflowing stores — and every bed is taken. Raise houses to feed more mouths, or bake the surplus into bread.'
+      : 'Grain rots in the overflowing stores. Bake it into bread — bread keeps.', 'bad');
   }
   state.spoiling = spoiling;
 

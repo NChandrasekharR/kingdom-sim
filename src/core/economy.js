@@ -3,6 +3,7 @@ import { idx, stoneTileStock, demolish } from './state.js';
 import { currentSeason } from './sim.js';
 import { logEvent, emit, journal } from './events.js';
 import { bestSkill, isMaster } from './villagers.js';
+import { theName } from './names.js';
 
 // ── The ground is finite ───────────────────────────────────────────
 // The same draw-down engine feeds three chains: a LUMBER camp cuts the
@@ -361,7 +362,7 @@ export function greatWorksTick(state) {
     const masters = crew.reduce((n, v) => n + (isMaster(v) ? 1 : 0), 0);
     if (!masters && !b.noMasterLogged) {
       b.noMasterLogged = true;
-      logEvent(state, `No master stands on the scaffold of the ${BUILDINGS[b.type].name} — the journeymen carry on at half pace.`, 'info');
+      logEvent(state, `No master stands on the scaffold of ${theName(BUILDINGS[b.type].name)} — the journeymen carry on at half pace.`, 'info');
     } else if (masters) b.noMasterLogged = false;
     if (rate <= 0.001) continue;
 
@@ -373,7 +374,7 @@ export function greatWorksTick(state) {
     b.progress += rate;
     const q1 = Math.floor((b.progress / gw.workTicks) * 4);
     if (q1 > q0 && q1 < 4) {
-      journal(state, `The ${BUILDINGS[b.type].name} rises — ${q1 * 25}% built.`, 'good');
+      journal(state, `${theName(BUILDINGS[b.type].name, true)} rises — ${q1 * 25}% built.`, 'good');
     }
 
     // half-a-tick tolerance: the staged draught totals EXACTLY the build's

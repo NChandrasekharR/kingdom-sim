@@ -549,6 +549,68 @@ the wood deadlock kills it first.
 
 ---
 
+## Campaign 15 — Homeostasis: the raid curve, lean food, charcoal (2026-10-02, `model/`)
+
+**Question:** after the Thornmere playthrough (pop pinned at 300 for 14 years,
+55k gold idle, 20 raids of exactly 40), which levers bring back late-game
+pressure without breaking the opening?
+
+**Method:** `sh model/homeostasis-batch.sh 30` → `node model/homeostasis-table.mjs`.
+8 variants × 5 seeds × 30 years against the real core. The bot is shaped like
+Thornmere: it stops housing at 300, keeps 35% under arms, buys iron, and never
+sells iron. The raid curve is switched with the new default-off knob
+`RAID.sizeCurve` (`raidSizeF`, `raids.js`). The live game is byte-identical:
+`simulate.mjs 12 42` matches before and after.
+
+**Findings** (full tables in `design/HOMEOSTASIS.md` §10):
+- **The shipped cap pins raids at 40 from Year 10.** The formula's own wish
+  reaches a median of 298 by Year 20.
+- **The √ curve at `6√p` is too harsh:** the army collapses to 8 and masters
+  lost nearly triple. **`4√p + 0.15·soldiers` holds:** raids grow from 42 to
+  60, armies past critical mass keep 105, losses are about 8 a raid.
+- **Halving farm and dock yield flat is a poverty trap:** 5/5 seeds stuck at
+  10 people. **Tapering to half by 200 people works:** 53–81% of people on the
+  land, spoilage halved, gold at Year 30 down 64%, stone exports down 67%, and
+  homeostasis moves from Year 13 to Year 17. One seed never reaches it.
+- **Charcoal ×3 alone has no measurable effect**, because direct iron imports
+  bypass the smelter.
+- **Armies are bistable** in every variant: around 105 with near-zero losses,
+  or 0–15 bleeding about 10 a raid with 25–70k gold they can't spend.
+- **Addendum, the shipping tune:** `sqrtsoft` made the opening harsher
+  (Year 1 raids 12 against 5) and early warlord waves about 69. Shipped
+  instead: `2 + 4.5√p + 0.15·soldiers`, warlord ×1.8, cap 90. Raids run 9 in
+  Years 1–3, early warlord waves 45, and late raids 58 costing about 6
+  soldiers each. Masters lost go from 29 to 57, almost all of them veteran
+  soldiers (corrected in Campaign 16: `stats.mastersLost` counts both). Every non-`shipped` harness
+  variant resets to the old curve, so the tables reproduce (HOMEOSTASIS.md
+  §10.6).
+
+---
+
+## Campaign 16 — Garrisons and refuges (2026-10-05, `model/`)
+
+**Question:** do the §3 garrison posts and refuges cut losses at outlying
+sites, and what do they cost?
+
+**Method:**
+- 30-year batch: `VARIANTS="preslice refuges garrisons" sh model/homeostasis-batch.sh 30`.
+  `preslice` reproduces the previous build exactly (checked on seeds 42 and 7).
+- Paired probes: `node model/defence-probe.mjs <refuges|garrisons> <seed> 15 20 3`.
+  Grow a realm to Year 15, snapshot it, then replay 3 years 20 times with
+  the feature on and off, each pair sharing a sim seed.
+
+**Findings** (tables in `design/HOMEOSTASIS.md` §3.4):
+- **Refuges:** craft masters lost 44 → 38 and 35 → 29. Workers hunted barely move.
+- **Garrisons charging at 3:1 odds:** soldiers fallen +8% and +30%. Even odds
+  (shipped) is neutral on seed 42 (509 → 517, veterans 118 → 86) and still
+  +26% on seed 99.
+- **The bot never builds the case garrisons exist for.** Big-army realms have
+  no remote hunting; small-army realms have the hunting but no soldiers to post.
+- **Correction:** `stats.mastersLost` counts veteran soldiers as well as craft
+  masters. Campaign 15's "masters lost doubled" was veterans.
+
+---
+
 ## Cumulative totals
 
 ~8,300 Monte Carlo runs across eleven `sim2` campaigns, plus the two Session-8

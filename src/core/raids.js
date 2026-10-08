@@ -1,7 +1,8 @@
-import { MAP, T, TERRAIN_INFO, BUILDINGS, RAIDER, RAID, SOLDIER, ROAD_SPEED_MULT, KEEP, COMBAT, SKILL, MERCENARY, HUNT, TRIBUTE, CAMP, GREAT_WORK, HERIOT } from '../config.js';
+import { MAP, T, TERRAIN_INFO, BUILDINGS, RAIDER, RAID, SOLDIER, ROAD_SPEED_MULT, KEEP, COMBAT, SKILL, MERCENARY, HUNT, TRIBUTE, CAMP, GREAT_WORK, HERIOT, GARRISON } from '../config.js';
 import { idx } from './state.js';
 import { prosperity } from './economy.js';
 import { logEvent, emit } from './events.js';
+import { pron, theName } from './names.js';
 import { killVillager, isMaster, ejectVillager, isSheltered, bestSkill } from './villagers.js';
 import { ensureCamp, claimCampByWarlord, warlordAvailable, warlordFell, warlordReturned, addPlunder, addTributeGold, massingUnderAssault, clearMassing } from './camp.js';
 
@@ -34,8 +35,7 @@ export function raidTick(state, rand) {
           (raid.wave + 1) % RAID.warlordEveryWaves === 0 && !c.unclaimed;
         raid.nextFromCamp = willBeWarlord || rand() < CAMP.raidFromCampChance;
         if (raid.nextFromCamp) {
-          let predicted = RAID.sizeBase + prosperity(state) / RAID.prosperityDivisor
-            + state.soldiers.length * RAID.militaryPressure;
+          let predicted = raidSizeF(state);
           if (willBeWarlord) predicted *= RAID.warlordSizeMult;
           predicted = Math.min(RAID.sizeCap, Math.max(1, Math.round(predicted)));
           // the TRUE size of the gathering (the props below are capped for the
@@ -83,7 +83,7 @@ export function raidTick(state, rand) {
       raid.incomingWarlord = wantWarlord;
       if (wantWarlord && state.camp?.avenger) {
         // the avenger cannot be bought — no rider, no demand, only the horn
-        logEvent(state, `${state.camp.warlord.name} marches. No rider comes. He wants no gold.`, 'raid');
+        logEvent(state, `${state.camp.warlord.name} marches. No rider comes. ${pron(state.camp.warlord.name).He} wants no gold.`, 'raid');
       } else if (wantWarlord && TRIBUTE.enabled) {
         const name = state.camp.warlord.name;
         const gold = Math.max(TRIBUTE.demandMin, Math.round(
@@ -129,6 +129,7 @@ export function raidTick(state, rand) {
     updateTowers(state);
   }
 
+  if (raid.phase !== 'active' && state.tick % 10 === 0) assignGarrisons(state);
   updateSoldiers(state, rand);
   // the hunt runs LAST: only raiders that survived the towers and the line of
   // soldiers get to run down civilians (the defense is the shield)
@@ -182,8 +183,7 @@ function spawnRaid(state, rand) {
 
   // wave size rides prosperity and your army; a raid that hurt last time
   // eases this one (rubber-band mercy), a fat unscathed kingdom gets none
-  let sizeF = RAID.sizeBase + prosperity(state) / RAID.prosperityDivisor
-    + state.soldiers.length * RAID.militaryPressure;
+  let sizeF = raidSizeF(state);
   const ease = 1 - (raid.lastSacked || 0) * RAID.easeAfterSack;
   sizeF *= Math.max(RAID.minSizeMult, Math.min(1.2, ease));
 
@@ -306,6 +306,16 @@ function spawnRaid(state, rand) {
       ? `${raid.raiders.length} raiders march out from ${state.camp.name}!`
       : `${raid.raiders.length} raiders storm in from the wilds!`, 'raid',
     `(from ${sx}, ${sy})`);
+}
+
+// the wave's raw size before warlord multipliers and the cap (RAID.sizeCurve)
+export function raidSizeF(state) {
+  if (RAID.sizeCurve === 'sqrt') {
+    const c = RAID.sqrtCurve;
+    return c.base + c.mult * Math.sqrt(prosperity(state) / 1000) + state.soldiers.length * c.military;
+  }
+  return RAID.sizeBase + prosperity(state) / RAID.prosperityDivisor
+    + state.soldiers.length * RAID.militaryPressure;
 }
 
 function pickTarget(state, rand) {
@@ -477,7 +487,7 @@ function updateRaiders(state, rand) {
               if (raid.tally) raid.tally.loot += take;
             }
             state.stats.worksSacked = (state.stats.worksSacked || 0) + 1;
-            logEvent(state, `The scaffold of the ${BUILDINGS[target.type].name} burns! ${undone > 0 ? `${undone}% of the work is undone` : 'The work is set back'} — and the staged draught is plundered.`, 'raid',
+            logEvent(state, `The scaffold of ${theName(BUILDINGS[target.type].name)} burns! ${undone > 0 ? `${undone}% of the work is undone` : 'The work is set back'} — and the staged draught is plundered.`, 'raid',
               `(at ${target.x}, ${target.y})`);
             state.raidShock = Math.min(40, state.raidShock + 12);
             // the unified death rule holds on the scaffold too: the crew
@@ -602,7 +612,7 @@ function updateTowers(state) {
           ? `${nearest.name} falls to the keep's archers.`
           : watchman
             ? `${nearest.name} falls to watchman ${watchman.name}'s arrow.`
-            : `${nearest.name} falls to tower arrows.`, 'good');
+            : `${nearest.name} falls to tower arrows.`, 'good', null, true);
       }
     }
   }
@@ -662,9 +672,10 @@ function resolveHunt(state, rand) {
         : `${prey.name} was run down in the open by ${rd.name}.`, 'bad',
         `(at ${Math.round(prey.x)}, ${Math.round(prey.y)})`);
     } else {
-      // escaped by a hair — a burst of terror-speed toward the keep
+      // escaped by a hair — a burst of terror-speed toward shelter
       ejectVillager(prey);
-      const keep = state.buildings.find((b) => b.type === 'keep');
+      const keep = (prey.refugeId != null && state.buildings.find((b) => b.id === prey.refugeId))
+        || state.buildings.find((b) => b.type === 'keep');
       if (keep) {
         const dx = keep.x - prey.x, dy = keep.y - prey.y;
         const d = Math.max(0.001, Math.hypot(dx, dy));
@@ -687,6 +698,47 @@ export function soldierSkill(state, s) {
 // soldier's today, but the retreat/heal/kill thresholds should not silently
 // skew if MERCENARY.hp is ever tuned apart from SOLDIER.hp.
 export function soldierMaxHp(s) { return s.merc ? MERCENARY.hp : SOLDIER.hp; }
+
+// ── Garrisons (HOMEOSTASIS.md §3) ──────────────────────────────────
+// A soldier's post: the garrison barracks they hold, or null for the field
+// army. Mercenaries never hold a post — sellswords serve the field.
+export function garrisonPost(state, s, posts = null) {
+  if (s.postId == null) return null;
+  if (posts) return posts.get(s.postId) || null;
+  const b = state.buildings.find((x) => x.id === s.postId);
+  return b && b.hp > 0 && b.garrison ? b : null;
+}
+const livePosts = (state) => new Map(state.buildings
+  .filter((b) => b.type === 'barracks' && b.hp > 0 && b.garrison).map((b) => [b.id, b]));
+
+// Fill the posts from the field army between raids (never mid-fight, never
+// from the host afield): each garrison barracks holds up to perBarracks of
+// your subjects, nearest first. A post that falls or is turned back to the
+// field releases its soldiers to the keep.
+export function assignGarrisons(state) {
+  const posts = state.buildings.filter((b) => b.type === 'barracks' && b.hp > 0 && b.garrison);
+  const held = new Map(posts.map((b) => [b.id, 0]));
+  for (const s of state.soldiers) {
+    if (s.postId == null) continue;
+    if (s.merc || !held.has(s.postId)) { s.postId = null; continue; }
+    held.set(s.postId, held.get(s.postId) + 1);
+  }
+  for (const b of posts) {
+    let need = SOLDIER.perBarracks - held.get(b.id);
+    while (need > 0) {
+      let pick = null, pd = Infinity;
+      for (const s of state.soldiers) {
+        if (s.merc || s.exp || s.hp <= 0 || s.postId != null) continue;
+        const d = Math.hypot(s.x - b.x, s.y - b.y);
+        if (d < pd) { pd = d; pick = s; }
+      }
+      if (!pick) return;   // the field army is spent — no one left to post
+      pick.postId = b.id;
+      clearRoute(pick);
+      need--;
+    }
+  }
+}
 
 // at most this many fresh A* routes per tick, per unit class — routes are
 // cached, so steady state costs nothing and only reshuffles pay
@@ -746,7 +798,14 @@ function updateSoldiers(state, rand) {
   }
   // force-ratio: outnumber the raiders → your soldiers take far less (Finding 8.1).
   // Only the HOME army counts — soldiers marching on the camp defend nothing here.
-  const homeArmy = state.soldiers.filter((so) => !so.exp);
+  // A garrison far from the fight is no help to it: only the field army and
+  // the posts with raiders inside their radius stand in this count.
+  const posts = livePosts(state);
+  const homeArmy = state.soldiers.filter((so) => {
+    if (so.exp) return false;
+    const p = garrisonPost(state, so, posts);
+    return !p || liveRaiders.some((rd) => Math.hypot(rd.x - p.x, rd.y - p.y) <= GARRISON.radius);
+  });
   const forceRatio = Math.min(1, liveRaiders.length / Math.max(1, homeArmy.length));
   // a living veteran on the field lets rookies season under fire
   const hasVeteran = homeArmy.some((so) => soldierSkill(state, so) >= COMBAT.veteranSkill);
@@ -758,9 +817,28 @@ function updateSoldiers(state, rand) {
   const cover = new Map();   // raider -> soldiers already on them
   const order = [...state.soldiers].sort((a, b) => (b.merc ? 1 : 0) - (a.merc ? 1 : 0));
 
+  // each post weighs its odds once: raiders inside its radius per posted sword
+  const postOdds = new Map();
+  for (const so of state.soldiers) {
+    const p = so.exp || so.hp <= 0 ? null : garrisonPost(state, so, posts);
+    if (!p) continue;
+    const o = postOdds.get(p.id) || { swords: 0, raiders: 0, p };
+    o.swords++;
+    postOdds.set(p.id, o);
+  }
+  for (const o of postOdds.values()) {
+    o.raiders = liveRaiders.filter((rd) => Math.hypot(rd.x - o.p.x, rd.y - o.p.y) <= GARRISON.radius).length;
+    o.shut = o.raiders > o.swords * GARRISON.sallyOdds;
+  }
+
   for (const s of order) {
     if (s.exp) continue;   // afield with the expedition — beyond the horn's reach
     s.px = s.x; s.py = s.y;
+    // a garrison holds its own ground: it meets only raiders inside its
+    // radius, whatever the field army's stance — and a broken one holds only
+    // its doorstep. It falls back to, mends at, and idles by its barracks.
+    const post = garrisonPost(state, s, posts);
+    const home = post || keep;
 
     // A badly-wounded veteran falls back to mend rather than die in the line —
     // if they're skilled enough to disengage and the keep isn't being stormed.
@@ -769,9 +847,9 @@ function updateSoldiers(state, rand) {
     const sSkill = soldierSkill(state, s);
     const retreating = !state.raid.keepBesieged &&
       s.hp < soldierMaxHp(s) * COMBAT.retreatBelowFrac && sSkill >= COMBAT.retreatSkillGate;
-    if (retreating && keep) {
+    if (retreating && home) {
       // a long fall-back is a march: take the road home
-      marchOrStep(state, s, keep.x, keep.y + 3, SOLDIER.speed, roads, pathBudget);
+      marchOrStep(state, s, home.x, home.y + (post ? 1 : 3), SOLDIER.speed, roads, pathBudget);
       // mend faster once clear of the fray (out of local danger)
       let localGang = 0;
       for (const rd of engageable) { if (Math.hypot(rd.x - s.x, rd.y - s.y) < 1.6) localGang++; }
@@ -779,12 +857,16 @@ function updateSoldiers(state, rand) {
       continue;
     }
 
-    const raiders = engageable;
+    const shut = post && (raid.routed || postOdds.get(post.id)?.shut);
+    const raiders = post
+      ? liveRaiders.filter((rd) => Math.hypot(rd.x - post.x, rd.y - post.y)
+        <= (shut ? GARRISON.routHold : GARRISON.radius))
+      : engageable;
     if (raiders.length) {
       // when the keep is besieged, every soldier rushes its attackers — target
       // the raider nearest the KEEP, not the one nearest to me. Allies already
       // covering a raider make him a worse pick (the line spreads out).
-      const anchor = (state.raid.keepBesieged && keep) ? keep : s;
+      const anchor = (state.raid.keepBesieged && keep && !post) ? keep : s;
       let nearest = null, nd = Infinity;
       for (const rd of raiders) {
         if (rd.hp <= 0) continue;
@@ -849,16 +931,16 @@ function updateSoldiers(state, rand) {
           state.stats.raidersKilled++;
           if (state.raid.tally) state.raid.tally.killed++;
           const killer = s.merc ? 'a mercenary blade' : (vet ? vet.name : 'your soldiers');
-          logEvent(state, `${nearest.name} is cut down by ${killer}${crit ? ' — a mighty blow!' : '.'}`, 'good');
+          logEvent(state, `${nearest.name} is cut down by ${killer}${crit ? ' — a mighty blow!' : '.'}`, 'good', null, true);
         }
       } else {
         // closing on a distant raider is a march (road it); inside four tiles
         // it's maneuvering and stays a straight line
         marchOrStep(state, s, nearest.x, nearest.y, SOLDIER.speed, roads, pathBudget, 0);
       }
-    } else if (keep) {
-      // drift back to a rally point by the keep
-      const rx = keep.x + (s.id % 3) - 1, ry = keep.y + 2 + ((s.id / 3) | 0) % 2;
+    } else if (home) {
+      // drift back to a rally point by the keep — or the garrison's barracks
+      const rx = home.x + (s.id % 3) - 1, ry = home.y + (post ? 1 : 2) + ((s.id / 3) | 0) % 2;
       marchOrStep(state, s, rx, ry, SOLDIER.speed, roads, pathBudget);
       s.hp = Math.min(soldierMaxHp(s), s.hp + 0.4); // rest and mend wounds between raids
     }
@@ -948,7 +1030,7 @@ function endRaid(state, rand, fled = false) {
   raid.nextFromCamp = undefined;
   clearMassing(state);
   // the danger passed: the fled come out of hiding and go back to work
-  for (const v of state.villagers) v.fleeing = false;
+  for (const v of state.villagers) { v.fleeing = false; v.refugeId = null; }
   raid.lastSacked = raid.sackedThisRaid || 0;
   raid.timer = quietGap(state, rand, raid.lastSacked);
 
@@ -1040,7 +1122,7 @@ export function recruitSoldier(state) {
   });
   logEvent(state, reserve
     ? `${recruit.name} takes up the sword once more${wasVeteran ? ' — a veteran returns to the line' : ''}.`
-    : `${recruit.name} takes up arms.`, 'good');
+    : `${recruit.name} takes up arms.`, 'good', null, true);
   return { ok: true };
 }
 

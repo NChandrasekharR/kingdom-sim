@@ -1,8 +1,9 @@
-import { MAP, T, BUILDINGS, TERRAIN_INFO, FOREST, DEPOSITS } from '../config.js';
+import { MAP, T, BUILDINGS, TERRAIN_INFO, FOREST, DEPOSITS, GARRISON } from '../config.js';
 import { generateMap } from './mapgen.js';
 import { logEvent } from './events.js';
 import { makeVillager } from './villagers.js';
 import { initTutorial, seedTutorialForLoadedSave } from './tutorial.js';
+import { theName } from './names.js';
 
 const KINGDOM_NAMES = [
   'Aldermere', 'Thornwick', 'Caer Bryn', 'Ravensholt', 'Duncastle',
@@ -199,7 +200,7 @@ export function canPlace(state, type, x, y) {
   // the Ladder of Great Works rises one tier at a time
   if (def.greatWork?.requires &&
       !state.buildings.some((b) => b.type === def.greatWork.requires && b.greatWorkDone)) {
-    return { ok: false, reason: `The ladder rises one Work at a time — complete the ${BUILDINGS[def.greatWork.requires].name} first` };
+    return { ok: false, reason: `The ladder rises one Work at a time — complete ${theName(BUILDINGS[def.greatWork.requires].name)} first` };
   }
   if (def.unique && state.buildings.some((b) => b.type === type && b.hp > 0)) {
     return { ok: false, reason: 'Already built' };
@@ -224,17 +225,24 @@ export function place(state, type, x, y) {
     state.territoryDirty = true;
   }
   logEvent(state, def.greatWork
-    ? `The foundations of the ${def.name} are laid — the masters gather their tools.`
+    ? `The foundations of ${theName(def.name)} are laid — the masters gather their tools.`
     : `${def.name} raised at (${x}, ${y}).`);
   return { ok: true };
 }
 
 function addBuilding(state, type, x, y) {
   const def = BUILDINGS[type];
-  state.buildings.push({
+  const b = {
     id: state.nextId++, type, x, y,
     hp: def.hp, maxHp: def.hp, assigned: 0,
-  });
+  };
+  // a barracks out on the frontier starts as a garrison post; one by the keep
+  // musters the field army (the player can flip either in the inspector)
+  if (type === 'barracks') {
+    const keep = state.buildings.find((k) => k.type === 'keep');
+    b.garrison = !!keep && Math.hypot(keep.x - x, keep.y - y) > GARRISON.autoDistance;
+  }
+  state.buildings.push(b);
   recomputeInfluence(state);
   state.buildingsDirty = true;
   state.territoryDirty = true;

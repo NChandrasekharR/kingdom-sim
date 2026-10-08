@@ -102,6 +102,8 @@ export function exportChronicle(state) {
   ];
   if (state._journalLost) {
     lines.push(`(the earliest pages are lost — the journal keeps the most recent entries only)`);
+  } else if (state._journalThinned) {
+    lines.push(`(the oldest births, trades and skirmish blows are thinned — every major event is kept)`);
   }
   let head = '';
   for (const e of state.journal || []) {
