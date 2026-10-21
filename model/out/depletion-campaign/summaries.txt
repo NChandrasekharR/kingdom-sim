@@ -1,0 +1,28 @@
+=== seed 8  baseline (25 y) ===
+
+Final: pop 15, gold 52, wood 0, territory 365, raids 15, buildings lost 0, crowns {"dominion":false,"plenty":false,"people":false}
+Depletion: campsBuilt 0 (relocations 0), liveLumber 0, depletedLumber 0, forestCleared 0/3584 tiles (0.0%), meanHpFrac 0.019
+=== seed 37  baseline (25 y) ===
+
+Final: pop 15, gold 42, wood 0, territory 365, raids 15, buildings lost 0, crowns {"dominion":false,"plenty":false,"people":false}
+Depletion: campsBuilt 0 (relocations 0), liveLumber 0, depletedLumber 0, forestCleared 0/2935 tiles (0.0%), meanHpFrac 0.019
+=== seed 42  baseline (25 y) ===
+
+Final: pop 510, gold 28747, wood 0, territory 342, raids 16, buildings lost 0, crowns {"dominion":false,"plenty":true,"people":true}
+Depletion: campsBuilt 54 (relocations 53), liveLumber 0, depletedLumber 54, forestCleared 85/3825 tiles (2.2%), meanHpFrac 0.018
+=== seed 7  baseline (25 y) ===
+
+Final: pop 909, gold 72156, wood 33, territory 645, raids 20, buildings lost 0, crowns {"dominion":false,"plenty":true,"people":true}
+Depletion: campsBuilt 66 (relocations 65), liveLumber 3, depletedLumber 63, forestCleared 146/5483 tiles (2.7%), meanHpFrac 0.709
+=== seed 123  baseline (25 y) ===
+
+Final: pop 810, gold 67256, wood 0, territory 568, raids 20, buildings lost 0, crowns {"dominion":false,"plenty":true,"people":true}
+Depletion: campsBuilt 72 (relocations 71), liveLumber 0, depletedLumber 72, forestCleared 122/3902 tiles (3.1%), meanHpFrac 0.099
+=== seed 8  TRADE (25 y) ===
+
+Final: pop 493, gold 29914, wood 42, territory 422, raids 18, buildings lost 0, crowns {"dominion":false,"plenty":true,"people":true}
+Depletion: campsBuilt 39 (relocations 38), liveLumber 3, depletedLumber 36, forestCleared 70/3584 tiles (2.0%), meanHpFrac 0.691, woodImport 280 wood for 840 gold
+=== seed 37  TRADE (25 y) ===
+
+Final: pop 347, gold 14703, wood 114, territory 414, raids 18, buildings lost 0, crowns {"dominion":false,"plenty":true,"people":true}
+Depletion: campsBuilt 20 (relocations 19), liveLumber 3, depletedLumber 17, forestCleared 41/2935 tiles (1.4%), meanHpFrac 0.775, woodImport 160 wood for 428 gold

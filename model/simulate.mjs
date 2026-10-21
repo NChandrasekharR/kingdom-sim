@@ -7,12 +7,15 @@ globalThis.localStorage = { getItem: () => null, setItem: () => {}, removeItem: 
 import { createState, canPlace, place, idx } from '../src/core/state.js';
 import { makeSim } from '../src/core/sim.js';
 import { recruitSoldier } from '../src/core/raids.js';
-import { sell } from '../src/core/trade.js';
+import { sell, buy, buyPrice } from '../src/core/trade.js';
 import { territorySize } from '../src/core/territory.js';
-import { MAP, SEASON_TICKS, BUILDINGS } from '../src/config.js';
+import { MAP, SEASON_TICKS, BUILDINGS, T } from '../src/config.js';
 
 const YEARS = Number(process.argv[2] || 12);
 const SEED = Number(process.argv[3] || 42);
+// TRADE=1 flips on the minimal wood-import rule (Q2 A/B). Off by default so the
+// instrumentation baseline stays clean.
+const TRADE = process.env.TRADE === '1';
 const N = MAP.size;
 
 const state = createState(SEED);
@@ -20,6 +23,29 @@ const sim = makeSim(state);
 
 const count = (t) => state.buildings.filter((b) => b.type === t && b.hp > 0).length;
 const foodEq = () => state.res.food + state.res.bread * 2;
+
+// ── Depletion instrumentation ──────────────────────────────────────
+// Total forest tiles standing at founding — the denominator for "how much of
+// the map's forest has been cleared by year N".
+let forestTilesAtStart = 0;
+for (let i = 0; i < N * N; i++) if (state.terrain[i] === T.FOREST) forestTilesAtStart++;
+
+// how many lumber camps have EVER been raised (relocations = campsBuilt - 1,
+// since the policy stands up a fresh camp each time rather than tearing one down)
+let campsBuilt = 0;
+const depletedLumber = () =>
+  state.buildings.filter((b) => b.type === 'lumber' && b.depleted).length;
+const liveLumber = () =>
+  state.buildings.filter((b) => b.type === 'lumber' && b.hp > 0 && !b.depleted).length;
+// mean HP fraction across all standing non-keep buildings — the treadmill gauge
+const meanHpFrac = () => {
+  const bs = state.buildings.filter((b) => b.hp > 0 && b.type !== 'keep');
+  if (!bs.length) return 1;
+  return bs.reduce((s, b) => s + b.hp / b.maxHp, 0) / bs.length;
+};
+// running tally of gold spent on structural wood imports (Q4)
+let woodImportGold = 0;
+let woodImportQty = 0;
 
 // find any claimed tile where `type` can be placed
 function findSpot(type) {
@@ -74,7 +100,7 @@ function playerPolicy() {
   // checks steer new sites to live stone/ore automatically.)
   const live = (t) => state.buildings.filter(
     (b) => b.type === t && b.hp > 0 && !b.depleted).length;
-  if (live('lumber') < 3 && tryBuild('lumber')) return;
+  if (live('lumber') < 3 && tryBuild('lumber')) { campsBuilt++; return; }
   if (live('quarry') < 2 && state.res.wood > 40 && tryBuild('quarry')) return;
   if (live('mine') < 2 && state.res.wood > 50 && tryBuild('mine')) return;
   if (count('smelter') < 1 && state.res.ore > 15 && tryBuild('smelter')) return;
@@ -92,6 +118,17 @@ function playerPolicy() {
 // sell surplus when the merchant is around (like a real player would)
 function tradePolicy() {
   if (state.merchant.status !== 'here') return;
+  // Q2 rescue rule (only when TRADE=1): when wood is critically short and the
+  // treasury can bear it, buy timber from the caravan — exactly the buy() a
+  // human would click. Kept minimal and clearly separate from the sell logic.
+  if (TRADE && state.res.wood < 10 && state.res.gold > 40) {
+    const qty = 20;
+    const price = buyPrice(state, 'wood');
+    if (state.res.gold - price * qty > 20 && buy(state, 'wood', qty)) {
+      woodImportGold += price * qty;
+      woodImportQty += qty;
+    }
+  }
   for (const r of ['wood', 'stone', 'food', 'iron']) {
     const keep = r === 'food' ? state.pop * 3 : 80;
     const surplus = Math.floor(state.res[r] - keep);
@@ -105,7 +142,10 @@ let lastBuildingCount = 1;
 
 const rows = [['year', 'season', 'pop', 'popCap', 'soldiers', 'territory',
   'food', 'bread', 'foodEq', 'wood', 'stone', 'ore', 'iron', 'gold',
-  'farms', 'bakeries', 'towers', 'buildings', 'morale', 'raidsSeen', 'buildingsLost']];
+  'farms', 'bakeries', 'towers', 'buildings', 'morale', 'raidsSeen', 'buildingsLost',
+  // depletion instrumentation
+  'liveLumber', 'depletedLumber', 'campsBuilt', 'forestCleared', 'forestClearedPct',
+  'meanHpFrac', 'woodImportGold', 'woodImportQty']];
 
 const TICKS = YEARS * SEASON_TICKS * 4;
 for (let t = 0; t < TICKS; t++) {
@@ -127,12 +167,16 @@ for (let t = 0; t < TICKS; t++) {
   if (state.tick % 60 === 0) {
     const year = 1 + Math.floor(state.tick / (SEASON_TICKS * 4));
     const season = Math.floor(state.tick / SEASON_TICKS) % 4;
+    const cleared = state.stats.forestCleared || 0;
     rows.push([year, season, state.pop, state.popCap, state.soldiers.length, territorySize(state),
       state.res.food.toFixed(0), state.res.bread.toFixed(0), foodEq().toFixed(0),
       state.res.wood.toFixed(0), state.res.stone.toFixed(0), state.res.ore.toFixed(0),
       state.res.iron.toFixed(0), state.res.gold.toFixed(0),
       count('farm'), count('bakery'), count('tower'), state.buildings.length,
-      state.morale.toFixed(0), raidDamage.raidsSeen, raidDamage.buildingsLost]);
+      state.morale.toFixed(0), raidDamage.raidsSeen, raidDamage.buildingsLost,
+      liveLumber(), depletedLumber(), campsBuilt, cleared,
+      (100 * cleared / forestTilesAtStart).toFixed(2),
+      meanHpFrac().toFixed(3), woodImportGold.toFixed(0), woodImportQty]);
   }
 }
 
@@ -141,6 +185,13 @@ const works = state.buildings
   .filter((b) => BUILDINGS[b.type].greatWork)
   .map((b) => `${b.type} ${b.greatWorkDone ? 'COMPLETE' : Math.floor(((b.progress || 0) / BUILDINGS[b.type].greatWork.workTicks) * 100) + '%'}`)
   .join(', ') || 'none';
-console.error(`\nFinal: pop ${state.pop}, gold ${state.res.gold.toFixed(0)}, territory ${territorySize(state)}, ` +
-  `raids ${raidDamage.raidsSeen}, buildings gone ${raidDamage.buildingsLost} (raid losses + struck spent camps), ` +
+const cleared = state.stats.forestCleared || 0;
+console.error(`\nFinal: pop ${state.pop}, gold ${state.res.gold.toFixed(0)}, wood ${state.res.wood.toFixed(0)}, ` +
+  `territory ${territorySize(state)}, raids ${raidDamage.raidsSeen}, ` +
+  `buildings gone ${raidDamage.buildingsLost} (raid losses + struck spent camps), ` +
   `crowns ${JSON.stringify(state.crowns)}, works: ${works}`);
+console.error(`Depletion: campsBuilt ${campsBuilt} (relocations ${Math.max(0, campsBuilt - 1)}), ` +
+  `liveLumber ${liveLumber()}, depletedLumber ${depletedLumber()}, ` +
+  `forestCleared ${cleared}/${forestTilesAtStart} tiles (${(100 * cleared / forestTilesAtStart).toFixed(1)}%), ` +
+  `meanHpFrac ${meanHpFrac().toFixed(3)}` +
+  (TRADE ? `, woodImport ${woodImportQty} wood for ${woodImportGold.toFixed(0)} gold` : ''));
