@@ -447,9 +447,12 @@ with the scripted player, 25 years (seed 7 also at 30), instrumented with
 `liveLumber`, `depletedLumber`, `campsBuilt`, `forestCleared`, and
 `meanHpFrac` (the treadmill gauge — mean building HP fraction). A `TRADE=1`
 rescue rule buys 20 wood from the caravan when wood < 10 and the treasury can
-bear it, exactly as a human would click. **Instrumentation and rescue rule are
-UNMERGED**, in worktree `agent-a7a5292f7f24eb425` (`5ff626c`, `8b50f30`,
-`87d8d72`) — see OPEN-QUESTIONS for the merge decision.
+bear it, exactly as a human would click. Instrumentation and rescue rule
+**merged to `main` 2026-10-21** (`5ff626c`, `8b50f30`, `87d8d72`, merge
+`37ae58a`); `run-all.sh`, the raw CSVs and `summaries.txt` are in
+`model/out/depletion-campaign/`. The game has changed since (the polish batch
+retuned `woodBase`, and the scripted player now relocates quarries and mines
+as well as camps), so a re-run measures today's game, not the one tabled here.
 
 **Finding 1 — the treadmill is a CLIFF, not a slope.** A kingdom does not
 decline as timber tightens. It runs healthy for two decades and then falls off

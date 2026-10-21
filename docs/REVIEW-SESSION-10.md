@@ -148,7 +148,7 @@ it is the ceiling on pop and on mobile.
   SHA produced it (six core commits since). Campaign 14A is unreproducible
   outright: its script directory and the worktree
   `agent-a7a5292f7f24eb425` do not exist on GitHub, and no branch carries
-  them. `build_workbook.py` has absolute macOS paths and bakes July rates.
+  them. *(Since resolved: merged to `main` 2026-10-21.)* `build_workbook.py` has absolute macOS paths and bakes July rates.
   `run.csv`/`run.log` are the 2026-07-09 snowball fossils.
 - **Bundle:** one 1,617 kB chunk (390 kB gzip), full Phaser import. No
   favicon. `.claude/launch.json` carries an absolute macOS path and port 5173

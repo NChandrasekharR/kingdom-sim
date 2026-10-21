@@ -71,8 +71,9 @@ Then the sediment:
   shares no code with `src/`, models nothing shipped after Session 4,
   reproduces its own outputs byte-for-byte, kept as the record of July's
   design. Nothing new is to be run against it.
-- `docs/SIMULATIONS.md`: mark Campaign 14A unreproducible (script directory
-  and worktree gone); add Campaign 15.
+- `docs/SIMULATIONS.md`: add Campaign 15. (Marking Campaign 14A
+  unreproducible is moot: its worktree was merged 2026-10-21, so the script
+  directory and harness are on `main`.)
 
 ### 0.4 Hygiene — small — S
 

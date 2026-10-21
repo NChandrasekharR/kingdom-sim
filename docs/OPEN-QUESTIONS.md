@@ -241,11 +241,12 @@ session or a call):
   values call, explicitly his), **Q4** (the guard ratio: 1:5? the single most
   load-bearing constant in the doc), and **Q9** (should thralls be sellable to
   the merchant — the one place the doc admits it flinched).
-- **(d) The wood-campaign instrumentation + `TRADE=1` rescue rule are
-  UNMERGED** — worktree `agent-a7a5292f7f24eb425` (`5ff626c`, `8b50f30`,
-  `87d8d72`). They produced Campaign 14A's numbers but never landed on `main`.
-  Merge, cherry-pick, or discard: pending. Merging costs nothing at runtime
-  (the rescue rule is env-gated) and keeps the campaign reproducible.
+- **(d) The wood-campaign instrumentation + `TRADE=1` rescue rule —
+  RESOLVED, MERGED 2026-10-21** (merge `37ae58a`, carrying `5ff626c`,
+  `8b50f30`, `87d8d72` from worktree `agent-a7a5292f7f24eb425`). The
+  `simulate.mjs` conflict kept both sides: `main`'s relocation-aware rule for
+  all three chains plus the branch's `campsBuilt` counter and Depletion
+  report. The rescue rule stays env-gated, so the default run is unchanged.
 
 **STANDING (carried, unchanged in substance):**
 1. **THE LONG PLAYTEST** — now **more** valuable than it has ever been. Two
