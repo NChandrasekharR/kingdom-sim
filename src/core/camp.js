@@ -48,22 +48,24 @@ const WARLORD_EPITHET = [
 
 // A camp-folk name no earlier camp has used. When every name has been spent
 // (a very long reign), names may return — but never an avenger's: that one
-// belongs to the Chronicle.
+// belongs to the Chronicle. Avengers are skipped on EVERY pick, not only after
+// the pool resets: a name minted just before a reset and made an avenger just
+// after it was free again, and the same Ash-Sworn rose twice (Campaign 17).
 function mintFolkName(state, id) {
   const used = (state.folkNamesUsed ||= []);
+  const retired = state.avengerNames || [];
   const n = FOLK_FIRST.length;
   const pick = () => {
     for (let k = 0; k < n; k++) {
       const cand = FOLK_FIRST[(id + k * 5) % n];   // 5 is coprime to n: visits every name
-      if (!used.includes(cand)) return cand;
+      if (!used.includes(cand) && !retired.includes(cand)) return cand;
     }
     return null;
   };
   let first = pick();
   if (!first) {
-    // the pool is spent: start over, keeping the avengers' names retired
+    // the pool is spent: start over (the avengers stay retired via pick)
     used.length = 0;
-    used.push(...(state.avengerNames || []));
     first = pick() || FOLK_FIRST[id % n];
   }
   used.push(first);

@@ -636,8 +636,10 @@ follows every named warlord from first line to last. ~50 s per reign alone,
   under the opportunist doctrine, which strikes while the lord is away.
 - **44 warlords killed with no line:** `warlordFell` returns early when the
   camp is ashes.
-- **Name-reuse bug:** an avenger's first name can be minted again for a
-  later camp's folk, so the same Ash-Sworn rises twice (4 reigns).
+- **Name-reuse bug:** an avenger's first name could be minted again for a
+  later camp's folk, so the same Ash-Sworn rose twice (4 reigns). Fixed the
+  same day; the four reigns rerun identically except for the names. The
+  committed records are the pre-fix measurement.
 - Seed 8 (wood deadlock, pop 15) and seed 18 (6 soldiers at pop 300, never
   marches) are bot/map artifacts, not doctrine results.
 

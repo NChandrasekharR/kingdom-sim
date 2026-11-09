@@ -226,7 +226,7 @@ The register belongs beside `docs/SIMULATIONS.md`. Its first entries:
 |---|---|---|
 | A successor inherits an avenger's grudge; his camp burns while he raids; he comes home to ashes | Chandra's live reign (Ravenmoor); mixed seed 10 | **Keep**, and give him an ending (§4.1) |
 | Two armies cross: the host burns the camp while its lord is at your walls | opportunist, up to 7 times a reign | **Keep**; it is the best scene the warlord systems make |
-| The same Ash-Sworn rises twice, from the ashes of her own camp | opportunist 9, 15; butcher 12, 13 | **Forbid**: a naming bug (§10 finding 7) |
+| The same Ash-Sworn rises twice, from the ashes of her own camp | opportunist 9, 15; butcher 12, 13 | **Forbid**: a naming bug, fixed 2026-11-09 (§10 finding 7) |
 | An avenger is named and killed at her hall within the year, eleven times a reign | butcher, median | **Undecided** (§11 Q6) |
 
 ---
@@ -302,13 +302,16 @@ How the 655 named warlords' stories ended:
    avenger at their hall, then punish rather than burn, and a successor
    claims the camp still flagged as avenger. One of them, in mixed seed 10,
    is named Kolgrim Crowfeeder.
-7. **A naming bug lets an avenger rise twice.** In four reigns (butcher 12
-   and 13, opportunist 9 and 15) the survivor of an avenger's own camp shares
-   the avenger's first name, so "Gyda the Ash-Sworn" comes again. Cause:
-   `mintFolkName` (`camp.js:52`) only retires avenger names when the 42-name
-   pool resets; a name minted before the last reset and made an avenger after
-   it is free again. Fix: skip `state.avengerNames` in `pick()` every time,
-   not only after a reset.
+7. **A naming bug let an avenger rise twice. FIXED 2026-11-09.** In four
+   reigns (butcher 12 and 13, opportunist 9 and 15) the survivor of an
+   avenger's own camp shared the avenger's first name, so "Gyda the
+   Ash-Sworn" came again. Cause: `mintFolkName` (`camp.js:52`) only retired
+   avenger names when the 42-name pool reset; a name minted before the last
+   reset and made an avenger after it was free again. Now `pick()` skips
+   `state.avengerNames` every time. Rerunning the four reigns changes only
+   the names (every battle, burning and loss identical); in opportunist 9
+   Ravenmoor's survivor is now Sana. One edge remains: once all 42 names are
+   avengers (about 150 years of butcher play) the fallback must reuse one.
 8. **Exile never happens.** No reign reached total dominion, so §4.1's exile
    branch is rare in practice; riding with the avenger is the case that
    matters.
@@ -338,8 +341,8 @@ duplicates; the avenger-side count (4) is exact.
    arrival instead of waiting at the camp to be killed; marked men cost
    something at home (`WHAT-IS-INTERESTING.md` §3a); or accept it as the
    ruthless player's reward.
-7. **The name-reuse bug** (§10 finding 7). A one-line fix; no design call,
-   only a go-ahead.
+7. ~~**The name-reuse bug** (§10 finding 7).~~ Fixed 2026-11-09 at
+   Chandra's go-ahead.
 
 ## 12. Not proposed
 

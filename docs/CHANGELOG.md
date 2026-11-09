@@ -12,6 +12,30 @@ Session 9 through `1a5a3f7` and went unrecorded at the time.
 
 ---
 
+## Session 11 — Fates: the warlord stories nobody wrote (2026-11-09)
+
+Prompted by Kolgrim Crowfeeder walking home to the ashes of Ravenmoor in
+Chandra's live reign, and being dropped from the game a line later.
+
+**Proposal.** `design/FATES.md`: a Chronicle line that promises a future is
+owed a later line that pays it off. Nothing built; seven decisions in §11.
+
+**Campaign 17.** `model/warlord-saga-run.mjs`, the first harness that marches
+on the camp and makes the victory choice: 120 reigns of 40 years across six
+war doctrines. The feud only ever comes from a massacre, the cruelest
+doctrine loses the fewest soldiers, and 16% of named warlords end with no
+closing line (FATES.md §10).
+
+**Fix: an avenger's name stays retired.** `mintFolkName` skipped avenger
+names only after the 42-name pool reset, so a name minted just before a
+reset and made an avenger just after it was free again: the survivor of
+Gyda the Ash-Sworn's own camp could be another Gyda, and the same Ash-Sworn
+rose twice (4 of 114 reigns). Avenger names are now skipped on every pick.
+Rerunning the four reigns changes only the names; every battle, burning and
+loss is identical.
+
+**Deployed** Session 10b to Vercel (see the note at the top).
+
 ## Session 10b — garrisons and refuges (2026-10-05)
 
 **Garrisons.** A barracks more than 10 tiles from the keep is a garrison post
