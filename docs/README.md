@@ -35,6 +35,7 @@ open questions, and pointers to the design docs and models.
 | [`REDESIGN.md`](../design/REDESIGN.md) | The redesign plan: HP-as-output core, villager units, the three pillars, unit taxonomy, risks. **The document for Fable's review.** |
 | [`FINDINGS.md`](../design/FINDINGS.md) | What the Monte Carlo simulator proved: 3 flaws found & fixed, collapse 100%→0%, now-too-easy, the smarter-player blocker. |
 | [`QUESTIONS.md`](../design/QUESTIONS.md) | The 6 design decisions for Fable (also folded into `OPEN-QUESTIONS.md` §A). |
+| [`FATES.md`](../design/FATES.md) | **PROPOSAL (2026-11-09):** every name the Chronicle makes a promise about gets an ending; open grudges as late-game wants; the blood-price. §10 holds Campaign 17, 120 headless warlord sagas. |
 
 ## The models & simulators
 

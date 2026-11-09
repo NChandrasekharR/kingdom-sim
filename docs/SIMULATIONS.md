@@ -612,6 +612,35 @@ sites, and what do they cost?
 - **Correction:** `stats.mastersLost` counts veteran soldiers as well as craft
   masters. Campaign 15's "masters lost doubled" was veterans.
 
+## Campaign 17 — Warlord sagas: how far the feud runs on its own (2026-11-09, `model/`)
+
+**Question:** left to run for 40 years under a fixed war doctrine, how
+extreme do the warlord stories get, and how many named warlords end without
+a line in the Chronicle (`design/FATES.md`)?
+
+**Method:** `PARALLEL=14 sh model/warlord-saga-batch.sh 40` (seeds 1–20 ×
+six doctrines: butcher, opportunist, mixed, merciful, payer, turtle), then
+`node model/warlord-saga-table.mjs > model/out/warlord-saga/TABLES.md`. The
+real `src/core/` on the shipped config; the homeostasis economy bot; the
+first harness to march on the camp and make the victory choice. Each run
+follows every named warlord from first line to last. ~50 s per reign alone,
+~20 min for the batch on 16 threads.
+
+**Findings** (tables in `design/FATES.md` §10):
+- **Massacre is the only source of avengers**, and the chain never ends on
+  its own: butcher median **11 Ash-Sworn generations** in 40 years.
+- **The cruelest doctrine loses the fewest soldiers:** butcher 85 fallen
+  (median), merciful 199, turtle 421. Avengers die at their own hall before
+  raiding; marked men are pure benefit.
+- **16% of named warlords end with no closing line** (106 of 655); 91 of 103
+  under the opportunist doctrine, which strikes while the lord is away.
+- **44 warlords killed with no line:** `warlordFell` returns early when the
+  camp is ashes.
+- **Name-reuse bug:** an avenger's first name can be minted again for a
+  later camp's folk, so the same Ash-Sworn rises twice (4 reigns).
+- Seed 8 (wood deadlock, pop 15) and seed 18 (6 soldiers at pop 300, never
+  marches) are bot/map artifacts, not doctrine results.
+
 ---
 
 ## Cumulative totals
