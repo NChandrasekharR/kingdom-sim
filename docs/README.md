@@ -46,9 +46,9 @@ open questions, and pointers to the design docs and models.
 ## The game itself (`../src/`)
 
 The Vite + Phaser game, now carrying the FULL redesign (everything through
-Session 7 is on `main`). The live deploy at
-https://kingdom-sim-fawn.vercel.app is current through Session 7 (deployed
-2026-07-20) — redeploy is manual (`npx vercel --prod`).
+Session 10b is on `main`). The live deploy at
+https://kingdom-sim-fawn.vercel.app is current with `main` through Session 10b
+(deployed 2026-11-09 from `8329ebf`) — redeploy is manual (`npx vercel --prod`).
 
 ---
 

@@ -5,8 +5,10 @@ Commit-level record of what shipped, newest session first. For the narrative see
 the sim numbers see [`SIMULATIONS.md`](SIMULATIONS.md).
 
 Everything is on `main` (Session 4 merged the Session-3 branch). The Vercel
-deploy is manual (`npx vercel --prod`) and current through **Session 8** —
-redeployed 2026-08-18 at Chandra's word, the full Session-8 stack included.
+deploy is manual (`npx vercel --prod`) and current through **Session 10b** —
+redeployed 2026-11-09 from `8329ebf` at Chandra's word (raid curve, chronicle
+fixes, garrisons and refuges). The deploy before it, 2026-09-01, carried
+Session 9 through `1a5a3f7` and went unrecorded at the time.
 
 ---
 
