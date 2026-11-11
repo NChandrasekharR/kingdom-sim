@@ -5,10 +5,11 @@ Commit-level record of what shipped, newest session first. For the narrative see
 the sim numbers see [`SIMULATIONS.md`](SIMULATIONS.md).
 
 Everything is on `main` (Session 4 merged the Session-3 branch). The Vercel
-deploy is manual (`npx vercel --prod`) and current through **Session 10b** —
-redeployed 2026-11-09 from `8329ebf` at Chandra's word (raid curve, chronicle
-fixes, garrisons and refuges). The deploy before it, 2026-09-01, carried
-Session 9 through `1a5a3f7` and went unrecorded at the time.
+deploy is manual (`npx vercel --prod`) and current through **Session 11** —
+redeployed 2026-11-11 from `26f4fe0` at Chandra's word (the avenger-name
+fix). Before it: 2026-11-09 from `8329ebf` (Session 10b: raid curve,
+chronicle fixes, garrisons and refuges), and 2026-09-01 from `1a5a3f7`
+(Session 9), which went unrecorded at the time.
 
 ---
 
@@ -34,7 +35,8 @@ rose twice (4 of 114 reigns). Avenger names are now skipped on every pick.
 Rerunning the four reigns changes only the names; every battle, burning and
 loss is identical.
 
-**Deployed** Session 10b to Vercel (see the note at the top).
+**Deployed** Session 10b to Vercel on 2026-11-09, and this fix on 2026-11-11
+(see the note at the top).
 
 ## Session 10b — garrisons and refuges (2026-10-05)
 

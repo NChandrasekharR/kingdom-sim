@@ -48,9 +48,9 @@ open questions, and pointers to the design docs and models.
 
 The Vite + Phaser game, now carrying the FULL redesign (everything through
 Session 10b is on `main`). The live deploy at
-https://kingdom-sim-fawn.vercel.app runs Session 10b (deployed 2026-11-09 from
-`8329ebf`); Session 11's avenger-name fix is on `main` but not yet deployed —
-redeploy is manual (`npx vercel --prod`).
+https://kingdom-sim-fawn.vercel.app is current with `main` through Session 11
+(deployed 2026-11-11 from `26f4fe0`, the avenger-name fix) — redeploy is
+manual (`npx vercel --prod`).
 
 ---
 
